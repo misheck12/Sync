@@ -84,208 +84,141 @@ For more information on the importance of a professional README for your reposit
 
 <details>
   <summary>Server</summary>
-  <ul>
-    <li><a href="https://expressjs.com/">Express.js</a></li>
-  </ul>
-</details>
+  <a name="readme-top"></a>
 
-<details>
-<summary>Database</summary>
-  <ul>
-    <li><a href="https://www.postgresql.org/">PostgreSQL</a></li>
-  </ul>
-</details>
+  # School Management System — Zambian Schools (Sync)
 
-<!-- Features -->
+  Executive summary
 
-### Key Features <a name="key-features"></a>
+  This project is a complete, affordable School Management System designed for Zambian primary and secondary schools. It replaces paper-based administration with a digital platform that improves fee collection, secures student records, simplifies attendance and grading, and strengthens parent–school communication.
 
-> Describe between 1-3 key features of the application.
+  Table of contents
 
-- **[key_feature_1]**
-- **[key_feature_2]**
-- **[key_feature_3]**
+  - [About](#about)
+  - [Problems We Solve](#problems)
+  - [Key Features](#features)
+  - [Architecture & Modules](#architecture)
+  - [Business Model & Benefits](#business-model)
+  - [Phase-Based Roadmap](#roadmap)
+  - [Impact Metrics](#impact)
+  - [Dev: Tech Stack & Getting Started](#dev)
+  - [Contributing & License](#contributing)
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+  ## **About** <a name="about"></a>
 
-<!-- LIVE DEMO -->
+  This platform digitizes the full student lifecycle (admission → placement → academic tracking → promotion) and core school operations (fees, attendance, reporting, communication). It targets low-bandwidth environments, supports local payment providers (MTN/Airtel), and is optimized for mobile-first use.
 
-## 🚀 Live Demo <a name="live-demo"></a>
+  ## **Problems We Solve** <a name="problems"></a>
 
-> Add a link to your deployed project.
+  - **Lost revenue** from untracked or late fee payments (25–40% recovery potential).
+  - **Missing student records** and audit trails during staff transitions.
+  - **Time-consuming attendance** and reporting for teachers.
+  - **Fragmented academic data**, manual report cards and lack of early-warning for struggling students.
+  - **Disconnected parents** with little visibility into fees, attendance and performance.
 
-- [Live Demo Link](https://google.com)
+  ## **Key Features** <a name="features"></a>
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+  - **Financial dashboard**: real-time payment status (Paid / Partial / Unpaid), payment plans, and collection analytics.
+  - **Automated reminders**: SMS/WhatsApp integration for fee reminders and alerts.
+  - **Student profiles**: complete academic, medical and transfer history with cloud backup and audit logs.
+  - **One-tap attendance**: period-based marking, late arrival reasons, and automated parent alerts.
+  - **Gradebook & reports**: Test1/Test2/Final scores, term averages, trend analytics, and automated report card generation.
+  - **Communication hub**: school-wide broadcasts, class messages, two-way teacher-parent messaging.
 
-<!-- GETTING STARTED -->
+  ## **Architecture & Modules** <a name="architecture"></a>
 
-## 💻 Getting Started <a name="getting-started"></a>
+  - **Student Lifecycle Management**: Admissions, class placement, promotions, document storage.
+  - **Academic Management**: Subjects, teachers, gradebook, report generation.
+  - **Financial Operations**: Configurable fee structures, receipts, payment plans, reminders.
+  - **Attendance Ecosystem**: Daily marking, pattern detection, government reporting exports.
+  - **Communication Hub**: SMS/WhatsApp gateway, notifications, announcements.
 
-> Describe how a new developer could make use of your project.
+  Data is stored in an encrypted relational database with daily backups and role-based access controls. The system is designed to be deployed on local Zambian servers (data residency) or cloud hosting where required.
 
-To get a local copy up and running, follow these steps.
+  ## **Business Model & Benefits** <a name="business-model"></a>
 
-### Prerequisites
+  - **Pricing (example)**: `ZMW 10/month` per student + `ZMW 500/month` development partnership + `ZMW 3,000` one-time domain.
+  - **Benefits**: recover lost fees (25–40%), save 50+ staff hours/month, eliminate paper costs, and improve parent satisfaction and retention.
 
-In order to run this project you need:
+  ## **Phase-Based Roadmap** <a name="roadmap"></a>
 
-<!--
-Example command:
+  - **Phase 1 (Weeks 1–4)**: Student profiles, class management, basic attendance, payment status dashboard.
+  - **Phase 2 (Weeks 5–8)**: Gradebook, report cards, parent portal, automated reminders.
+  - **Phase 3 (Weeks 9–12)**: Analytics, mobile teacher app, government compliance reporting, performance tuning.
 
-```sh
- gem install rails
-```
- -->
+  ## **Expected Impact Metrics** <a name="impact"></a>
 
-### Setup
+  - Fee collection time: 15+ hours/week → 2 hours/week (≈85% faster).
+  - Attendance recording: 30 min/class → 2 min/class (≈93% faster).
+  - Report card generation: 3–5 days → 30 minutes (≈95% faster).
+  - Student record retrieval: 10–15 minutes → 10 seconds (≈99% faster).
 
-Clone this repository to your desired folder:
+  Financial example (300-student school):
 
-<!--
-Example commands:
+  - Recovered fee revenue: `ZMW 192,000/year` (estimated)
+  - Administrative savings: `ZMW 144,000/year`
+  - Paper/printing savings: `ZMW 36,000/year`
+  - **Total annual benefit**: `ZMW 372,000`
 
-```sh
-  cd my-folder
-  git clone git@github.com:myaccount/my-project.git
-```
---->
+  ## **Dev: Tech Stack & Getting Started** <a name="dev"></a>
 
-### Install
+  Recommended stack (example):
 
-Install this project with:
+  - Backend: `Node.js` + `Express` or `Django` (Python)
+  - Database: `PostgreSQL`
+  - Frontend: `React` or `Vue` (mobile-first)
+  - Messaging: `Twilio` / `Africa's Talking` / direct `WhatsApp Business API`
+  - Payments: `MTN MoMo` / `Airtel Money` integrations
+  - Hosting: Local VPS or cloud with data-residency option
 
-<!--
-Example command:
+  Developer quickstart (example):
 
-```sh
-  cd my-project
-  gem install
-```
---->
+  1. Clone the repo
 
-### Usage
+  ```bash
+  git clone git@github.com:LYANGEND/Sync.git
+  cd Sync
+  ```
 
-To run the project, execute the following command:
+  2. Backend install example (Node):
 
-<!--
-Example command:
+  ```bash
+  cd backend
+  npm install
+  cp .env.example .env
+  # configure DB and messaging keys in .env
+  npm run migrate
+  npm run dev
+  ```
 
-```sh
-  rails server
-```
---->
+  3. Frontend:
 
-### Run tests
+  ```bash
+  cd frontend
+  npm install
+  npm run dev
+  ```
 
-To run tests, run the following command:
+  Notes: The repository currently contains this README only. Detailed scaffolding will be added under `backend/` and `frontend/` when the tech stack is chosen.
 
-<!--
-Example command:
+  ## **Contributing & Next Steps** <a name="contributing"></a>
 
-```sh
-  bin/rails test test/models/article_test.rb
-```
---->
+  - To contribute: open an issue or submit a PR describing the feature or bug.
+  - Next immediate deliverables: detailed Phase 1 MVP spec, database schema, and API contract.
 
-### Deployment
+  ## **License**
 
-You can deploy this project using:
+  This project is available under the `MIT` license.
 
-<!--
-Example:
+  ---
 
-```sh
+  If you want, I can now:
 
-```
- -->
+  - Produce a one-page `EXECUTIVE_SUMMARY.md` for stakeholders.
+  - Draft the Phase 1 MVP requirements and user stories.
+  - Start the database schema and core API endpoints.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+  Tell me which to do next.
 
-<!-- AUTHORS -->
+  <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## 👥 Authors <a name="authors"></a>
-
-> Mention all of the collaborators of this project.
-
-👤 **Author1**
-
-- GitHub: [@githubhandle](https://github.com/githubhandle)
-- Twitter: [@twitterhandle](https://twitter.com/twitterhandle)
-- LinkedIn: [LinkedIn](https://linkedin.com/in/linkedinhandle)
-
-👤 **Author2**
-
-- GitHub: [@githubhandle](https://github.com/githubhandle)
-- Twitter: [@twitterhandle](https://twitter.com/twitterhandle)
-- LinkedIn: [LinkedIn](https://linkedin.com/in/linkedinhandle)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- FUTURE FEATURES -->
-
-## 🔭 Future Features <a name="future-features"></a>
-
-> Describe 1 - 3 features you will add to the project.
-
-- [ ] **[new_feature_1]**
-- [ ] **[new_feature_2]**
-- [ ] **[new_feature_3]**
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- CONTRIBUTING -->
-
-## 🤝 Contributing <a name="contributing"></a>
-
-Contributions, issues, and feature requests are welcome!
-
-Feel free to check the [issues page](../../issues/).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- SUPPORT -->
-
-## ⭐️ Show your support <a name="support"></a>
-
-> Write a message to encourage readers to support your project
-
-If you like this project...
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- ACKNOWLEDGEMENTS -->
-
-## 🙏 Acknowledgments <a name="acknowledgements"></a>
-
-> Give credit to everyone who inspired your codebase.
-
-I would like to thank...
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- FAQ (optional) -->
-
-## ❓ FAQ (OPTIONAL) <a name="faq"></a>
-
-> Add at least 2 questions new developers would ask when they decide to use your project.
-
-- **[Question_1]**
-
-  - [Answer_1]
-
-- **[Question_2]**
-
-  - [Answer_2]
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- LICENSE -->
-
-## 📝 License <a name="license"></a>
-
-This project is [MIT](./LICENSE) licensed.
-
-_NOTE: we recommend using the [MIT license](https://choosealicense.com/licenses/mit/) - you can set it up quickly by [using templates available on GitHub](https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-a-license-to-a-repository). You can also use [any other license](https://choosealicense.com/licenses/) if you wish._
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
