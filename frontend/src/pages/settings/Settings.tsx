@@ -106,13 +106,14 @@ const Settings = () => {
     try {
       const payload = {
         ...settings,
+        currentTermId: settings.currentTermId === '' ? null : settings.currentTermId,
         smtpPort: settings.smtpPort === '' ? null : Number(settings.smtpPort),
       };
       await api.put('/settings', payload);
       alert('Settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save settings', error);
-      alert('Failed to save settings');
+    } catch (error: any) {
+      console.error('Failed to save settings', error.response?.data || error);
+      alert('Failed to save settings: ' + (error.response?.data?.errors?.[0]?.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
