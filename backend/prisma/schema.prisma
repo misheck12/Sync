@@ -1,0 +1,613 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BURSAR
+  TEACHER
+  SECRETARY
+  PARENT
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ACTIVE
+  TRANSFERRED
+  GRADUATED
+  DROPPED_OUT
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+  BANK_DEPOSIT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum AssessmentType {
+  EXAM
+  TEST
+  QUIZ
+  HOMEWORK
+  PROJECT
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum TopicStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  role          Role
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  classesManaged Class[]
+  paymentsRecorded Payment[]
+  attendanceRecorded Attendance[]
+  classMovementsRecorded ClassMovementLog[]
+  children Student[] @relation("ParentChildren")
+  assessmentsGraded AssessmentResult[]
+  studentProfile Student?
+  timetablePeriodsTaught TimetablePeriod[]
+  lessonPlans    LessonPlan[]
+  notifications  Notification[]
+  
+  // Chat Relations
+  conversationParticipants ConversationParticipant[]
+  messagesSent             Message[]
+
+  @@map("users")
+}
+
+model Student {
+  id              String        @id @default(uuid())
+  admissionNumber String        @unique
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          Gender
+  guardianName    String
+  guardianPhone   String
+  address         String?
+  status          StudentStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  classId         String
+  class           Class         @relation(fields: [classId], references: [id])
+  payments        Payment[]
+  attendance      Attendance[]
+  feeStructures   StudentFeeStructure[]
+  classMovements  ClassMovementLog[]
+  
+  parentId        String?
+  parent          User?         @relation("ParentChildren", fields: [parentId], references: [id])
+  
+  userId          String?       @unique
+  user            User?         @relation(fields: [userId], references: [id])
+
+  assessmentResults AssessmentResult[]
+  termResults       TermResult[]
+  termReports       StudentTermReport[]
+  submissions     AssessmentSubmission[]
+
+  @@map("students")
+}
+
+model Class {
+  id             String   @id @default(uuid())
+  name           String
+  gradeLevel     Int
+  teacherId      String
+  teacher        User     @relation(fields: [teacherId], references: [id])
+  academicTermId String
+  academicTerm   AcademicTerm @relation(fields: [academicTermId], references: [id])
+  
+  students       Student[]
+  attendance     Attendance[]
+  subjects       Subject[] @relation("ClassSubjects")
+  
+  incomingMovements ClassMovementLog[] @relation("ToClass")
+  outgoingMovements ClassMovementLog[] @relation("FromClass")
+  
+  assessments    Assessment[]
+  termResults    TermResult[]
+  termReports    StudentTermReport[]
+  timetablePeriods TimetablePeriod[]
+  topicProgress  TopicProgress[]
+  lessonPlans    LessonPlan[]
+
+  @@map("classes")
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes   Class[]  @relation("ClassSubjects")
+  assessments Assessment[]
+  termResults TermResult[]
+  timetablePeriods TimetablePeriod[]
+  topics          Topic[]
+  lessonPlans     LessonPlan[]
+
+  @@map("subjects")
+}
+
+model AcademicTerm {
+  id        String   @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+
+  classes      Class[]
+  feeTemplates FeeTemplate[]
+  assessments  Assessment[]
+  termResults  TermResult[]
+  studentReports StudentTermReport[]
+  timetablePeriods TimetablePeriod[]
+  lessonPlans    LessonPlan[]
+  
+  activeInSettings SchoolSettings?
+
+  @@map("academic_terms")
+}
+
+model SchoolSettings {
+  id                String   @id @default(uuid())
+  schoolName        String   @default("My School")
+  schoolAddress     String?
+  schoolPhone       String?
+  schoolEmail       String?
+  schoolWebsite     String?
+  logoUrl           String?
+  
+  // System Configuration
+  currentTermId     String?  @unique
+  currentTerm       AcademicTerm? @relation(fields: [currentTermId], references: [id])
+  
+  // Communication Settings (SMTP)
+  smtpHost          String?
+  smtpPort          Int?
+  smtpSecure        Boolean  @default(true)
+  smtpUser          String?
+  smtpPassword      String?
+  smtpFromEmail     String?
+  smtpFromName      String?
+
+  // Communication Settings (SMS)
+  smsProvider       String?  // e.g., 'TWILIO', 'AFRICASTALKING'
+  smsApiKey         String?
+  smsApiSecret      String?
+  smsSenderId       String?
+
+  updatedAt         DateTime @updatedAt
+
+  @@map("school_settings")
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      NotificationType @default(INFO)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model FeeTemplate {
+  id              String   @id @default(uuid())
+  name            String
+  amount          Decimal  @db.Decimal(10, 2)
+  academicTermId  String
+  academicTerm    AcademicTerm @relation(fields: [academicTermId], references: [id])
+  applicableGrade Int
+
+  studentFeeStructures StudentFeeStructure[]
+
+  @@map("fee_templates")
+}
+
+model StudentFeeStructure {
+  id            String   @id @default(uuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id])
+  feeTemplateId String
+  feeTemplate   FeeTemplate @relation(fields: [feeTemplateId], references: [id])
+  amountDue     Decimal  @db.Decimal(10, 2)
+  amountPaid    Decimal  @db.Decimal(10, 2) @default(0)
+  
+  @@map("student_fee_structures")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id])
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentDate     DateTime      @default(now())
+  method          PaymentMethod
+  referenceNumber String?
+  recordedByUserId String
+  recordedBy      User          @relation(fields: [recordedByUserId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@map("payments")
+}
+
+model Attendance {
+  id               String           @id @default(uuid())
+  studentId        String
+  student          Student          @relation(fields: [studentId], references: [id])
+  classId          String
+  class            Class            @relation(fields: [classId], references: [id])
+  date             DateTime
+  status           AttendanceStatus
+  recordedByUserId String
+  recordedBy       User             @relation(fields: [recordedByUserId], references: [id])
+
+  @@map("attendance")
+}
+
+model ClassMovementLog {
+  id              String   @id @default(uuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  fromClassId     String?
+  fromClass       Class?   @relation("FromClass", fields: [fromClassId], references: [id])
+  toClassId       String
+  toClass         Class    @relation("ToClass", fields: [toClassId], references: [id])
+  reason          String?
+  changedByUserId String?
+  changedBy       User?    @relation(fields: [changedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@map("class_movement_logs")
+}
+
+model Assessment {
+  id             String         @id @default(uuid())
+  title          String
+  type           AssessmentType
+  description    String?
+  
+  classId        String
+  class          Class          @relation(fields: [classId], references: [id])
+  subjectId      String
+  subject        Subject        @relation(fields: [subjectId], references: [id])
+  termId         String
+  term           AcademicTerm   @relation(fields: [termId], references: [id])
+  
+  totalMarks     Decimal        @db.Decimal(5, 2)
+  weight         Decimal        @db.Decimal(5, 2) // Percentage weight (e.g., 30 for 30%)
+  date           DateTime
+  
+  results        AssessmentResult[]
+  
+  isOnline       Boolean @default(false)
+  durationMinutes Int?
+  startTime      DateTime?
+  endTime        DateTime?
+  
+  questions      Question[]
+  submissions    AssessmentSubmission[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("assessments")
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+}
+
+model Question {
+  id            String @id @default(uuid())
+  assessmentId  String
+  assessment    Assessment @relation(fields: [assessmentId], references: [id])
+  text          String
+  type          QuestionType
+  points        Int
+  options       QuestionOption[]
+  correctAnswer String? // For auto-grading
+  
+  responses     StudentResponse[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean @default(false)
+  
+  @@map("question_options")
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
+model AssessmentSubmission {
+  id           String @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id])
+  startedAt    DateTime @default(now())
+  submittedAt  DateTime?
+  score        Decimal?
+  status       SubmissionStatus @default(IN_PROGRESS)
+  
+  responses    StudentResponse[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@map("assessment_submissions")
+}
+
+model StudentResponse {
+  id           String @id @default(uuid())
+  submissionId String
+  submission   AssessmentSubmission @relation(fields: [submissionId], references: [id])
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id])
+  answerText   String?
+  selectedOptionId String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([submissionId, questionId])
+  @@map("student_responses")
+}
+
+model AssessmentResult {
+  id             String     @id @default(uuid())
+  assessmentId   String
+  assessment     Assessment @relation(fields: [assessmentId], references: [id])
+  studentId      String
+  student        Student    @relation(fields: [studentId], references: [id])
+  
+  score          Decimal    @db.Decimal(5, 2)
+  remarks        String?
+  
+  gradedByUserId String
+  gradedBy       User       @relation(fields: [gradedByUserId], references: [id])
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@map("assessment_results")
+}
+
+model TermResult {
+  id             String       @id @default(uuid())
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  classId        String
+  class          Class        @relation(fields: [classId], references: [id])
+  subjectId      String
+  subject        Subject      @relation(fields: [subjectId], references: [id])
+  termId         String
+  term           AcademicTerm @relation(fields: [termId], references: [id])
+  
+  totalScore     Decimal      @db.Decimal(5, 2)
+  grade          String?
+  remarks        String?
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([studentId, subjectId, termId])
+  @@map("term_results")
+}
+
+model GradingScale {
+  id        String   @id @default(uuid())
+  grade     String   // "A"
+  minScore  Int      // 80
+  maxScore  Int      // 100
+  remark    String?  // "Excellent"
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("grading_scales")
+}
+
+model StudentTermReport {
+  id             String       @id @default(uuid())
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id])
+  termId         String
+  term           AcademicTerm @relation(fields: [termId], references: [id])
+  classId        String
+  class          Class        @relation(fields: [classId], references: [id])
+  
+  totalAttendance Int?        // Days present
+  totalDays       Int?        // Total school days
+  
+  classTeacherRemark String?
+  principalRemark    String?
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([studentId, termId])
+  @@map("student_term_reports")
+}
+
+model TimetablePeriod {
+  id             String       @id @default(uuid())
+  classId        String
+  class          Class        @relation(fields: [classId], references: [id])
+  subjectId      String
+  subject        Subject      @relation(fields: [subjectId], references: [id])
+  teacherId      String
+  teacher        User         @relation(fields: [teacherId], references: [id])
+  dayOfWeek      DayOfWeek
+  startTime      String       // "08:00"
+  endTime        String       // "08:40"
+  academicTermId String
+  academicTerm   AcademicTerm @relation(fields: [academicTermId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("timetable_periods")
+}
+
+model Topic {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  gradeLevel  Int      // 1-12
+  orderIndex  Int      @default(0)
+
+  progress    TopicProgress[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("topics")
+}
+
+model TopicProgress {
+  id          String   @id @default(uuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id])
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  status      TopicStatus @default(PENDING)
+  completedAt DateTime?
+
+  updatedAt   DateTime @updatedAt
+
+  @@unique([topicId, classId])
+  @@map("topic_progress")
+}
+
+model LessonPlan {
+  id            String   @id @default(uuid())
+  teacherId     String
+  teacher       User     @relation(fields: [teacherId], references: [id])
+  classId       String
+  class         Class    @relation(fields: [classId], references: [id])
+  subjectId     String
+  subject       Subject  @relation(fields: [subjectId], references: [id])
+  termId        String
+  term          AcademicTerm @relation(fields: [termId], references: [id])
+  
+  weekStartDate DateTime
+  title         String
+  content       String   @db.Text
+  fileUrl       String?  // For uploaded files
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("lesson_plans")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@map("messages")
+}
