@@ -12,7 +12,8 @@ import {
   Clock,
   FileText,
   Edit2,
-  History
+  History,
+  GraduationCap
 } from 'lucide-react';
 
 interface Payment {
@@ -41,6 +42,12 @@ interface FeeStructure {
   };
 }
 
+interface Scholarship {
+  id: string;
+  name: string;
+  percentage: number;
+}
+
 interface Student {
   id: string;
   firstName: string;
@@ -55,6 +62,8 @@ interface Student {
   guardianPhone: string;
   address: string;
   status: string;
+  scholarshipId?: string;
+  scholarship?: Scholarship;
   payments: Payment[];
   feeStructures: FeeStructure[];
   classMovements: ClassMovement[];
@@ -67,6 +76,8 @@ const StudentProfile = () => {
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showScholarshipModal, setShowScholarshipModal] = useState(false);
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     method: 'CASH',
@@ -84,11 +95,33 @@ const StudentProfile = () => {
     }
   };
 
+  const fetchScholarships = async () => {
+    try {
+      const response = await api.get('/scholarships');
+      setScholarships(response.data);
+    } catch (error) {
+      console.error('Failed to fetch scholarships', error);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       fetchStudent();
+      fetchScholarships();
     }
   }, [id]);
+
+  const handleScholarshipUpdate = async (scholarshipId: string | null) => {
+    if (!student) return;
+    try {
+      await api.put(`/students/${student.id}`, { scholarshipId });
+      setShowScholarshipModal(false);
+      fetchStudent();
+    } catch (error) {
+      console.error('Failed to update scholarship', error);
+      alert('Failed to update scholarship');
+    }
+  };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +254,29 @@ const StudentProfile = () => {
                   <Calendar size={16} className="text-gray-400" />
                   <p className="text-gray-900">{new Date(student.dateOfBirth).toLocaleDateString()}</p>
                 </div>
+              </div>
+              
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-medium text-gray-500 uppercase">Scholarship</label>
+                  <button 
+                    onClick={() => setShowScholarshipModal(true)}
+                    className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                  >
+                    {student.scholarship ? 'Change' : 'Add'}
+                  </button>
+                </div>
+                {student.scholarship ? (
+                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-purple-700 font-medium mb-1">
+                      <GraduationCap size={16} />
+                      {student.scholarship.name}
+                    </div>
+                    <p className="text-sm text-purple-600">{student.scholarship.percentage}% Discount</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No scholarship assigned</p>
+                )}
               </div>
             </div>
           </div>
@@ -413,6 +469,48 @@ const StudentProfile = () => {
             </div>
             <button 
               onClick={() => setShowStatusModal(false)}
+              className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showScholarshipModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h2 className="text-xl font-bold mb-4">Assign Scholarship</h2>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <button
+                onClick={() => handleScholarshipUpdate(null)}
+                className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                  !student.scholarshipId
+                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className="font-medium">None</div>
+                <div className="text-xs opacity-75">Remove scholarship</div>
+              </button>
+              
+              {scholarships.map((scholarship) => (
+                <button
+                  key={scholarship.id}
+                  onClick={() => handleScholarshipUpdate(scholarship.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                    student.scholarshipId === scholarship.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <div className="font-medium">{scholarship.name}</div>
+                  <div className="text-xs opacity-75">{scholarship.percentage}% Discount</div>
+                </button>
+              ))}
+            </div>
+            <button 
+              onClick={() => setShowScholarshipModal(false)}
               className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
             >
               Cancel

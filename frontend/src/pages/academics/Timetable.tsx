@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, BookOpen, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, User, BookOpen, Plus, Trash2, AlertCircle, Users } from 'lucide-react';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 

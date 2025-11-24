@@ -104,3 +104,219 @@ export const markAllAsRead = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to update notifications' });
   }
 };
+
+const sendMessageSchema = z.object({
+  conversationId: z.string().uuid().optional(),
+  recipientId: z.string().uuid().optional(),
+  content: z.string().min(1),
+});
+
+export const getConversations = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: userId
+          }
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                role: true,
+                email: true
+              }
+            }
+          }
+        },
+        messages: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+
+    const formatted = conversations.map(c => {
+      const otherParticipants = c.participants
+        .filter(p => p.userId !== userId)
+        .map(p => p.user);
+      
+      const lastMessage = c.messages[0];
+      
+      return {
+        id: c.id,
+        participants: otherParticipants,
+        lastMessage: lastMessage ? {
+          content: lastMessage.content,
+          createdAt: lastMessage.createdAt,
+          isRead: lastMessage.isRead,
+          senderId: lastMessage.senderId
+        } : null,
+        updatedAt: c.updatedAt
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ message: 'Failed to fetch conversations' });
+  }
+};
+
+export const getMessages = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { conversationId } = req.params;
+    
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId: userId!
+        }
+      }
+    });
+
+    if (!participant) {
+      return res.status(403).json({ message: 'Not a participant in this conversation' });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true
+          }
+        }
+      }
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ message: 'Failed to fetch messages' });
+  }
+};
+
+export const sendMessage = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { conversationId, recipientId, content } = sendMessageSchema.parse(req.body);
+
+    let targetConversationId = conversationId;
+
+    if (!targetConversationId) {
+      if (!recipientId) {
+        return res.status(400).json({ message: 'Recipient ID is required for new conversation' });
+      }
+
+      const existing = await prisma.conversation.findFirst({
+        where: {
+          AND: [
+            { participants: { some: { userId: userId } } },
+            { participants: { some: { userId: recipientId } } }
+          ]
+        }
+      });
+
+      if (existing) {
+        targetConversationId = existing.id;
+      } else {
+        const newConv = await prisma.conversation.create({
+          data: {
+            participants: {
+              create: [
+                { userId: userId! },
+                { userId: recipientId }
+              ]
+            }
+          }
+        });
+        targetConversationId = newConv.id;
+      }
+    }
+
+    const message = await prisma.message.create({
+      data: {
+        conversationId: targetConversationId!,
+        senderId: userId!,
+        content
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true
+          }
+        }
+      }
+    });
+
+    await prisma.conversation.update({
+      where: { id: targetConversationId },
+      data: { updatedAt: new Date() }
+    });
+
+    res.json(message);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: error.errors });
+    }
+    console.error('Send message error:', error);
+    res.status(500).json({ message: 'Failed to send message' });
+  }
+};
+
+export const searchUsers = async (req: Request, res: Response) => {
+  try {
+    const { query } = req.query;
+    const currentUserId = (req as any).user?.userId;
+
+    if (!query || typeof query !== 'string' || query.length < 2) {
+      return res.json([]);
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { fullName: { contains: query, mode: 'insensitive' } },
+              { email: { contains: query, mode: 'insensitive' } }
+            ]
+          },
+          { id: { not: currentUserId } },
+          { isActive: true }
+        ]
+      },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        email: true
+      },
+      take: 10
+    });
+
+    res.json(users);
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ message: 'Failed to search users' });
+  }
+};

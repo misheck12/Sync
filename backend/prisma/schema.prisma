@@ -110,6 +110,10 @@ model Student {
   // Relations
   classId         String
   class           Class         @relation(fields: [classId], references: [id])
+  
+  scholarshipId   String?
+  scholarship     Scholarship?  @relation(fields: [scholarshipId], references: [id])
+
   payments        Payment[]
   attendance      Attendance[]
   feeStructures   StudentFeeStructure[]
@@ -610,4 +614,18 @@ model Message {
   createdAt      DateTime     @default(now())
 
   @@map("messages")
+}
+
+model Scholarship {
+  id          String   @id @default(uuid())
+  name        String
+  percentage  Decimal  @db.Decimal(5, 2) // 0-100
+  description String?
+
+  students    Student[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("scholarships")
 }

@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
-import { Send, Mail, Bell, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Mail, Bell, Users, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import ChatInterface from './ChatInterface';
+import { useAuth } from '../../context/AuthContext';
 
 const ROLES = ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT', 'STUDENT'];
 
 const Communication = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'announcements' | 'messages'>('announcements');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
@@ -12,6 +16,15 @@ const Communication = () => {
   const [sendNotification, setSendNotification] = useState(true);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const canSendAnnouncements = ['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER'].includes(user?.role || '');
+  const canChat = ['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER', 'PARENT'].includes(user?.role || '');
+
+  useEffect(() => {
+    if (!canSendAnnouncements && canChat) {
+      setActiveTab('messages');
+    }
+  }, [canSendAnnouncements, canChat]);
 
   const handleRoleToggle = (role: string) => {
     setTargetRoles(prev => 
@@ -53,132 +66,172 @@ const Communication = () => {
     }
   };
 
+  if (!canSendAnnouncements && !canChat) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto text-center text-gray-500">
+        You do not have permission to access this page.
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Communication Hub</h1>
-        <p className="text-gray-500">Send announcements via Email and In-App Notifications</p>
+        <p className="text-gray-500">Manage announcements and messages</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50">
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-            <Send size={20} className="text-blue-600" />
-            New Announcement
-          </h2>
+      <div className="flex gap-4 mb-6">
+        {canSendAnnouncements && (
+          <button
+            onClick={() => setActiveTab('announcements')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'announcements'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Announcements
+          </button>
+        )}
+        {canChat && (
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'messages'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <MessageSquare size={18} />
+            Messages
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'messages' && canChat ? (
+        <ChatInterface />
+      ) : canSendAnnouncements ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Send size={20} className="text-blue-600" />
+              New Announcement
+            </h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {status && (
+              <div className={`p-4 rounded-lg flex items-center gap-2 ${
+                status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}>
+                {status.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                {status.message}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                placeholder="e.g. School Closure Notice"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <textarea
+                rows={6}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                placeholder="Type your announcement here..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                <Users size={16} />
+                Target Audience (Leave empty for ALL users)
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {ROLES.map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => handleRoleToggle(role)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                      targetRoles.includes(role)
+                        ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {role.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
+                sendNotification ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={sendNotification}
+                  onChange={(e) => setSendNotification(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${sendNotification ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">In-App Notification</p>
+                    <p className="text-xs text-gray-500">Show in dashboard bell icon</p>
+                  </div>
+                </div>
+                {sendNotification && <CheckCircle size={20} className="ml-auto text-blue-600" />}
+              </label>
+
+              <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
+                sendEmail ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${sendEmail ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                    <Mail size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Email Broadcast</p>
+                    <p className="text-xs text-gray-500">Send to registered email addresses</p>
+                  </div>
+                </div>
+                {sendEmail && <CheckCircle size={20} className="ml-auto text-blue-600" />}
+              </label>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button
+                type="submit"
+                disabled={sending || (!sendEmail && !sendNotification)}
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+              >
+                <Send size={18} />
+                {sending ? 'Sending...' : 'Send Announcement'}
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {status && (
-            <div className={`p-4 rounded-lg flex items-center gap-2 ${
-              status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
-              {status.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-              {status.message}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="e.g. School Closure Notice"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-            <textarea
-              rows={6}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="Type your announcement here..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-              <Users size={16} />
-              Target Audience (Leave empty for ALL users)
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {ROLES.map(role => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleToggle(role)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
-                    targetRoles.includes(role)
-                      ? 'bg-blue-100 text-blue-700 border-blue-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {role.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-            <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
-              sendNotification ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-            }`}>
-              <input
-                type="checkbox"
-                checked={sendNotification}
-                onChange={(e) => setSendNotification(e.target.checked)}
-                className="sr-only"
-              />
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${sendNotification ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                  <Bell size={20} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">In-App Notification</p>
-                  <p className="text-xs text-gray-500">Show in dashboard bell icon</p>
-                </div>
-              </div>
-              {sendNotification && <CheckCircle size={20} className="ml-auto text-blue-600" />}
-            </label>
-
-            <label className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
-              sendEmail ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-            }`}>
-              <input
-                type="checkbox"
-                checked={sendEmail}
-                onChange={(e) => setSendEmail(e.target.checked)}
-                className="sr-only"
-              />
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${sendEmail ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                  <Mail size={20} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Email Broadcast</p>
-                  <p className="text-xs text-gray-500">Send to registered email addresses</p>
-                </div>
-              </div>
-              {sendEmail && <CheckCircle size={20} className="ml-auto text-blue-600" />}
-            </label>
-          </div>
-
-          <div className="flex justify-end pt-4">
-            <button
-              type="submit"
-              disabled={sending || (!sendEmail && !sendNotification)}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
-            >
-              <Send size={18} />
-              {sending ? 'Sending...' : 'Send Announcement'}
-            </button>
-          </div>
-        </form>
-      </div>
+      ) : null}
     </div>
   );
 };

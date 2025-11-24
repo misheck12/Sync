@@ -14,6 +14,7 @@ const createStudentSchema = z.object({
   guardianPhone: z.string(),
   address: z.string().optional(),
   classId: z.string().uuid(),
+  scholarshipId: z.string().uuid().optional().nullable(),
 });
 
 const updateStudentSchema = createStudentSchema.partial().extend({
@@ -65,6 +66,7 @@ export const getStudentById = async (req: Request, res: Response) => {
       where: { id },
       include: {
         class: true,
+        scholarship: true,
         payments: {
           orderBy: { paymentDate: 'desc' }
         },

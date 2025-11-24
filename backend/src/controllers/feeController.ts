@@ -69,9 +69,10 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Fee template not found' });
     }
 
-    // 2. Get all students in the class
+    // 2. Get all students in the class with their scholarship info
     const students = await prisma.student.findMany({
       where: { classId: classId, status: 'ACTIVE' },
+      include: { scholarship: true },
     });
 
     if (students.length === 0) {
@@ -81,16 +82,25 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
     // 3. Create StudentFeeStructure records for each student
     // We use a transaction to ensure all or nothing
     const result = await prisma.$transaction(
-      students.map((student) =>
-        prisma.studentFeeStructure.create({
+      students.map((student) => {
+        let amountDue = Number(feeTemplate.amount);
+        
+        // Apply scholarship if exists
+        if (student.scholarship) {
+          const discountPercentage = Number(student.scholarship.percentage);
+          const discountAmount = (amountDue * discountPercentage) / 100;
+          amountDue = Math.max(0, amountDue - discountAmount);
+        }
+
+        return prisma.studentFeeStructure.create({
           data: {
             studentId: student.id,
             feeTemplateId: feeTemplate.id,
-            amountDue: feeTemplate.amount,
+            amountDue: amountDue, // Prisma handles number to Decimal conversion
             amountPaid: 0,
           },
-        })
-      )
+        });
+      })
     );
 
     res.status(200).json({

@@ -102,7 +102,7 @@ function App() {
               } />
 
               <Route path="/communication" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN']}>
+                <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT']}>
                   <Communication />
                 </RoleGuard>
               } />

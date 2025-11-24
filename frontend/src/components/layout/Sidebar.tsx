@@ -48,7 +48,7 @@ const Sidebar = () => {
       icon: MessageSquare, 
       label: 'Communication', 
       path: '/communication', 
-      roles: ['SUPER_ADMIN'] 
+      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT'] 
     },
     { 
       icon: Settings, 

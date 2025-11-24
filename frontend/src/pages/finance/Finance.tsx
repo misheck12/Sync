@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Check } from 'lucide-react';
+import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Check, GraduationCap } from 'lucide-react';
 import api from '../../utils/api';
+import Scholarships from './Scholarships';
 
 interface Payment {
   id: string;
@@ -45,7 +46,7 @@ interface Class {
 }
 
 const Finance = () => {
-  const [activeTab, setActiveTab] = useState<'payments' | 'fees'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'fees' | 'scholarships'>('payments');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
@@ -247,9 +248,21 @@ const Finance = () => {
         >
           Fee Structures
         </button>
+        <button
+          onClick={() => setActiveTab('scholarships')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'scholarships' 
+              ? 'bg-white text-slate-800 shadow-sm' 
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Scholarships
+        </button>
       </div>
 
-      {activeTab === 'payments' ? (
+      {activeTab === 'scholarships' ? (
+        <Scholarships />
+      ) : activeTab === 'payments' ? (
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
