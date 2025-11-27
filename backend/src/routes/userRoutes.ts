@@ -1,10 +1,14 @@
 import { Router } from 'express';
-import { getTeachers, getUsers, createUser, updateUser, toggleUserStatus } from '../controllers/userController';
+import { getTeachers, getUsers, createUser, updateUser, toggleUserStatus, getProfile, updateProfile } from '../controllers/userController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 
 const router = Router();
 
 router.use(authenticateToken);
+
+// Profile routes - available to all authenticated users
+router.get('/profile', getProfile);
+router.put('/profile', updateProfile);
 
 router.get('/teachers', getTeachers);
 

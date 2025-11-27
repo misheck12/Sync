@@ -161,3 +161,96 @@ export const toggleUserStatus = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to toggle user status' });
   }
 };
+
+// Profile endpoints - for logged in user to manage their own profile
+const updateProfileSchema = z.object({
+  fullName: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(6).optional(),
+});
+
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+};
+
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    const { fullName, email, currentPassword, newPassword } = updateProfileSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const data: any = {};
+    
+    if (fullName) data.fullName = fullName;
+    if (email && email !== user.email) {
+      // Check if email is already taken
+      const existingUser = await prisma.user.findFirst({ where: { email, NOT: { id: userId } } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+      data.email = email;
+    }
+
+    // Handle password change
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required to set a new password' });
+      }
+      
+      const { comparePassword } = await import('../utils/auth');
+      const isValid = await comparePassword(currentPassword, user.passwordHash);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+      
+      data.passwordHash = await hashPassword(newPassword);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};

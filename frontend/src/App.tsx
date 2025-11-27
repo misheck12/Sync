@@ -18,6 +18,7 @@ import Classes from './pages/classes/Classes';
 import Users from './pages/users/Users';
 import Settings from './pages/settings/Settings';
 import Communication from './pages/communication/Communication';
+import Profile from './pages/profile/Profile';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import RoleGuard from './components/layout/RoleGuard';
@@ -115,6 +116,9 @@ function App() {
                   <Settings />
                 </RoleGuard>
               } />
+
+              {/* Profile - available to all authenticated users */}
+              <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
 

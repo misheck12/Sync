@@ -56,8 +56,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </button>
         </div>
 
-        {/* User Info */}
-        <div className="p-4 border-b border-slate-800">
+        {/* User Info - Clickable to go to profile */}
+        <Link to="/profile" onClick={handleNavClick} className="block p-4 border-b border-slate-800 hover:bg-slate-800 transition-colors">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
               {user?.fullName?.charAt(0) || 'U'}
@@ -67,7 +67,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <p className="text-xs text-slate-400">{user?.role?.replace('_', ' ')}</p>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">

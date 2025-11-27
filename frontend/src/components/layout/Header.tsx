@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Search, Check, Menu } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -155,8 +155,8 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             )}
           </div>
           
-          {/* User Avatar */}
-          <div className="flex items-center pl-2 border-l border-gray-200 ml-2">
+          {/* User Avatar - Clickable to go to profile */}
+          <Link to="/profile" className="flex items-center pl-2 border-l border-gray-200 ml-2 hover:opacity-80 transition-opacity">
             <div className="hidden sm:block text-right mr-2">
               <p className="text-sm font-medium text-gray-700 leading-tight">{user?.fullName || 'User'}</p>
               <p className="text-[10px] text-gray-500">{user?.role?.replace('_', ' ')}</p>
@@ -164,7 +164,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
               {user?.fullName?.charAt(0) || 'U'}
             </div>
-          </div>
+          </Link>
         </div>
       </header>
 
