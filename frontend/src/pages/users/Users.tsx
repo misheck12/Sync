@@ -21,23 +21,15 @@ const Users = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    role: 'TEACHER',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ fullName: '', email: '', role: 'TEACHER', password: '' });
 
-  useEffect(() => {
-    fetchUsers();
-  }, [roleFilter]);
+  useEffect(() => { fetchUsers(); }, [roleFilter]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const params: any = {};
       if (roleFilter) params.role = roleFilter;
-      
       const response = await api.get('/users', { params });
       setUsers(response.data);
     } catch (error) {
@@ -51,14 +43,8 @@ const Users = () => {
     e.preventDefault();
     try {
       if (editingUser) {
-        const payload: any = {
-          fullName: formData.fullName,
-          email: formData.email,
-          role: formData.role,
-        };
-        if (formData.password) {
-          payload.password = formData.password;
-        }
+        const payload: any = { fullName: formData.fullName, email: formData.email, role: formData.role };
+        if (formData.password) payload.password = formData.password;
         await api.put(`/users/${editingUser.id}`, payload);
       } else {
         await api.post('/users', formData);
@@ -74,7 +60,6 @@ const Users = () => {
 
   const handleToggleStatus = async (id: string) => {
     if (!window.confirm('Are you sure you want to change this user\'s status?')) return;
-    
     try {
       await api.patch(`/users/${id}/status`);
       fetchUsers();
@@ -84,30 +69,17 @@ const Users = () => {
   };
 
   const resetForm = () => {
-    setFormData({
-      fullName: '',
-      email: '',
-      role: 'TEACHER',
-      password: '',
-    });
+    setFormData({ fullName: '', email: '', role: 'TEACHER', password: '' });
     setEditingUser(null);
   };
 
   const openEditModal = (user: UserData) => {
     setEditingUser(user);
-    setFormData({
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,
-      password: '', // Don't populate password
-    });
+    setFormData({ fullName: user.fullName, email: user.email, role: user.role, password: '' });
     setShowModal(true);
   };
 
-  const openAddModal = () => {
-    resetForm();
-    setShowModal(true);
-  };
+  const openAddModal = () => { resetForm(); setShowModal(true); };
 
   const filteredUsers = users.filter(user => 
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,197 +87,178 @@ const Users = () => {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-          <p className="text-gray-500">Manage system access and roles</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">User Management</h1>
+          <p className="text-sm text-gray-500">Manage system access and roles</p>
         </div>
-        <button 
-          onClick={openAddModal}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
+        <button onClick={openAddModal}
+          className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto">
           <Plus size={20} />
           <span>Add User</span>
         </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row gap-4">
+        {/* Filters */}
+        <div className="p-3 sm:p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Search users..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
           </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
             <option value="">All Roles</option>
-            {ROLES.map(role => (
-              <option key={role} value={role}>{role.replace('_', ' ')}</option>
-            ))}
+            {ROLES.map(role => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}
           </select>
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading users...</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">User</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Created</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+          <>
+            {/* Mobile Card View */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {filteredUsers.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">No users found</div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div key={user.id} className="p-4">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-3">
                           {user.fullName.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{user.fullName}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                          <p className="font-medium text-gray-900">{user.fullName}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                        {user.role.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        user.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <button 
-                          onClick={() => openEditModal(user)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
-                          title="Edit User"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleToggleStatus(user.id)}
-                          className={`${user.isActive ? 'text-green-600 hover:text-red-600' : 'text-red-600 hover:text-green-600'} transition-colors`}
-                          title={user.isActive ? 'Deactivate User' : 'Activate User'}
-                        >
+                      <div className="flex space-x-2">
+                        <button onClick={() => openEditModal(user)} className="text-gray-400 hover:text-blue-600 p-1"><Edit2 size={18} /></button>
+                        <button onClick={() => handleToggleStatus(user.id)}
+                          className={`p-1 ${user.isActive ? 'text-green-600 hover:text-red-600' : 'text-red-600 hover:text-green-600'}`}>
                           <Power size={18} />
                         </button>
                       </div>
-                    </td>
+                    </div>
+                    <div className="flex items-center justify-between text-xs ml-13">
+                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-800">{user.role.replace('_', ' ')}</span>
+                      <span className={`px-2 py-1 rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 lg:px-6 py-3 text-xs font-semibold text-gray-500 uppercase">User</th>
+                    <th className="px-4 lg:px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
+                    <th className="px-4 lg:px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="px-4 lg:px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Created</th>
+                    <th className="px-4 lg:px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-4 lg:px-6 py-4">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 lg:h-10 lg:w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-3 text-sm">
+                            {user.fullName.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{user.fullName}</div>
+                            <div className="text-xs text-gray-500 hidden lg:block">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4">
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">{user.role.replace('_', ' ')}</span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <button onClick={() => openEditModal(user)} className="text-gray-400 hover:text-blue-600" title="Edit"><Edit2 size={18} /></button>
+                          <button onClick={() => handleToggleStatus(user.id)}
+                            className={`${user.isActive ? 'text-green-600 hover:text-red-600' : 'text-red-600 hover:text-green-600'}`}
+                            title={user.isActive ? 'Deactivate' : 'Activate'}>
+                            <Power size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">{editingUser ? 'Edit User' : 'Add New User'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <div className="relative">
                   <User size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                  />
+                  <input type="text" required value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="John Doe" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                 <div className="relative">
                   <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="john@example.com"
-                  />
+                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="john@example.com" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                 <div className="relative">
                   <Shield size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
-                  >
-                    {ROLES.map(role => (
-                      <option key={role} value={role}>{role.replace('_', ' ')}</option>
-                    ))}
+                  <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-sm">
+                    {ROLES.map(role => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}
                   </select>
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {editingUser ? 'New Password (leave blank to keep current)' : 'Password'}
+                  {editingUser ? 'New Password (leave blank to keep)' : 'Password'}
                 </label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="password"
-                    required={!editingUser}
-                    minLength={6}
-                    value={formData.password}
+                  <input type="password" required={!editingUser} minLength={6} value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={editingUser ? '••••••••' : 'Enter password'}
-                  />
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder={editingUser ? '••••••••' : 'Enter password'} />
                 </div>
               </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button 
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
                   {editingUser ? 'Update User' : 'Create User'}
                 </button>
               </div>
