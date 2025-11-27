@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { Router, Response } from 'express';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
 import {
   subscribeToPush,
   unsubscribeFromPush,
@@ -9,7 +9,7 @@ import {
 const router = Router();
 
 // Get VAPID public key (public endpoint)
-router.get('/vapid-public-key', (_req: Request, res: Response) => {
+router.get('/vapid-public-key', (_req, res: Response) => {
   const key = getVapidPublicKey();
   if (!key) {
     return res.status(503).json({ error: 'Push notifications not configured' });
@@ -18,10 +18,10 @@ router.get('/vapid-public-key', (_req: Request, res: Response) => {
 });
 
 // Subscribe to push notifications
-router.post('/subscribe', authenticateToken, async (req: Request, res: Response) => {
+router.post('/subscribe', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { subscription } = req.body;
-    const userId = req.user!.id;
+    const userId = req.user!.userId;
 
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return res.status(400).json({ error: 'Invalid subscription object' });
@@ -36,7 +36,7 @@ router.post('/subscribe', authenticateToken, async (req: Request, res: Response)
 });
 
 // Unsubscribe from push notifications
-router.post('/unsubscribe', authenticateToken, async (req: Request, res: Response) => {
+router.post('/unsubscribe', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { endpoint } = req.body;
 
