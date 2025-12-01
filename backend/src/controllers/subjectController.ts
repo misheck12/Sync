@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 const subjectSchema = z.object({
   name: z.string().min(2),
   code: z.string().min(2),
+  schoolId: z.string().min(1),
 });
 
 export const getSubjects = async (req: Request, res: Response) => {
@@ -22,18 +23,28 @@ export const getSubjects = async (req: Request, res: Response) => {
 
 export const createSubject = async (req: Request, res: Response) => {
   try {
-    const { name, code } = subjectSchema.parse(req.body);
+    const { name, code, schoolId } = subjectSchema.parse(req.body);
 
+    // Check for existing subject with same code in the same school
     const existingSubject = await prisma.subject.findUnique({
-      where: { code },
+      where: {
+        code_schoolId: {
+          code,
+          schoolId,
+        },
+      },
     });
 
     if (existingSubject) {
-      return res.status(400).json({ error: 'Subject with this code already exists' });
+      return res.status(400).json({ error: 'Subject with this code already exists in this school' });
     }
 
     const subject = await prisma.subject.create({
-      data: { name, code },
+      data: {
+        name,
+        code,
+        school: { connect: { id: schoolId } },
+      },
     });
 
     res.status(201).json(subject);

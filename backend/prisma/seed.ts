@@ -31,13 +31,24 @@ async function main() {
     },
   });
 
-  const bursar = await prisma.user.upsert({
-    where: { email: 'bursar@school.com' },
+  const schoolAdmin = await prisma.user.upsert({
+    where: { email: 'principal@school.com' },
     update: {},
     create: {
-      email: 'bursar@school.com',
-      fullName: 'Jane Bursar',
-      role: Role.BURSAR,
+      email: 'principal@school.com',
+      fullName: 'Principal User',
+      role: Role.SCHOOL_ADMIN,
+      passwordHash,
+    },
+  });
+
+  const accountant = await prisma.user.upsert({
+    where: { email: 'accountant@school.com' },
+    update: {},
+    create: {
+      email: 'accountant@school.com',
+      fullName: 'Jane Accountant',
+      role: Role.ACCOUNTANT,
       passwordHash,
     },
   });
@@ -114,7 +125,7 @@ async function main() {
       studentId: students[0].id,
       amount: 1500.00,
       method: PaymentMethod.CASH,
-      recordedByUserId: bursar.id,
+      recordedByUserId: accountant.id,
       referenceNumber: 'REC001',
     },
   });
@@ -124,7 +135,7 @@ async function main() {
       studentId: students[1].id,
       amount: 2000.00,
       method: PaymentMethod.MOBILE_MONEY,
-      recordedByUserId: bursar.id,
+      recordedByUserId: accountant.id,
       referenceNumber: 'MM123456',
     },
   });

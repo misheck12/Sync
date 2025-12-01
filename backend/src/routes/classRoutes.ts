@@ -7,10 +7,10 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/', getClasses);
-router.post('/', authorizeRole(['SUPER_ADMIN']), createClass);
-router.put('/:id', authorizeRole(['SUPER_ADMIN']), updateClass);
-router.delete('/:id', authorizeRole(['SUPER_ADMIN']), deleteClass);
+router.post('/', authorizeRole(['SUPER_ADMIN', 'SCHOOL_ADMIN']), createClass);
+router.put('/:id', authorizeRole(['SUPER_ADMIN', 'SCHOOL_ADMIN']), updateClass);
+router.delete('/:id', authorizeRole(['SUPER_ADMIN', 'SCHOOL_ADMIN']), deleteClass);
 router.get('/:id/students', getClassStudents);
-router.post('/:id/students', authorizeRole(['SUPER_ADMIN', 'SECRETARY']), addStudentsToClass);
+router.post('/:id/students', authorizeRole(['SUPER_ADMIN', 'SCHOOL_ADMIN']), addStudentsToClass);
 
 export default router;

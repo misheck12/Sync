@@ -16,15 +16,15 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { logout, user } = useAuth();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] },
-    { icon: Users, label: 'Students', path: '/students', roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] },
-    { icon: BookOpen, label: 'Academics', path: '/academics', roles: ['SUPER_ADMIN', 'TEACHER'] },
-    { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['SUPER_ADMIN', 'BURSAR'] },
-    { icon: CalendarCheck, label: 'Attendance', path: '/attendance', roles: ['SUPER_ADMIN', 'TEACHER', 'SECRETARY'] },
-    { icon: FileText, label: 'Reports', path: '/reports', roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] },
-    { icon: UserCog, label: 'Users', path: '/users', roles: ['SUPER_ADMIN'] },
-    { icon: MessageSquare, label: 'Messages', path: '/communication', roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT'] },
-    { icon: Settings, label: 'Settings', path: '/settings', roles: ['SUPER_ADMIN'] },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER', 'STUDENT', 'PARENT'] },
+    { icon: Users, label: 'Students', path: '/students', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER'] },
+    { icon: BookOpen, label: 'Academics', path: '/academics', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER'] },
+    { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT'] },
+    { icon: CalendarCheck, label: 'Attendance', path: '/attendance', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER'] },
+    { icon: FileText, label: 'Reports', path: '/reports', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER'] },
+    { icon: UserCog, label: 'Users', path: '/users', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
+    { icon: MessageSquare, label: 'Messages', path: '/communication', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER', 'PARENT'] },
+    { icon: Settings, label: 'Settings', path: '/settings', roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => user && item.roles.includes(user.role));

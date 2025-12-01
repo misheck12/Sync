@@ -31,8 +31,8 @@ const Students = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   
-  // BURSAR can only view students, not create/edit/delete
-  const canManageStudents = user?.role !== 'BURSAR';
+  // ACCOUNTANT can only view students, not create/edit/delete
+  const canManageStudents = user?.role !== 'ACCOUNTANT';
   
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', admissionNumber: '', dateOfBirth: '',

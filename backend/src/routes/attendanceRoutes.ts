@@ -6,8 +6,8 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.post('/', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'SECRETARY']), recordAttendance);
-router.get('/', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'BURSAR', 'SECRETARY']), getClassAttendance);
-router.get('/student/:studentId', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'BURSAR', 'SECRETARY']), getStudentAttendance);
+router.post('/', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'SCHOOL_ADMIN']), recordAttendance);
+router.get('/', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT']), getClassAttendance);
+router.get('/student/:studentId', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT']), getStudentAttendance);
 
 export default router;

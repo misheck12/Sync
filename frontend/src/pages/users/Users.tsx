@@ -11,7 +11,7 @@ interface UserData {
   createdAt: string;
 }
 
-const ROLES = ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT', 'STUDENT'];
+const ROLES = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER', 'PARENT', 'STUDENT'];
 
 const Users = () => {
   const [users, setUsers] = useState<UserData[]>([]);

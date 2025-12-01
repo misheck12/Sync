@@ -7,6 +7,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
+  schoolId?: string;
 }
 
 const Subjects = () => {
@@ -16,7 +17,10 @@ const Subjects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
-  const [formData, setFormData] = useState({ name: '', code: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', schoolId: '' });
+
+  // TODO: Replace with actual schoolId from user context or selection
+  const defaultSchoolId = 'REPLACE_WITH_SCHOOL_ID';
 
   useEffect(() => {
     fetchSubjects();
@@ -39,11 +43,13 @@ const Subjects = () => {
       if (editingSubject) {
         await api.put(`/subjects/${editingSubject.id}`, formData);
       } else {
-        await api.post('/subjects', formData);
+        // Ensure schoolId is set
+        const schoolId = formData.schoolId || defaultSchoolId;
+        await api.post('/subjects', { ...formData, schoolId });
       }
       fetchSubjects();
       setShowModal(false);
-      setFormData({ name: '', code: '' });
+      setFormData({ name: '', code: '', schoolId: '' });
       setEditingSubject(null);
     } catch (error) {
       console.error('Failed to save subject', error);
@@ -64,13 +70,13 @@ const Subjects = () => {
 
   const openEditModal = (subject: Subject) => {
     setEditingSubject(subject);
-    setFormData({ name: subject.name, code: subject.code });
+    setFormData({ name: subject.name, code: subject.code, schoolId: subject.schoolId || '' });
     setShowModal(true);
   };
 
   const openAddModal = () => {
     setEditingSubject(null);
-    setFormData({ name: '', code: '' });
+    setFormData({ name: '', code: '', schoolId: '' });
     setShowModal(true);
   };
 
@@ -211,6 +217,17 @@ const Subjects = () => {
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g. MATH101"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">School ID</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.schoolId || defaultSchoolId}
+                  onChange={(e) => setFormData({ ...formData, schoolId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter School ID"
                 />
               </div>
               <div className="flex justify-end space-x-3 mt-6">

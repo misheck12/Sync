@@ -14,7 +14,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   fullName: z.string().min(2),
-  role: z.enum(['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']),
+  role: z.enum(['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER']),
 });
 
 export const login = async (req: Request, res: Response) => {

@@ -4,7 +4,7 @@ import { Send, Mail, Bell, Users, CheckCircle, AlertCircle, MessageSquare } from
 import ChatInterface from './ChatInterface';
 import { useAuth } from '../../context/AuthContext';
 
-const ROLES = ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT', 'STUDENT'];
+const ROLES = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER', 'PARENT', 'STUDENT'];
 
 const Communication = () => {
   const { user } = useAuth();
@@ -17,8 +17,8 @@ const Communication = () => {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  const canSendAnnouncements = ['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER'].includes(user?.role || '');
-  const canChat = ['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER', 'PARENT'].includes(user?.role || '');
+  const canSendAnnouncements = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'TEACHER'].includes(user?.role || '');
+  const canChat = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'ACCOUNTANT', 'TEACHER', 'PARENT'].includes(user?.role || '');
 
   useEffect(() => {
     if (!canSendAnnouncements && canChat) {
