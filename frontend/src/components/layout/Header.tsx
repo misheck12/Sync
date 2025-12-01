@@ -68,17 +68,17 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-10">
-      <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2 w-96">
-        <Search size={20} className="text-gray-400" />
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 fixed top-0 right-0 left-0 md:left-64 z-10 transition-all duration-300">
+      <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2 w-full max-w-[200px] md:max-w-sm md:w-96 mr-2 md:mr-0">
+        <Search size={20} className="text-gray-400 flex-shrink-0" />
         <input
           type="text"
-          placeholder="Search students, payments..."
-          className="bg-transparent border-none focus:outline-none ml-2 w-full text-sm text-gray-700"
+          placeholder="Search..."
+          className="bg-transparent border-none focus:outline-none ml-2 w-full text-sm text-gray-700 min-w-0"
         />
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
         <div className="relative" ref={notificationRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
