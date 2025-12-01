@@ -199,7 +199,80 @@ For more information on the importance of a professional README for your reposit
   npm run dev
   ```
 
-  Notes: The repository currently contains this README only. Detailed scaffolding will be added under `backend/` and `frontend/` when the tech stack is chosen.
+  ### Developer Quickstart (Local)
+
+  This section provides concise commands to run the Postgres database (Docker), connect with `psql`, and start the backend and frontend for local development.
+
+  1. Clone the repo
+
+  ```bash
+  git clone git@github.com:LYANGEND/Sync.git
+  cd Sync
+  ```
+
+  2. Start the Postgres service (via Docker Compose)
+
+  ```bash
+  # start only the postgres service in detached mode
+  docker compose up -d postgres
+
+  # or with the legacy CLI
+  docker-compose up -d postgres
+
+  # verify container is running
+  docker ps --filter "name=sync_postgres"
+  ```
+
+  Default DB credentials (from `docker-compose.yml`):
+
+  - POSTGRES_USER: `sync_user`
+  - POSTGRES_PASSWORD: `sync_password`
+  - POSTGRES_DB: `sync_db`
+
+  3. Connect to Postgres with `psql`
+
+  - From inside the running container:
+
+  ```bash
+  docker compose exec postgres psql -U sync_user -d sync_db
+  # or
+  docker-compose exec postgres psql -U sync_user -d sync_db
+  ```
+
+  - From your host (if you have `psql` installed):
+
+  ```bash
+  psql "host=localhost port=5432 dbname=sync_db user=sync_user password=sync_password"
+  ```
+
+  - Using a temporary client container (no host `psql` required):
+
+  ```bash
+  docker run --rm -it --network sync_default postgres:16-alpine \\
+    psql -h postgres -U sync_user -d sync_db
+  ```
+
+  4. Backend (Node) — run locally and point to the database
+
+  ```bash
+  cd backend
+  npm install
+  cp .env.example .env
+  # set DATABASE_URL in .env if needed, e.g.:
+  # DATABASE_URL=postgresql://sync_user:sync_password@localhost:5432/sync_db
+  npm run migrate
+  npm run dev
+  ```
+
+  5. Frontend — run locally
+
+  ```bash
+  cd frontend
+  npm install
+  npm run dev
+  ```
+
+  Notes: The repo contains the app skeleton and documentation. Adjust `.env` values as appropriate for your environment.
 
   ## **Contributing & Next Steps** <a name="contributing"></a>
 
