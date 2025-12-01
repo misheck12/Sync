@@ -14,7 +14,9 @@ const CameraModal = ({ isOpen, onClose, onCapture }: CameraModalProps) => {
   const [error, setError] = useState<string>('');
 
   const startCamera = useCallback(async () => {
+    setError('');
     try {
+      // Try with preferred constraints first
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'user' } 
       });
@@ -22,10 +24,21 @@ const CameraModal = ({ isOpen, onClose, onCapture }: CameraModalProps) => {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-      setError('');
     } catch (err) {
-      console.error("Error accessing camera:", err);
-      setError('Could not access camera. Please check permissions.');
+      console.warn("Initial camera access failed, trying fallback...", err);
+      try {
+        // Fallback: try any video source without specific constraints
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true 
+        });
+        setStream(mediaStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      } catch (fallbackErr) {
+        console.error("Error accessing camera:", fallbackErr);
+        setError('Could not access camera. Please check permissions or close other apps using the camera.');
+      }
     }
   }, []);
 
@@ -86,8 +99,15 @@ const CameraModal = ({ isOpen, onClose, onCapture }: CameraModalProps) => {
         </button>
 
         {error ? (
-          <div className="h-96 flex items-center justify-center text-white text-center p-6">
+          <div className="h-96 flex flex-col items-center justify-center text-white text-center p-6 gap-4">
             <p>{error}</p>
+            <button 
+              onClick={() => startCamera()}
+              className="px-4 py-2 bg-blue-600 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw size={16} />
+              Retry Camera
+            </button>
           </div>
         ) : (
           <div className="relative aspect-[3/4] bg-gray-900">

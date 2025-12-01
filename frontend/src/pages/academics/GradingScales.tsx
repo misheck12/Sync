@@ -120,50 +120,52 @@ const GradingScales: React.FC = () => {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Grade</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Range</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">GPA Point</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remark</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {scales.map((scale) => (
-              <tr key={scale.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">{scale.grade}</td>
-                <td className="px-6 py-4 text-sm text-gray-600">{scale.minScore} - {scale.maxScore}</td>
-                <td className="px-6 py-4 text-sm text-gray-600">{scale.gpaPoint}</td>
-                <td className="px-6 py-4 text-sm text-gray-600">{scale.remark}</td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button 
-                      onClick={() => handleOpenDialog(scale)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(scale.id)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {scales.length === 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  No grading scales defined
-                </td>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Grade</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Range</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">GPA Point</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remark</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {scales.map((scale) => (
+                <tr key={scale.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{scale.grade}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{scale.minScore} - {scale.maxScore}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{scale.gpaPoint}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{scale.remark}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => handleOpenDialog(scale)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(scale.id)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {scales.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    No grading scales defined
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal */}
