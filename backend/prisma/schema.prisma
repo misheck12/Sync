@@ -115,6 +115,7 @@ model Student {
   gender          Gender
   guardianName    String
   guardianPhone   String
+  guardianEmail   String?
   address         String?
   status          StudentStatus @default(ACTIVE)
   createdAt       DateTime      @default(now())

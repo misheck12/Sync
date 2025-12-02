@@ -60,6 +60,7 @@ interface Student {
   };
   guardianName: string;
   guardianPhone: string;
+  guardianEmail?: string;
   address: string;
   status: string;
   scholarshipId?: string;
@@ -233,6 +234,9 @@ const StudentProfile = () => {
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase">Guardian</label>
                 <p className="text-gray-900 font-medium">{student.guardianName}</p>
+                {student.guardianEmail && (
+                  <p className="text-sm text-gray-500">{student.guardianEmail}</p>
+                )}
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase">Contact</label>

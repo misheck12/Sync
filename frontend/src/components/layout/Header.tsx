@@ -69,11 +69,16 @@ const Header = () => {
   };
 
   const handleEnablePush = async () => {
-    const success = await subscribeToPushNotifications();
-    if (success) {
-      alert('Push notifications enabled!');
-    } else {
-      alert('Failed to enable push notifications. Please check your browser settings.');
+    try {
+      const success = await subscribeToPushNotifications();
+      if (success) {
+        alert('Push notifications enabled!');
+      } else {
+        alert('Failed to enable push notifications. Please check your browser settings.');
+      }
+    } catch (error) {
+      console.error('Error enabling push notifications:', error);
+      alert('An error occurred while enabling push notifications.');
     }
   };
 
@@ -165,13 +170,21 @@ const Header = () => {
             )}
           </div>
           
-          <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+          <div className="flex items-center space-x-3 pl-4 border-l border-gray-200 cursor-pointer" onClick={() => window.location.href = '/profile'}>
             <div className="text-right hidden md:block">
               <p className="text-sm font-medium text-gray-700">{user?.fullName || 'User'}</p>
               <p className="text-xs text-gray-500">{user?.role?.replace('_', ' ') || 'Role'}</p>
             </div>
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-              {user?.fullName?.charAt(0) || 'U'}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+              {user?.profilePictureUrl ? (
+                <img 
+                  src={user.profilePictureUrl.startsWith('http') ? user.profilePictureUrl : `${import.meta.env.VITE_API_URL || ''}${user.profilePictureUrl}`} 
+                  alt={user.fullName} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                user?.fullName?.charAt(0) || 'U'
+              )}
             </div>
           </div>
         </div>

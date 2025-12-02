@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import CameraModal from '../../components/CameraModal';
 
 const Profile = () => {
-  const { user, login } = useAuth(); // Assuming login updates the user context
+  const { user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -24,14 +24,12 @@ const Profile = () => {
     formData.append('image', file);
 
     try {
-      const response = await api.post('/profile/picture', formData, {
+      await api.post('/profile/picture', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // Update local user state if possible, or reload
-      // Ideally, useAuth should expose a method to update user data
+      await refreshUser();
       alert('Profile picture updated!');
-      window.location.reload(); // Simple reload to fetch new data
     } catch (error) {
       console.error('Upload failed', error);
       alert('Failed to upload profile picture');

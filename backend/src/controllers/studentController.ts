@@ -1,17 +1,19 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 const createStudentSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
-  admissionNumber: z.string(),
+  admissionNumber: z.string().optional(),
   dateOfBirth: z.string().transform((str) => new Date(str)),
   gender: z.enum(['MALE', 'FEMALE']),
   guardianName: z.string(),
   guardianPhone: z.string(),
+  guardianEmail: z.string().email().optional(),
   address: z.string().optional(),
   classId: z.string().uuid(),
   scholarshipId: z.string().uuid().optional().nullable(),
@@ -43,10 +45,68 @@ export const createStudent = async (req: Request, res: Response) => {
   try {
     const data = createStudentSchema.parse(req.body);
     
+    let parentId: string | null = null;
+
+    // Auto-generate admission number if not provided
+    let admissionNumber = data.admissionNumber;
+    if (!admissionNumber) {
+      const year = new Date().getFullYear();
+      // Find the last student created this year to increment the number
+      const lastStudent = await prisma.student.findFirst({
+        where: {
+          admissionNumber: {
+            startsWith: `${year}-`
+          }
+        },
+        orderBy: {
+          admissionNumber: 'desc'
+        }
+      });
+
+      let nextNum = 1;
+      if (lastStudent) {
+        const parts = lastStudent.admissionNumber.split('-');
+        if (parts.length === 2) {
+          const lastNum = parseInt(parts[1], 10);
+          if (!isNaN(lastNum)) {
+            nextNum = lastNum + 1;
+          }
+        }
+      }
+      
+      admissionNumber = `${year}-${nextNum.toString().padStart(4, '0')}`;
+    }
+
+    // If guardian email is provided, try to link or create a parent account
+    if (data.guardianEmail) {
+      const existingParent = await prisma.user.findUnique({
+        where: { email: data.guardianEmail }
+      });
+
+      if (existingParent) {
+        parentId = existingParent.id;
+      } else {
+        // Create new parent account
+        // Default password is 'password123' - in production, send an email with setup link
+        const hashedPassword = await bcrypt.hash('password123', 10);
+        const newParent = await prisma.user.create({
+          data: {
+            email: data.guardianEmail,
+            fullName: data.guardianName,
+            role: 'PARENT',
+            passwordHash: hashedPassword,
+          }
+        });
+        parentId = newParent.id;
+      }
+    }
+
     const student = await prisma.student.create({
       data: {
         ...data,
+        admissionNumber,
         status: 'ACTIVE',
+        parentId,
       },
     });
     
@@ -55,6 +115,7 @@ export const createStudent = async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });
     }
+    console.error('Create student error:', error);
     res.status(500).json({ error: 'Failed to create student' });
   }
 };
@@ -63,17 +124,44 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
   try {
     const studentsData = z.array(createStudentSchema).parse(req.body);
     
-    // We use a transaction to ensure all or nothing, though createMany is also atomic for the batch
-    // However, createMany doesn't return the created records in all databases/prisma versions easily if we need them back
-    // But usually for bulk import, just knowing count is enough.
+    // Generate admission numbers for those missing
+    const year = new Date().getFullYear();
+    
+    // Find last admission number to start incrementing
+    const lastStudent = await prisma.student.findFirst({
+      where: { admissionNumber: { startsWith: `${year}-` } },
+      orderBy: { admissionNumber: 'desc' }
+    });
+
+    let nextNum = 1;
+    if (lastStudent) {
+      const parts = lastStudent.admissionNumber.split('-');
+      if (parts.length === 2) {
+        const lastNum = parseInt(parts[1], 10);
+        if (!isNaN(lastNum)) nextNum = lastNum + 1;
+      }
+    }
+
+    const dataToCreate = studentsData.map((s, index) => {
+      let admissionNumber = s.admissionNumber;
+      if (!admissionNumber) {
+        admissionNumber = `${year}-${(nextNum + index).toString().padStart(4, '0')}`;
+      }
+      
+      // Remove guardianEmail from the object passed to createMany as it might not be in the DB schema yet
+      // and createMany doesn't support creating relations anyway.
+      const { guardianEmail, ...studentData } = s;
+      
+      return {
+        ...studentData,
+        admissionNumber: admissionNumber!,
+        status: 'ACTIVE' as const
+      };
+    });
     
     const result = await prisma.student.createMany({
-      data: studentsData.map(s => ({
-        ...s,
-        status: 'ACTIVE'
-      })),
-      skipDuplicates: true, // Optional: skip if admission number exists? 
-      // Note: skipDuplicates is not supported on all databases with Prisma (e.g. SQL Server), but works on Postgres/MySQL
+      data: dataToCreate,
+      skipDuplicates: true, 
     });
     
     res.status(201).json({ message: `Successfully imported ${result.count} students`, count: result.count });
@@ -205,14 +293,63 @@ export const getMyChildren = async (req: Request, res: Response) => {
           orderBy: { date: 'desc' }
         },
         payments: {
-          take: 5,
           orderBy: { paymentDate: 'desc' }
+        },
+        feeStructures: {
+          include: {
+            feeTemplate: true
+          }
+        },
+        assessmentResults: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            assessment: {
+              include: {
+                subject: true
+              }
+            }
+          }
+        },
+        termResults: {
+          include: {
+            subject: true,
+            term: true
+          },
+          orderBy: {
+            term: { startDate: 'asc' }
+          }
+        },
+        termReports: {
+          include: {
+            term: true
+          },
+          orderBy: {
+            term: { startDate: 'desc' }
+          }
         }
       }
     });
+
+    const studentsWithBalance = students.map(student => {
+      const totalFees = student.feeStructures.reduce((sum, fee) => sum + Number(fee.amountDue), 0);
+      const totalPaid = student.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+      const balance = totalFees - totalPaid;
+
+      // We only want to send the last 5 payments to the frontend to keep payload small, 
+      // but we needed all of them for calculation.
+      const recentPayments = student.payments.slice(0, 5);
+
+      return {
+        ...student,
+        payments: recentPayments,
+        balance
+      };
+    });
     
-    res.json(students);
+    res.json(studentsWithBalance);
   } catch (error) {
+    console.error('Get my children error:', error);
     res.status(500).json({ error: 'Failed to fetch children' });
   }
 };

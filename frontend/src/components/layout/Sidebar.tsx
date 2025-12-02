@@ -20,6 +20,12 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
       roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] 
     },
     { 
+      icon: GraduationCap, 
+      label: 'My Children', 
+      path: '/my-children', 
+      roles: ['PARENT'] 
+    },
+    { 
       icon: Users, 
       label: 'Students', 
       path: '/students', 

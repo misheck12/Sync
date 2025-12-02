@@ -16,6 +16,7 @@ interface Student {
   };
   guardianName: string;
   guardianPhone: string;
+  guardianEmail?: string;
   address?: string;
   status: string;
 }
@@ -47,6 +48,7 @@ const Students = () => {
     gender: 'MALE',
     guardianName: '',
     guardianPhone: '',
+    guardianEmail: '',
     address: '',
     classId: '',
     status: 'ACTIVE'
@@ -115,6 +117,7 @@ const Students = () => {
       gender: student.gender,
       guardianName: student.guardianName,
       guardianPhone: student.guardianPhone,
+      guardianEmail: student.guardianEmail || '',
       address: student.address || '',
       classId: student.classId,
       status: student.status
@@ -136,6 +139,7 @@ const Students = () => {
       gender: 'MALE',
       guardianName: '',
       guardianPhone: '',
+      guardianEmail: '',
       address: '',
       classId: '',
       status: 'ACTIVE'
@@ -254,7 +258,8 @@ const Students = () => {
   const filteredStudents = students.filter(student => 
     student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.admissionNumber.includes(searchTerm)
+    student.admissionNumber.includes(searchTerm) ||
+    student.guardianName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -629,16 +634,18 @@ const Students = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.admissionNumber}
-                    onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                {editingStudent && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number</label>
+                    <input
+                      type="text"
+                      value={formData.admissionNumber}
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                   <input
@@ -692,6 +699,16 @@ const Students = () => {
                     value={formData.guardianPhone}
                     onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Guardian Email</label>
+                  <input
+                    type="email"
+                    value={formData.guardianEmail}
+                    onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Optional - creates parent account"
                   />
                 </div>
                 <div className="md:col-span-2">

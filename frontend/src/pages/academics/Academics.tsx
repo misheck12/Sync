@@ -7,13 +7,15 @@ import GradingScales from './GradingScales';
 import ReportCards from './ReportCards';
 import Timetable from './Timetable';
 import Promotions from './Promotions';
+import LessonPlanner from './LessonPlanner';
 
 const Academics = () => {
-  const [view, setView] = useState<'classes' | 'subjects' | 'terms' | 'assessments' | 'grading' | 'reports' | 'timetable' | 'promotions'>('classes');
+  const [view, setView] = useState<'classes' | 'subjects' | 'terms' | 'assessments' | 'grading' | 'reports' | 'timetable' | 'promotions' | 'lesson-planner'>('classes');
 
   const tabs = [
     { id: 'classes', label: 'Classes' },
     { id: 'subjects', label: 'Subjects' },
+    { id: 'lesson-planner', label: 'Lesson Planner' },
     { id: 'timetable', label: 'Timetable' },
     { id: 'assessments', label: 'Assessments' },
     { id: 'grading', label: 'Grading Scales' },
@@ -51,6 +53,7 @@ const Academics = () => {
         {view === 'grading' && <GradingScales />}
         {view === 'reports' && <ReportCards />}
         {view === 'timetable' && <Timetable />}
+        {view === 'lesson-planner' && <LessonPlanner />}
         {view === 'terms' && <Terms />}
         {view === 'promotions' && <Promotions />}
       </div>
