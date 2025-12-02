@@ -80,49 +80,75 @@ export const createStudent = async (req: Request, res: Response) => {
 
     // If guardian email is provided, try to link or create a parent account
     if (data.guardianEmail) {
+      console.log('DEBUG: Processing guardian email:', data.guardianEmail);
       const existingParent = await prisma.user.findUnique({
         where: { email: data.guardianEmail }
       });
 
       if (existingParent) {
+        if (existingParent.role !== 'PARENT') {
+          return res.status(400).json({ 
+            error: `Email ${data.guardianEmail} is already in use by a ${existingParent.role}. Cannot use as Guardian Email.` 
+          });
+        }
+        console.log('DEBUG: Existing parent found:', existingParent.id);
         parentId = existingParent.id;
       } else {
+        console.log('DEBUG: Creating new parent account');
         // Create new parent account
         const password = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const newParent = await prisma.user.create({
-          data: {
-            email: data.guardianEmail,
-            fullName: data.guardianName,
-            role: 'PARENT',
-            passwordHash: hashedPassword,
-          }
-        });
-        parentId = newParent.id;
+        try {
+          const newParent = await prisma.user.create({
+            data: {
+              email: data.guardianEmail,
+              fullName: data.guardianName,
+              role: 'PARENT',
+              passwordHash: hashedPassword,
+            }
+          });
+          parentId = newParent.id;
 
-        // Send email with credentials
-        const emailSubject = 'Welcome to Sync - Your Parent Account';
-        const emailBody = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Welcome to Sync School Management</h2>
-            <p>Dear ${data.guardianName},</p>
-            <p>A parent account has been automatically created for you to track your child's progress.</p>
-            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; font-weight: bold;">Your Login Credentials:</p>
-              <p style="margin: 10px 0;">Email: <strong>${data.guardianEmail}</strong></p>
-              <p style="margin: 0;">Password: <strong>${password}</strong></p>
+          // Send email with credentials
+          console.log('DEBUG: Preparing to send welcome email to new parent');
+          const emailSubject = 'Welcome to Sync - Your Parent Account';
+          const emailBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #2563eb;">Welcome to Sync School Management</h2>
+              <p>Dear ${data.guardianName},</p>
+              <p>A parent account has been automatically created for you to track your child's progress.</p>
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: bold;">Your Login Credentials:</p>
+                <p style="margin: 10px 0;">Email: <strong>${data.guardianEmail}</strong></p>
+                <p style="margin: 0;">Password: <strong>${password}</strong></p>
+              </div>
+              <p>Please login at <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}">Sync Portal</a> and change your password immediately.</p>
+              <p>Best regards,<br>School Administration</p>
             </div>
-            <p>Please login at <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}">Sync Portal</a> and change your password immediately.</p>
-            <p>Best regards,<br>School Administration</p>
-          </div>
-        `;
-        
-        // Don't await this to avoid blocking the response if email fails
-        sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err => 
-          console.error('Failed to send parent welcome email:', err)
-        );
+          `;
+          
+          // Don't await this to avoid blocking the response if email fails
+          sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err => 
+            console.error('Failed to send parent welcome email:', err)
+          );
+        } catch (createError: any) {
+          // Handle race condition where user was created between findUnique and create
+          if (createError.code === 'P2002') {
+            console.log('DEBUG: Race condition detected - parent created by another request');
+            const retryParent = await prisma.user.findUnique({
+              where: { email: data.guardianEmail }
+            });
+            if (retryParent) {
+              parentId = retryParent.id;
+            }
+          } else {
+            throw createError;
+          }
+        }
       }
+    } else {
+      console.log('DEBUG: No guardian email provided');
     }
 
     const student = await prisma.student.create({
@@ -293,9 +319,36 @@ export const updateStudent = async (req: Request, res: Response) => {
 export const deleteStudent = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    
+    // 1. Get student to find parent
+    const student = await prisma.student.findUnique({
+      where: { id },
+      select: { parentId: true }
+    });
+
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    // 2. Delete student
     await prisma.student.delete({
       where: { id },
     });
+
+    // 3. Check parent
+    if (student.parentId) {
+      const remainingChildren = await prisma.student.count({
+        where: { parentId: student.parentId }
+      });
+
+      if (remainingChildren === 0) {
+        try {
+           await prisma.user.delete({ where: { id: student.parentId } });
+           console.log(`Deleted orphan parent account: ${student.parentId}`);
+        } catch (err) {
+           console.warn(`Could not delete parent account ${student.parentId} - likely has other data linked`);
+        }
+      }
+    }
+
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete student' });

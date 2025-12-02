@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { sendEmail } from '../services/emailService';
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,14 @@ export const createPayment = async (req: Request, res: Response) => {
             firstName: true,
             lastName: true,
             admissionNumber: true,
+            guardianEmail: true,
+            guardianName: true,
+            parent: {
+              select: {
+                email: true,
+                fullName: true
+              }
+            },
             class: {
               select: {
                 id: true,
@@ -59,6 +68,56 @@ export const createPayment = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Send Email Notification
+    const parentEmail = payment.student.parent?.email || payment.student.guardianEmail;
+    const parentName = payment.student.parent?.fullName || payment.student.guardianName;
+
+    if (parentEmail) {
+      console.log(`DEBUG: Sending payment receipt to ${parentEmail}`);
+      const emailSubject = `Payment Receipt - ${payment.student.firstName} ${payment.student.lastName}`;
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Payment Receipt</h2>
+          <p>Dear ${parentName},</p>
+          <p>We have successfully received a payment for <strong>${payment.student.firstName} ${payment.student.lastName}</strong>.</p>
+          
+          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280;">Amount:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">ZMW ${Number(amount).toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280;">Date:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${new Date().toLocaleDateString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280;">Method:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${method.replace('_', ' ')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280;">Reference:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${referenceNumber || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280;">Recorded By:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${payment.recordedBy.fullName}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p>You can view the full payment history in your parent portal.</p>
+          <p>Thank you,<br>School Accounts Office</p>
+        </div>
+      `;
+
+      sendEmail(parentEmail, emailSubject, emailBody).catch(err => 
+        console.error('Failed to send payment receipt email:', err)
+      );
+    } else {
+      console.log('DEBUG: No parent email found for payment receipt');
+    }
 
     res.status(201).json(payment);
   } catch (error) {
