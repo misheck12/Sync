@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import { sendEmail } from '../services/emailService';
 
 const prisma = new PrismaClient();
 
@@ -87,8 +88,9 @@ export const createStudent = async (req: Request, res: Response) => {
         parentId = existingParent.id;
       } else {
         // Create new parent account
-        // Default password is 'password123' - in production, send an email with setup link
-        const hashedPassword = await bcrypt.hash('password123', 10);
+        const password = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
         const newParent = await prisma.user.create({
           data: {
             email: data.guardianEmail,
@@ -98,6 +100,28 @@ export const createStudent = async (req: Request, res: Response) => {
           }
         });
         parentId = newParent.id;
+
+        // Send email with credentials
+        const emailSubject = 'Welcome to Sync - Your Parent Account';
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">Welcome to Sync School Management</h2>
+            <p>Dear ${data.guardianName},</p>
+            <p>A parent account has been automatically created for you to track your child's progress.</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-weight: bold;">Your Login Credentials:</p>
+              <p style="margin: 10px 0;">Email: <strong>${data.guardianEmail}</strong></p>
+              <p style="margin: 0;">Password: <strong>${password}</strong></p>
+            </div>
+            <p>Please login at <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}">Sync Portal</a> and change your password immediately.</p>
+            <p>Best regards,<br>School Administration</p>
+          </div>
+        `;
+        
+        // Don't await this to avoid blocking the response if email fails
+        sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err => 
+          console.error('Failed to send parent welcome email:', err)
+        );
       }
     }
 
