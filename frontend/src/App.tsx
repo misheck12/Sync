@@ -23,6 +23,13 @@ import RoleGuard from './components/layout/RoleGuard';
 
 import StudentQuiz from './pages/student/StudentQuiz';
 import StudentAssessments from './pages/student/StudentAssessments';
+import VoiceTutor from './pages/student/VoiceTutor';
+import ClassSchedule from './pages/student/ClassSchedule';
+import VideoLibrary from './pages/student/VideoLibrary';
+import VideoPlayer from './pages/student/VideoPlayer';
+import LiveClassroom from './pages/student/LiveClassroom';
+import LiveClasses from './pages/teacher/LiveClasses';
+import VideoLessons from './pages/teacher/VideoLessons';
 
 function App() {
   return (
@@ -33,6 +40,7 @@ function App() {
           
           <Route element={<ProtectedRoute />}>
             <Route path="/student/quiz/:assessmentId" element={<StudentQuiz />} />
+            <Route path="/student/live-class/:sessionId" element={<LiveClassroom />} />
             
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
@@ -40,6 +48,26 @@ function App() {
               <Route path="/student/assessments" element={
                 <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
                   <StudentAssessments />
+                </RoleGuard>
+              } />
+              <Route path="/student/voice-tutor" element={
+                <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
+                  <VoiceTutor />
+                </RoleGuard>
+              } />
+              <Route path="/student/class-schedule" element={
+                <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
+                  <ClassSchedule />
+                </RoleGuard>
+              } />
+              <Route path="/student/video-library" element={
+                <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
+                  <VideoLibrary />
+                </RoleGuard>
+              } />
+              <Route path="/student/video/:videoId" element={
+                <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
+                  <VideoPlayer />
                 </RoleGuard>
               } />
               
@@ -106,6 +134,17 @@ function App() {
               <Route path="/communication" element={
                 <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT']}>
                   <Communication />
+                </RoleGuard>
+              } />
+
+              <Route path="/teacher/live-classes" element={
+                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                  <LiveClasses />
+                </RoleGuard>
+              } />
+              <Route path="/teacher/videos" element={
+                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                  <VideoLessons />
                 </RoleGuard>
               } />
 
