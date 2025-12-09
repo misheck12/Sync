@@ -46,13 +46,8 @@ interface Class {
 }
 
 const getGradeLabel = (grade: number) => {
-  switch (grade) {
-    case -3: return 'Baby Class';
-    case -2: return 'Middle Class';
-    case -1: return 'Reception';
-    case 0: return 'Pre-Unit';
-    default: return `Grade ${grade}`;
-  }
+  if (grade === 0) return 'Nursery';
+  return `Grade ${grade}`;
 };
 
 const Finance = () => {
@@ -662,10 +657,7 @@ const Finance = () => {
                     onChange={(e) => setNewFee({ ...newFee, applicableGrade: e.target.value })}
                   >
                     <option value="">Select Grade</option>
-                    <option value="-3">Baby Class</option>
-                    <option value="-2">Middle Class</option>
-                    <option value="-1">Reception</option>
-                    <option value="0">Pre-Unit</option>
+                    <option value="0">Nursery</option>
                     {[...Array(12)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>Grade {i + 1}</option>
                     ))}

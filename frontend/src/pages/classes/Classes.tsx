@@ -33,13 +33,8 @@ interface Student {
 }
 
 const getGradeLabel = (grade: number) => {
-  switch (grade) {
-    case -3: return 'Baby Class';
-    case -2: return 'Middle Class';
-    case -1: return 'Reception';
-    case 0: return 'Pre-Unit';
-    default: return `Grade ${grade}`;
-  }
+  if (grade === 0) return 'Nursery';
+  return `Grade ${grade}`;
 };
 
 const Classes = () => {
@@ -427,8 +422,8 @@ const Classes = () => {
                     onClick={handleAddStudents}
                     disabled={selectedStudentIds.length === 0}
                     className={`text-xs px-3 py-1 rounded ${selectedStudentIds.length > 0
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       }`}
                   >
                     Add Selected ({selectedStudentIds.length})
@@ -500,10 +495,7 @@ const Classes = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="">Select Grade</option>
-                    <option value="-3">Baby Class</option>
-                    <option value="-2">Middle Class</option>
-                    <option value="-1">Reception</option>
-                    <option value="0">Pre-Unit</option>
+                    <option value="0">Nursery</option>
                     {[...Array(12)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>Grade {i + 1}</option>
                     ))}

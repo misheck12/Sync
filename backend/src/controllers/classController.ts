@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 const classSchema = z.object({
   name: z.string().min(2),
-  gradeLevel: z.number().int().min(-3).max(12),
+  gradeLevel: z.number().int().min(0).max(12),
   teacherId: z.string().uuid(),
   academicTermId: z.string().uuid(),
   subjectIds: z.array(z.string().uuid()).optional(),
