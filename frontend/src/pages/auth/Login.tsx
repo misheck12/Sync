@@ -42,7 +42,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
       {/* Left Panel - Branding & Information */}
-      <div className="md:w-1/2 bg-[#0056b3] text-white p-8 md:p-16 flex flex-col justify-between relative overflow-hidden">
+      <div className="hidden md:flex md:w-1/2 bg-[#0056b3] text-white p-8 md:p-16 flex-col justify-between relative overflow-hidden">
         {/* Decorative Circle (Optional subtle gradient effect) */}
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600 to-blue-800 opacity-50 z-0"></div>
 
@@ -96,6 +96,14 @@ const Login = () => {
       <div className="md:w-1/2 flex items-center justify-center p-8 md:p-16 bg-white">
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2">
+            {/* Mobile Logo */}
+            <div className="flex items-center space-x-2 md:hidden mb-6">
+              <div className="bg-blue-600 p-2 rounded-lg">
+                <GraduationCap size={24} className="text-white" />
+              </div>
+              <span className="text-xl font-bold tracking-tight text-blue-900">Sync Portal</span>
+            </div>
+
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
             <p className="text-gray-500">Sign in to access your dashboard</p>
           </div>
