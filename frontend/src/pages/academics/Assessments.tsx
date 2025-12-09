@@ -563,49 +563,51 @@ const Assessments = () => {
                       {new Date(assessment.date).toLocaleDateString()}
                     </span>
                   </div>
+                </div>
 
-                  <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1">{assessment.title}</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1">{assessment.title}</h3>
 
-                  <div className="space-y-2 mb-6">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users size={16} className="mr-2" />
-                      {assessment.class.name}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <BookOpen size={16} className="mr-2" />
-                      {assessment.subject.name}
-                    </div>
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Users size={16} className="mr-2" />
+                    {assessment.class.name}
                   </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="text-sm text-gray-500">
-                      <span className="font-medium text-gray-900">{assessment._count?.results || 0}</span> graded
-                    </div>
-                    <div className="flex gap-2">
-                      {(assessment.type === 'QUIZ' || assessment.type === 'TEST' || assessment.type === 'EXAM') && (
-                        <button
-                          onClick={() => openQuestionBuilder(assessment)}
-                          className="flex items-center text-gray-600 hover:text-blue-600 font-medium text-sm px-2 py-1 rounded hover:bg-blue-50"
-                          title="Manage Questions"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => openGradebook(assessment)}
-                        className="flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm"
-                      >
-                        Open Gradebook
-                        <ChevronRight size={16} className="ml-1" />
-                      </button>
-                    </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <BookOpen size={16} className="mr-2" />
+                    {assessment.subject.name}
                   </div>
                 </div>
-          ))}
+
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="text-sm text-gray-500">
+                    <span className="font-medium text-gray-900">{assessment._count?.results || 0}</span> graded
+                  </div>
+                  <div className="flex gap-2">
+                    {(assessment.type === 'QUIZ' || assessment.type === 'TEST' || assessment.type === 'EXAM') && (
+                      <button
+                        onClick={() => openQuestionBuilder(assessment)}
+                        className="flex items-center text-gray-600 hover:text-blue-600 font-medium text-sm px-2 py-1 rounded hover:bg-blue-50"
+                        title="Manage Questions"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openGradebook(assessment)}
+                      className="flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    >
+                      Open Gradebook
+                      <ChevronRight size={16} className="ml-1" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        );
+        )}
+      </div>
+    </div>
+  );
 };
 
-        export default Assessments;
+export default Assessments;
