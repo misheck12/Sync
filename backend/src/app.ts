@@ -32,7 +32,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for bulk imports
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" } // Allow serving images
 }));
