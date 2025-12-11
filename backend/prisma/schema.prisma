@@ -289,7 +289,11 @@ model StudentFeeStructure {
   feeTemplate   FeeTemplate @relation(fields: [feeTemplateId], references: [id])
   amountDue     Decimal  @db.Decimal(10, 2)
   amountPaid    Decimal  @db.Decimal(10, 2) @default(0)
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
+  @@unique([studentId, feeTemplateId])
   @@map("student_fee_structures")
 }
 

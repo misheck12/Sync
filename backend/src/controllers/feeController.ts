@@ -59,10 +59,12 @@ export const createFeeTemplate = async (req: Request, res: Response) => {
 export const assignFeeToClass = async (req: Request, res: Response) => {
   try {
     const { feeTemplateId, classId } = assignFeeSchema.parse(req.body);
+    const dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
 
     // 1. Get the fee template to know the amount
     const feeTemplate = await prisma.feeTemplate.findUnique({
       where: { id: feeTemplateId },
+      include: { academicTerm: true },
     });
 
     if (!feeTemplate) {
@@ -72,17 +74,34 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
     // 2. Get all students in the class with their scholarship info
     const students = await prisma.student.findMany({
       where: { classId: classId, status: 'ACTIVE' },
-      include: { scholarship: true },
+      include: { 
+        scholarship: true,
+        feeStructures: {
+          where: { feeTemplateId: feeTemplateId }
+        }
+      },
     });
 
     if (students.length === 0) {
       return res.status(404).json({ error: 'No active students found in this class' });
     }
 
-    // 3. Create StudentFeeStructure records for each student
-    // We use a transaction to ensure all or nothing
-    const result = await prisma.$transaction(
-      students.map((student) => {
+    // 3. Filter out students who already have this fee assigned
+    const studentsToAssign = students.filter(student => student.feeStructures.length === 0);
+
+    if (studentsToAssign.length === 0) {
+      return res.status(400).json({ 
+        error: 'All students in this class already have this fee assigned',
+        alreadyAssigned: students.length
+      });
+    }
+
+    // 4. Create StudentFeeStructure records for students who don't have it yet
+    const createdRecords = [];
+    const errors = [];
+
+    for (const student of studentsToAssign) {
+      try {
         let amountDue = Number(feeTemplate.amount);
         
         // Apply scholarship if exists
@@ -92,20 +111,37 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
           amountDue = Math.max(0, amountDue - discountAmount);
         }
 
-        return prisma.studentFeeStructure.create({
+        const record = await prisma.studentFeeStructure.create({
           data: {
             studentId: student.id,
             feeTemplateId: feeTemplate.id,
-            amountDue: amountDue, // Prisma handles number to Decimal conversion
+            amountDue: amountDue,
             amountPaid: 0,
+            dueDate: dueDate,
           },
         });
-      })
-    );
+        
+        createdRecords.push(record);
+      } catch (error) {
+        errors.push({
+          studentId: student.id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
 
     res.status(200).json({
-      message: `Successfully assigned fee to ${result.length} students`,
-      assignedCount: result.length,
+      message: `Successfully assigned fee to ${createdRecords.length} students`,
+      feeTemplate: {
+        name: feeTemplate.name,
+        amount: feeTemplate.amount,
+        term: feeTemplate.academicTerm.name
+      },
+      assigned: createdRecords.length,
+      alreadyAssigned: students.length - studentsToAssign.length,
+      failed: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
