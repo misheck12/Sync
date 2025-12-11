@@ -78,6 +78,7 @@ const Finance = () => {
   const [newFee, setNewFee] = useState({ name: '', amount: '', academicTermId: '', applicableGrade: '' });
   const [editingTemplate, setEditingTemplate] = useState<FeeTemplate | null>(null);
   const [assignClassId, setAssignClassId] = useState('');
+  const [assignDueDate, setAssignDueDate] = useState('');
   const [paymentForm, setPaymentForm] = useState({
     studentId: '',
     amount: '',
@@ -200,17 +201,31 @@ const Finance = () => {
   const handleAssignFee = async () => {
     if (!selectedTemplateId || !assignClassId) return;
     try {
-      await api.post('/fees/assign-class', {
+      const response = await api.post('/fees/assign-class', {
         feeTemplateId: selectedTemplateId,
         classId: assignClassId,
+        dueDate: assignDueDate || undefined,
       });
+
       setShowAssignFeeModal(false);
       setAssignClassId('');
+      setAssignDueDate('');
       setSelectedTemplateId(null);
-      alert('Fee assigned successfully');
-    } catch (error) {
+
+      // Show detailed success message
+      const data = response.data;
+      let message = `Successfully assigned fee to ${data.assigned} student(s)`;
+      if (data.alreadyAssigned > 0) {
+        message += `\n${data.alreadyAssigned} student(s) already had this fee assigned`;
+      }
+      if (data.failed > 0) {
+        message += `\n${data.failed} assignment(s) failed`;
+      }
+      alert(message);
+    } catch (error: any) {
       console.error('Error assigning fee:', error);
-      alert('Failed to assign fee');
+      const errorMsg = error.response?.data?.error || 'Failed to assign fee';
+      alert(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
     }
   };
 
@@ -691,6 +706,7 @@ const Finance = () => {
               <h2 className="text-xl font-bold mb-4">Assign Fee to Class</h2>
               <p className="text-sm text-slate-500 mb-4">
                 This will assign the selected fee to all active students in the selected class.
+                Scholarship discounts will be applied automatically.
               </p>
               <div className="space-y-4">
                 <div>
@@ -706,10 +722,30 @@ const Finance = () => {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <div className="flex items-center space-x-2">
+                      <Calendar size={16} />
+                      <span>Payment Due Date (Optional)</span>
+                    </div>
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={assignDueDate}
+                    onChange={(e) => setAssignDueDate(e.target.value)}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Set a deadline for this fee payment
+                  </p>
+                </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setShowAssignFeeModal(false)}
+                  onClick={() => {
+                    setShowAssignFeeModal(false);
+                    setAssignDueDate('');
+                  }}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancel
