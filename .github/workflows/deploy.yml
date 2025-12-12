@@ -2,9 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
+  # Optional: Keep for PR validation
+  # pull_request:
+  #   branches: [ master ]
 
 env:
   REGISTRY: ghcr.io
@@ -33,6 +34,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
@@ -41,12 +46,18 @@ jobs:
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Extract metadata (tags, labels) for Frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Frontend image
         uses: docker/build-push-action@v5
@@ -55,15 +66,26 @@ jobs:
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Ensure nginx directory exists on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            mkdir -p ~/app/nginx
 
       - name: Copy docker-compose and nginx config to server
         uses: appleboy/scp-action@v0.1.7
@@ -71,8 +93,9 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/nginx.conf"
+          source: "docker-compose.prod.yml,nginx/"
           target: "~/app"
+          strip_components: 0
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -83,12 +106,13 @@ jobs:
           script: |
             cd ~/app
             
-            # Always create/update .env file with proper permissions
+            # Create .env file with secure permissions
             cat > .env << 'EOF'
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
+            NODE_ENV=production
             EOF
             chmod 600 .env
             
@@ -98,24 +122,71 @@ jobs:
             # Pull latest images
             docker-compose -f docker-compose.prod.yml pull
             
-            # Deploy with zero-downtime strategy
-            # This will recreate only containers with new images
-            docker-compose -f docker-compose.prod.yml up -d --remove-orphans --force-recreate
+            # Stop and remove old containers (preserving volumes)
+            docker-compose -f docker-compose.prod.yml down --remove-orphans
             
-            # Wait for backend to be healthy
-            echo "Waiting for backend to be ready..."
-            timeout 60 sh -c 'until docker-compose -f docker-compose.prod.yml exec -T backend node -e "process.exit(0)" 2>/dev/null; do sleep 2; done' || echo "Backend health check timeout (may still be starting)"
+            # Run migrations BEFORE starting new backend
+            echo "🚀 Running database migrations..."
+            docker-compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy || {
+              echo "❌ Migration failed!"
+              exit 1
+            }
             
-            # Run database migrations
-            echo "Running database migrations..."
-            docker-compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy || echo "Migration failed or no migrations to run"
+            # Start all services
+            docker-compose -f docker-compose.prod.yml up -d
             
-            # Run database seeds
-            echo "Running database seeds..."
-            docker-compose -f docker-compose.prod.yml exec -T backend npx prisma db seed || echo "Seed failed or already seeded"
+            # Wait for services to be healthy
+            echo "⏳ Waiting for services to be ready..."
             
-            # Show status
+            # Wait for PostgreSQL
+            for i in {1..30}; do
+              if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U ${{ secrets.POSTGRES_USER }}; then
+                echo "✅ PostgreSQL is ready!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "❌ PostgreSQL health check timeout"
+                exit 1
+              fi
+              sleep 2
+            done
+            
+            # Wait for backend
+            for i in {1..30}; do
+              if curl -s -f http://localhost:3000/api/health > /dev/null; then
+                echo "✅ Backend is ready!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "⚠️ Backend health check timeout (checking logs...)"
+                docker-compose -f docker-compose.prod.yml logs backend --tail=20
+                exit 1
+              fi
+              sleep 3
+            done
+            
+            # Verify nginx configuration
+            docker-compose -f docker-compose.prod.yml exec nginx nginx -t || {
+              echo "❌ nginx configuration error"
+              exit 1
+            }
+            
+            # Reload nginx
+            docker-compose -f docker-compose.prod.yml exec nginx nginx -s reload 2>/dev/null || true
+            
+            # Show deployment status
+            echo "📊 Deployment Status:"
             docker-compose -f docker-compose.prod.yml ps
             
-            # Clean up old images to save space
-            docker image prune -f
+            # Clean up old images (keep last 2 tags)
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f --filter "until=48h"
+            
+            # Create database backup (optional)
+            echo "💾 Creating database backup..."
+            BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+            docker-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U ${{ secrets.POSTGRES_USER }} ${{ secrets.POSTGRES_DB }} > "$BACKUP_FILE" 2>/dev/null && \
+            echo "✅ Backup created: $BACKUP_FILE" || \
+            echo "⚠️ Backup skipped or failed"
+            
+            echo "🎉 Deployment completed successfully!"
