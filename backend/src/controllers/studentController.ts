@@ -6,8 +6,6 @@ import { sendEmail } from '../services/emailService';
 
 const prisma = new PrismaClient();
 
-});
-
 const baseStudentSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
@@ -155,13 +153,91 @@ export const createStudent = async (req: Request, res: Response) => {
           }
         }
       }
-    } else {
-      console.log('DEBUG: No guardian email provided');
     }
+
+    // Resolve className to classId if needed
+    let finalClassId = data.classId;
+    
+    if (data.className && !finalClassId) {
+      // Get current academic term
+      const currentTerm = await prisma.academicTerm.findFirst({
+        orderBy: { startDate: 'desc' }
+      });
+
+      if (!currentTerm) {
+        return res.status(400).json({ error: 'No academic term found. Please create an academic term first.' });
+      }
+
+      // Try to find the class by name
+      const existingClass = await prisma.class.findFirst({
+        where: {
+          name: {
+            equals: data.className.trim(),
+            mode: 'insensitive'
+          },
+          academicTermId: currentTerm.id
+        }
+      });
+
+      if (existingClass) {
+        finalClassId = existingClass.id;
+      } else {
+        // Get a default teacher for the new class
+        const defaultTeacher = await prisma.user.findFirst({
+          where: { role: { in: ['TEACHER', 'SUPER_ADMIN'] } }
+        });
+
+        if (!defaultTeacher) {
+          return res.status(400).json({ error: 'No teacher found. Please create at least one teacher or admin user first.' });
+        }
+
+        // Determine grade level from class name
+        const normalizedName = data.className.trim();
+        let gradeLevel = 0;
+        if (normalizedName.toLowerCase().includes('baby')) gradeLevel = -2;
+        else if (normalizedName.toLowerCase().includes('middle')) gradeLevel = -1;
+        else if (normalizedName.toLowerCase().includes('day care') || normalizedName.toLowerCase().includes('reception')) gradeLevel = 0;
+        else {
+          const gradeMatch = normalizedName.match(/grade\s+(\w+)/i);
+          if (gradeMatch) {
+            const gradeWord = gradeMatch[1].toLowerCase();
+            const gradeNumbers: { [key: string]: number } = {
+              'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+              'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+              'eleven': 11, 'twelve': 12,
+              '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+              '7': 7, '8': 8, '9': 9, '10': 10, '11': 11, '12': 12
+            };
+            gradeLevel = gradeNumbers[gradeWord] || 0;
+          }
+        }
+
+        // Create the class
+        const newClass = await prisma.class.create({
+          data: {
+            name: normalizedName,
+            gradeLevel,
+            teacherId: defaultTeacher.id,
+            academicTermId: currentTerm.id,
+          }
+        });
+
+        finalClassId = newClass.id;
+        console.log(`✅ Created new class: ${normalizedName} (Grade Level: ${gradeLevel})`);
+      }
+    }
+
+    if (!finalClassId) {
+      return res.status(400).json({ error: 'No valid class found or provided' });
+    }
+
+    // Remove className and guardianEmail from data before creating
+    const { className, guardianEmail, classId: _, ...studentData } = data;
 
     const student = await prisma.student.create({
       data: {
-        ...data,
+        ...studentData,
+        classId: finalClassId,
         admissionNumber,
         status: 'ACTIVE',
         parentId,
