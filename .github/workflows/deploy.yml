@@ -69,13 +69,13 @@ jobs:
           script: |
             mkdir -p ~/app/nginx
 
-      - name: Copy docker-compose and nginx config to server
+      - name: Copy configuration files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/"
+          source: "docker-compose.prod.yml,nginx-system.conf"
           target: "~/app"
           strip_components: 0
 
@@ -135,14 +135,20 @@ jobs:
               sleep 3
             done
             
-            # Verify nginx configuration
-            docker-compose -f docker-compose.prod.yml exec nginx nginx -t || {
+            # Configure system nginx
+            echo "🔧 Configuring system nginx..."
+            sudo cp ~/app/nginx-system.conf /etc/nginx/sites-available/sync
+            sudo ln -sf /etc/nginx/sites-available/sync /etc/nginx/sites-enabled/sync
+            sudo rm -f /etc/nginx/sites-enabled/default
+            
+            # Test nginx configuration
+            sudo nginx -t || {
               echo "❌ nginx configuration error"
               exit 1
             }
             
             # Reload nginx
-            docker-compose -f docker-compose.prod.yml exec nginx nginx -s reload 2>/dev/null || true
+            sudo systemctl reload nginx
             
             # Show deployment status
             echo "📊 Deployment Status:"
