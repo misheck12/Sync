@@ -101,8 +101,8 @@ jobs:
             # Login to GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull latest images
-            docker-compose -f docker-compose.prod.yml pull
+            # Pull latest images (force pull)
+            docker-compose -f docker-compose.prod.yml pull --ignore-pull-failures
             
             # Stop and remove containers
             docker-compose -f docker-compose.prod.yml down --remove-orphans
@@ -118,8 +118,8 @@ jobs:
               exit 1
             }
             
-            # Start all services
-            docker-compose -f docker-compose.prod.yml up -d
+            # Start all services with latest images (force recreate)
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate --pull always
             
             # Wait for services to be healthy
             echo "⏳ Waiting for services to be ready..."
@@ -158,18 +158,34 @@ jobs:
             # Remove old/duplicate sync configs
             sudo rm -f /etc/nginx/sites-enabled/sync-school || true
             
-            # Install nginx config
-            sudo cp ~/app/nginx-system.conf /etc/nginx/sites-available/sync
-            sudo ln -sf /etc/nginx/sites-available/sync /etc/nginx/sites-enabled/sync
-            
-            # Test nginx configuration
-            sudo nginx -t || {
-              echo "❌ nginx configuration error"
-              exit 1
-            }
-            
-            # Reload nginx
-            sudo systemctl reload nginx
+            # Only update nginx config if it has changed (preserves SSL config)
+            if ! sudo diff -q ~/app/nginx-system.conf /etc/nginx/sites-available/sync-base 2>/dev/null; then
+              echo "📝 Nginx config changed, updating..."
+              # Backup the base config (without SSL)
+              sudo cp ~/app/nginx-system.conf /etc/nginx/sites-available/sync-base
+              
+              # If SSL config exists, preserve it; otherwise use base
+              if [ -f /etc/nginx/sites-available/sync ] && grep -q "ssl_certificate" /etc/nginx/sites-available/sync; then
+                echo "✅ SSL config detected, preserving..."
+                # Keep the existing config with SSL
+              else
+                echo "📋 No SSL config, using base config..."
+                sudo cp ~/app/nginx-system.conf /etc/nginx/sites-available/sync
+              fi
+              
+              sudo ln -sf /etc/nginx/sites-available/sync /etc/nginx/sites-enabled/sync
+              
+              # Test nginx configuration
+              sudo nginx -t || {
+                echo "❌ nginx configuration error"
+                exit 1
+              }
+              
+              # Reload nginx
+              sudo systemctl reload nginx
+            else
+              echo "✅ Nginx config unchanged, skipping update"
+            fi
             
             # Show deployment status
             echo "📊 Deployment Status:"
@@ -183,9 +199,24 @@ jobs:
               echo "⚠️ Application might not be accessible via nginx"
             fi
             
-            # Clean up old images (keep last 2 tags)
-            echo "🧹 Cleaning up old images..."
-            docker image prune -f --filter "until=48h"
+            # Clean up old Docker images to save space
+            echo "🧹 Cleaning up old Docker images..."
+            
+            # Remove dangling images
+            docker image prune -f
+            
+            # Remove old sync images (keep only latest 2)
+            echo "Removing old sync/backend images..."
+            docker images ghcr.io/lyangend/sync/backend --format "{{.ID}} {{.CreatedAt}}" | \
+              tail -n +3 | awk '{print $1}' | xargs -r docker rmi -f 2>/dev/null || true
+            
+            echo "Removing old sync/frontend images..."
+            docker images ghcr.io/lyangend/sync/frontend --format "{{.ID}} {{.CreatedAt}}" | \
+              tail -n +3 | awk '{print $1}' | xargs -r docker rmi -f 2>/dev/null || true
+            
+            # Show disk space saved
+            echo "✅ Cleanup complete"
+            df -h / | tail -1
             
             # Create database backup (optional)
             echo "💾 Creating database backup..."
