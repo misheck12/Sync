@@ -16,8 +16,12 @@ const createStudentSchema = z.object({
   guardianPhone: z.string().optional(),
   guardianEmail: z.string().email().optional(),
   address: z.string().optional(),
-  classId: z.string().uuid(),
+  classId: z.string().uuid().optional(),
+  className: z.string().optional(),
   scholarshipId: z.string().uuid().optional().nullable(),
+}).refine(data => data.classId || data.className, {
+  message: "Either classId or className must be provided",
+  path: ["classId"],
 });
 
 const updateStudentSchema = createStudentSchema.partial().extend({
@@ -192,24 +196,69 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No teacher found. Please create at least one teacher or admin user first.' });
     }
 
-    // Collect unique class IDs from the import data
-    const uniqueClassIds = [...new Set(studentsData.map(s => s.classId))];
-    
-    // Fetch existing classes
+    // Fetch all existing classes for the current term
     const existingClasses = await prisma.class.findMany({
-      where: { id: { in: uniqueClassIds } }
+      where: { academicTermId: currentTerm.id }
     });
     
-    const existingClassIds = new Set(existingClasses.map(c => c.id));
-    const missingClassIds = uniqueClassIds.filter(id => !existingClassIds.has(id));
+    const classMap = new Map(existingClasses.map(c => [c.name.toLowerCase(), c.id]));
+    const classIdMap = new Map(existingClasses.map(c => [c.id, c]));
 
-    // If there are missing classes, we need to check if they're being provided by name
-    // For now, we'll just report which class IDs are missing
-    if (missingClassIds.length > 0) {
-      return res.status(400).json({ 
-        error: `The following class IDs do not exist: ${missingClassIds.join(', ')}. Please create these classes first or provide valid class IDs.` 
-      });
-    }
+    // Resolve classNames to classIds and create missing classes
+    const studentsWithClassIds = await Promise.all(
+      studentsData.map(async (student) => {
+        let classId = student.classId;
+
+        // If className is provided, try to find or create the class
+        if (student.className && !classId) {
+          const normalizedName = student.className.trim();
+          classId = classMap.get(normalizedName.toLowerCase());
+
+          // If class doesn't exist, create it
+          if (!classId) {
+            // Determine grade level from class name
+            let gradeLevel = 0;
+            if (normalizedName.toLowerCase().includes('baby')) gradeLevel = -2;
+            else if (normalizedName.toLowerCase().includes('middle')) gradeLevel = -1;
+            else if (normalizedName.toLowerCase().includes('day care') || normalizedName.toLowerCase().includes('reception')) gradeLevel = 0;
+            else {
+              const gradeMatch = normalizedName.match(/grade\s+(\w+)/i);
+              if (gradeMatch) {
+                const gradeWord = gradeMatch[1].toLowerCase();
+                const gradeNumbers: { [key: string]: number } = {
+                  'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+                  'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+                  'eleven': 11, 'twelve': 12,
+                  '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
+                  '7': 7, '8': 8, '9': 9, '10': 10, '11': 11, '12': 12
+                };
+                gradeLevel = gradeNumbers[gradeWord] || 0;
+              }
+            }
+
+            const newClass = await prisma.class.create({
+              data: {
+                name: normalizedName,
+                gradeLevel,
+                teacherId: defaultTeacher.id,
+                academicTermId: currentTerm.id,
+              }
+            });
+
+            classId = newClass.id;
+            classMap.set(normalizedName.toLowerCase(), classId);
+            console.log(`✅ Created new class: ${normalizedName} (Grade Level: ${gradeLevel})`);
+          }
+        }
+
+        // Validate that we have a classId
+        if (!classId) {
+          throw new Error(`No valid class found for student: ${student.firstName} ${student.lastName}`);
+        }
+
+        return { ...student, classId };
+      })
+    );
     
     // Generate admission numbers for those missing
     const year = new Date().getFullYear();
@@ -229,18 +278,18 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
       }
     }
 
-    const dataToCreate = studentsData.map((s, index) => {
+    const dataToCreate = studentsWithClassIds.map((s, index) => {
       let admissionNumber = s.admissionNumber;
       if (!admissionNumber) {
         admissionNumber = `${year}-${(nextNum + index).toString().padStart(4, '0')}`;
       }
       
-      // Remove guardianEmail from the object passed to createMany as it might not be in the DB schema yet
-      // and createMany doesn't support creating relations anyway.
-      const { guardianEmail, ...studentData } = s;
+      // Remove fields not in the database schema
+      const { guardianEmail, className, ...studentData } = s;
       
       return {
         ...studentData,
+        classId: s.classId!,
         admissionNumber: admissionNumber!,
         status: 'ACTIVE' as const
       };
@@ -261,7 +310,7 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
       return res.status(400).json({ error: error.errors });
     }
     console.error('Bulk create error:', error);
-    res.status(500).json({ error: 'Failed to import students' });
+    res.status(500).json({ error: 'Failed to import students', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
 
