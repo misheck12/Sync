@@ -6,7 +6,9 @@ import { sendEmail } from '../services/emailService';
 
 const prisma = new PrismaClient();
 
-const createStudentSchema = z.object({
+});
+
+const baseStudentSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   admissionNumber: z.string().optional(),
@@ -19,12 +21,14 @@ const createStudentSchema = z.object({
   classId: z.string().uuid().optional(),
   className: z.string().optional(),
   scholarshipId: z.string().uuid().optional().nullable(),
-}).refine(data => data.classId || data.className, {
+});
+
+const createStudentSchema = baseStudentSchema.refine(data => data.classId || data.className, {
   message: "Either classId or className must be provided",
   path: ["classId"],
 });
 
-const updateStudentSchema = createStudentSchema.partial().extend({
+const updateStudentSchema = baseStudentSchema.partial().extend({
   status: z.enum(['ACTIVE', 'TRANSFERRED', 'GRADUATED', 'DROPPED_OUT']).optional(),
   reason: z.string().optional(), // For audit trail
 });
@@ -285,11 +289,16 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
       }
       
       // Remove fields not in the database schema
-      const { guardianEmail, className, ...studentData } = s;
+      const { guardianEmail, className, classId, ...studentData } = s;
+      
+      // Ensure classId is defined (it should be from studentsWithClassIds)
+      if (!classId) {
+        throw new Error(`Missing classId for student: ${s.firstName} ${s.lastName}`);
+      }
       
       return {
         ...studentData,
-        classId: s.classId!,
+        classId: classId as string,
         admissionNumber: admissionNumber!,
         status: 'ACTIVE' as const
       };
