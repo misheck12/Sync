@@ -147,3 +147,58 @@ export const addStudentsToClass = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to add students to class' });
   }
 };
+
+const bulkClassSchema = z.object({
+  name: z.string().min(2),
+  gradeLevel: z.number().int().min(-2).max(12),
+  teacherId: z.string().uuid().optional(),
+  academicTermId: z.string().uuid().optional(),
+});
+
+export const bulkCreateClasses = async (req: Request, res: Response) => {
+  try {
+    const classesData = z.array(bulkClassSchema).parse(req.body);
+
+    // Get current academic term
+    const currentTerm = await prisma.academicTerm.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' }
+    });
+
+    if (!currentTerm) {
+      return res.status(400).json({ error: 'No active academic term found' });
+    }
+
+    // Get default teacher
+    const defaultTeacher = await prisma.user.findFirst({
+      where: { role: { in: ['TEACHER', 'SUPER_ADMIN'] } }
+    });
+
+    if (!defaultTeacher) {
+      return res.status(400).json({ error: 'No teacher found' });
+    }
+
+    const dataToCreate = classesData.map(c => ({
+      name: c.name,
+      gradeLevel: c.gradeLevel,
+      teacherId: c.teacherId || defaultTeacher.id,
+      academicTermId: c.academicTermId || currentTerm.id,
+    }));
+
+    const result = await prisma.class.createMany({
+      data: dataToCreate,
+      skipDuplicates: true,
+    });
+
+    res.status(201).json({
+      message: `Successfully imported ${result.count} classes`,
+      count: result.count,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    console.error('Bulk create classes error:', error);
+    res.status(500).json({ error: 'Failed to import classes' });
+  }
+};
