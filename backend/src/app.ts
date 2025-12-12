@@ -64,6 +64,11 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/communication', communicationRoutes);
 app.use('/api/v1/scholarships', scholarshipRoutes);
 
+// Health check endpoint
+app.get('/api/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Basic Route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'Welcome to Sync School Management System API' });
