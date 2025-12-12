@@ -107,14 +107,14 @@ jobs:
             # Stop and remove containers
             docker-compose -f docker-compose.prod.yml down --remove-orphans
             
-            # Explicitly remove old frontend container if it exists
-            docker rm -f sync_frontend 2>/dev/null || true
+            # Clean up any orphaned containers
+            docker ps -a --filter "name=sync" --format "{{.ID}}" | xargs -r docker rm -f || true
             
             # Run migrations on host PostgreSQL
             echo "🚀 Running database migrations..."
             docker-compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy || {
               echo "❌ Migration failed!"
-              docker-compose -f docker-compose.prod.yml logs backend --tail=50
+              docker logs sync_backend --tail=50
               exit 1
             }
             
@@ -126,7 +126,7 @@ jobs:
             
             # Wait for backend
             for i in {1..30}; do
-              if curl -s -f http://localhost:3000/api/health > /dev/null; then
+              if curl -s -f http://localhost:3002/api/health > /dev/null 2>&1; then
                 echo "✅ Backend is ready!"
                 break
               fi
@@ -138,26 +138,29 @@ jobs:
               sleep 3
             done
             
+            # Wait for frontend
+            for i in {1..20}; do
+              if curl -s -f http://localhost:3003 > /dev/null 2>&1; then
+                echo "✅ Frontend is ready!"
+                break
+              fi
+              if [ $i -eq 20 ]; then
+                echo "⚠️ Frontend health check timeout (checking logs...)"
+                docker logs sync_frontend --tail=50
+                exit 1
+              fi
+              sleep 2
+            done
+            
             # Configure system nginx
             echo "🔧 Configuring system nginx..."
             
-            # Create frontend directory
-            sudo mkdir -p /var/www/sync/frontend
-            
-            # Extract frontend files from Docker image
-            CONTAINER_ID=$(docker create ghcr.io/lyangend/sync/frontend:master)
-            docker cp $CONTAINER_ID:/usr/share/nginx/html/. /tmp/frontend-build/
-            docker rm $CONTAINER_ID
-            
-            # Copy to nginx directory
-            sudo cp -r /tmp/frontend-build/* /var/www/sync/frontend/
-            sudo chown -R www-data:www-data /var/www/sync/frontend
-            rm -rf /tmp/frontend-build
+            # Remove old/duplicate sync configs
+            sudo rm -f /etc/nginx/sites-enabled/sync-school || true
             
             # Install nginx config
             sudo cp ~/app/nginx-system.conf /etc/nginx/sites-available/sync
             sudo ln -sf /etc/nginx/sites-available/sync /etc/nginx/sites-enabled/sync
-            sudo rm -f /etc/nginx/sites-enabled/default
             
             # Test nginx configuration
             sudo nginx -t || {
@@ -171,6 +174,14 @@ jobs:
             # Show deployment status
             echo "📊 Deployment Status:"
             docker-compose -f docker-compose.prod.yml ps
+            
+            # Test the application
+            echo "🧪 Testing application..."
+            if curl -s -f http://localhost/health > /dev/null 2>&1; then
+              echo "✅ Application is accessible via nginx!"
+            else
+              echo "⚠️ Application might not be accessible via nginx"
+            fi
             
             # Clean up old images (keep last 2 tags)
             echo "🧹 Cleaning up old images..."

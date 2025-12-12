@@ -1,14 +1,33 @@
 version: '3.8'
 
-# Production docker-compose - Backend only (frontend served by nginx)
 services:
   backend:
     image: ghcr.io/lyangend/sync/backend:master
     container_name: sync_backend
     restart: always
-    network_mode: "host"
+    ports:
+      - "3002:3000"  # Expose backend on port 3002 (3000 and 3001 are taken)
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?schema=public
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB}?schema=public
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - sync_network
+
+  frontend:
+    image: ghcr.io/lyangend/sync/frontend:master
+    container_name: sync_frontend
+    restart: always
+    ports:
+      - "3003:80"  # Expose frontend on port 3003
+    depends_on:
+      - backend
+    networks:
+      - sync_network
+
+networks:
+  sync_network:
+    driver: bridge
