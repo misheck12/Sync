@@ -1,5 +1,6 @@
 version: '3.8'
 
+# Production docker-compose - Backend only (frontend served by nginx)
 services:
   backend:
     image: ghcr.io/lyangend/sync/backend:master
@@ -11,11 +12,3 @@ services:
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
-
-  frontend:
-    image: ghcr.io/lyangend/sync/frontend:master
-    container_name: sync_frontend
-    restart: always
-    network_mode: "host"
-    depends_on:
-      - backend
