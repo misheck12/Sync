@@ -14,6 +14,9 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# Compile seed.ts separately
+RUN npx tsc prisma/seed.ts --outDir dist/prisma --esModuleInterop --skipLibCheck
+
 # Stage 2: Run
 FROM node:20-alpine
 
