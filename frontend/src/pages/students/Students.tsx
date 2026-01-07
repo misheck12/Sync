@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { Plus, Search, Filter, MoreVertical, Edit2, Trash2, Eye, Upload, Download, X, CheckSquare, Square } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, Eye, Upload, X, CheckSquare, Square, Users, UserCheck, GraduationCap, UserX } from 'lucide-react';
+import ExportDropdown from '../../components/ExportDropdown';
+import { useAuth } from '../../context/AuthContext';
 
 interface Student {
   id: string;
@@ -28,6 +30,8 @@ interface Class {
 
 const Students = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = ['SUPER_ADMIN', 'SECRETARY', 'BURSAR'].includes(user?.role || '');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +49,19 @@ const Students = () => {
   const [itemsPerPage] = useState(25);
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Computed stats
+  const stats = React.useMemo(() => {
+    const total = students.length;
+    const active = students.filter(s => s.status === 'ACTIVE').length;
+    const male = students.filter(s => s.gender === 'MALE').length;
+    const female = students.filter(s => s.gender === 'FEMALE').length;
+    const transferred = students.filter(s => s.status === 'TRANSFERRED').length;
+    const graduated = students.filter(s => s.status === 'GRADUATED').length;
+    return { total, active, male, female, transferred, graduated };
+  }, [students]);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -272,9 +288,12 @@ const Students = () => {
 
     const matchesClass = !classFilter || student.classId === classFilter;
     const matchesStatus = !statusFilter || student.status === statusFilter;
+    const matchesGender = !genderFilter || student.gender === genderFilter;
 
-    return matchesSearch && matchesClass && matchesStatus;
+    return matchesSearch && matchesClass && matchesStatus && matchesGender;
   });
+
+
 
   // Pagination
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
@@ -285,7 +304,7 @@ const Students = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, classFilter, statusFilter]);
+  }, [searchTerm, classFilter, statusFilter, genderFilter]);
 
   return (
     <div className="p-4 md:p-6">
@@ -295,20 +314,94 @@ const Students = () => {
           <p className="text-gray-500">Manage student records and admissions</p>
         </div>
         <div className="flex space-x-2 w-full md:w-auto">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Upload size={20} />
-            <span>Import</span>
-          </button>
-          <button
-            onClick={openAddModal}
-            className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={20} />
-            <span>Add Student</span>
-          </button>
+          {canManage && (
+            <>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Upload size={20} />
+                <span>Import</span>
+              </button>
+              <button
+                onClick={openAddModal}
+                className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={20} />
+                <span>Add Student</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-gray-500 uppercase font-medium">Total</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            </div>
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Users className="text-blue-600" size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-green-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-green-600 uppercase font-medium">Active</div>
+              <div className="text-2xl font-bold text-green-700">{stats.active}</div>
+            </div>
+            <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+              <UserCheck className="text-green-600" size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-gray-500 uppercase font-medium">Male</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.male}</div>
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              {stats.total > 0 ? Math.round((stats.male / stats.total) * 100) : 0}%
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-gray-500 uppercase font-medium">Female</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.female}</div>
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              {stats.total > 0 ? Math.round((stats.female / stats.total) * 100) : 0}%
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-purple-600 uppercase font-medium">Graduated</div>
+              <div className="text-2xl font-bold text-purple-700">{stats.graduated}</div>
+            </div>
+            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+              <GraduationCap className="text-purple-600" size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-orange-600 uppercase font-medium">Transferred</div>
+              <div className="text-2xl font-bold text-orange-700">{stats.transferred}</div>
+            </div>
+            <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+              <UserX className="text-orange-600" size={20} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -326,7 +419,7 @@ const Students = () => {
             />
           </div>
           <div className="flex items-center space-x-2">
-            {selectedIds.length > 0 && (
+            {selectedIds.length > 0 && canManage && (
               <button
                 onClick={handleBulkDelete}
                 className="flex items-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
@@ -337,62 +430,117 @@ const Students = () => {
             )}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 border rounded-lg transition-colors ${classFilter || statusFilter
-                  ? 'border-blue-500 bg-blue-50 text-blue-600'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              className={`flex items-center justify-center space-x-2 px-3 py-2 border rounded-lg transition-colors ${classFilter || statusFilter || genderFilter
+                ? 'border-blue-500 bg-blue-50 text-blue-600'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
             >
               <Filter size={18} />
               <span>Filter</span>
-              {(classFilter || statusFilter) && (
+              {(classFilter || statusFilter || genderFilter) && (
                 <span className="ml-1 px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded-full">
-                  {[classFilter, statusFilter].filter(Boolean).length}
+                  {[classFilter, statusFilter, genderFilter].filter(Boolean).length}
                 </span>
               )}
             </button>
+            <ExportDropdown
+              data={filteredStudents.map(s => ({
+                admissionNumber: s.admissionNumber,
+                firstName: s.firstName,
+                lastName: s.lastName,
+                className: s.class?.name || 'Unassigned',
+                gender: s.gender,
+                dateOfBirth: new Date(s.dateOfBirth).toLocaleDateString(),
+                guardianName: s.guardianName,
+                guardianPhone: s.guardianPhone,
+                status: s.status
+              }))}
+              columns={[
+                { key: 'admissionNumber', header: 'Admission #' },
+                { key: 'firstName', header: 'First Name' },
+                { key: 'lastName', header: 'Last Name' },
+                { key: 'className', header: 'Class' },
+                { key: 'gender', header: 'Gender' },
+                { key: 'dateOfBirth', header: 'Date of Birth' },
+                { key: 'guardianName', header: 'Guardian Name' },
+                { key: 'guardianPhone', header: 'Guardian Phone' },
+                { key: 'status', header: 'Status' }
+              ]}
+              filename={`students_export_${new Date().toISOString().split('T')[0]}`}
+            />
           </div>
         </div>
 
-        {/* Filters Panel */}
+        {/* Filter Modal */}
         {showFilters && (
-          <div className="p-4 bg-gray-50 border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
-                <select
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Filter Students</h2>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <option value="">All Classes</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
-                  ))}
-                </select>
+                  <X size={20} className="text-gray-500" />
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="TRANSFERRED">Transferred</option>
-                  <option value="GRADUATED">Graduated</option>
-                  <option value="DROPPED_OUT">Dropped Out</option>
-                </select>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                  <select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="">All Classes</option>
+                    {classes.map(cls => (
+                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="TRANSFERRED">Transferred</option>
+                    <option value="GRADUATED">Graduated</option>
+                    <option value="DROPPED_OUT">Dropped Out</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select
+                    value={genderFilter}
+                    onChange={(e) => setGenderFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="">All Genders</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                  </select>
+                </div>
               </div>
-              <div className="flex items-end">
+              <div className="flex justify-between mt-6">
                 <button
                   onClick={() => {
                     setClassFilter('');
                     setStatusFilter('');
+                    setGenderFilter('');
                   }}
-                  className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Clear Filters
+                  Clear All
+                </button>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Apply Filters
                 </button>
               </div>
             </div>
@@ -474,20 +622,24 @@ const Students = () => {
                         >
                           <Eye size={18} />
                         </button>
-                        <button
-                          onClick={() => openEditModal(student)}
-                          className="text-blue-600 hover:text-blue-800 p-1"
-                          title="Edit"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(student.id)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {canManage && (
+                          <>
+                            <button
+                              onClick={() => openEditModal(student)}
+                              className="text-blue-600 hover:text-blue-800 p-1"
+                              title="Edit"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(student.id)}
+                              className="text-red-600 hover:text-red-800 p-1"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -539,20 +691,24 @@ const Students = () => {
                       <Eye size={16} />
                       <span>View</span>
                     </button>
-                    <button
-                      onClick={() => openEditModal(student)}
-                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      <Edit2 size={16} />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(student.id)}
-                      className="flex items-center space-x-1 text-red-600 hover:text-red-800 text-sm"
-                    >
-                      <Trash2 size={16} />
-                      <span>Delete</span>
-                    </button>
+                    {canManage && (
+                      <>
+                        <button
+                          onClick={() => openEditModal(student)}
+                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          <Edit2 size={16} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(student.id)}
+                          className="flex items-center space-x-1 text-red-600 hover:text-red-800 text-sm"
+                        >
+                          <Trash2 size={16} />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -593,8 +749,8 @@ const Students = () => {
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-3 py-1 border rounded transition-colors ${currentPage === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-200 hover:bg-gray-50'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-200 hover:bg-gray-50'
                       }`}
                   >
                     {pageNum}

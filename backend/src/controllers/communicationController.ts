@@ -45,7 +45,7 @@ export const sendAnnouncement = async (req: Request, res: Response) => {
     if (shouldSendEmail) {
       // Send individually or use BCC? For now, let's loop (simple but slow for large lists)
       // In production, use a queue (BullMQ)
-      Promise.all(users.map(user => 
+      Promise.all(users.map(user =>
         sendEmail(user.email, subject, `<p>Dear ${user.fullName},</p><p>${message}</p>`)
       )).catch(err => console.error('Background email sending failed', err));
     }
@@ -153,9 +153,9 @@ export const getConversations = async (req: Request, res: Response) => {
       const otherParticipants = c.participants
         .filter(p => p.userId !== userId)
         .map(p => p.user);
-      
+
       const lastMessage = c.messages[0];
-      
+
       return {
         id: c.id,
         participants: otherParticipants,
@@ -180,7 +180,7 @@ export const getMessages = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     const { conversationId } = req.params;
-    
+
     const participant = await prisma.conversationParticipant.findUnique({
       where: {
         conversationId_userId: {
@@ -286,25 +286,36 @@ export const sendMessage = async (req: Request, res: Response) => {
 export const searchUsers = async (req: Request, res: Response) => {
   try {
     const { query } = req.query;
-    const currentUserId = (req as any).user?.userId;
+    const currentUser = (req as any).user;
+    const currentUserId = currentUser?.userId;
+    const userRole = currentUser?.role;
 
     if (!query || typeof query !== 'string' || query.length < 2) {
       return res.json([]);
     }
 
+    const whereClause: any = {
+      AND: [
+        {
+          OR: [
+            { fullName: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } }
+          ]
+        },
+        { id: { not: currentUserId } },
+        { isActive: true }
+      ]
+    };
+
+    // RESTRICTION: Parents and Students can ONLY see Staff
+    if (userRole === 'PARENT' || userRole === 'STUDENT') {
+      whereClause.AND.push({
+        role: { in: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] }
+      });
+    }
+
     const users = await prisma.user.findMany({
-      where: {
-        AND: [
-          {
-            OR: [
-              { fullName: { contains: query, mode: 'insensitive' } },
-              { email: { contains: query, mode: 'insensitive' } }
-            ]
-          },
-          { id: { not: currentUserId } },
-          { isActive: true }
-        ]
-      },
+      where: whereClause,
       select: {
         id: true,
         fullName: true,

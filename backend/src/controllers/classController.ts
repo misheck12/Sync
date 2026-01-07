@@ -14,7 +14,17 @@ const classSchema = z.object({
 
 export const getClasses = async (req: Request, res: Response) => {
   try {
+    const userRole = (req as any).user?.role;
+    const userId = (req as any).user?.userId;
+
+    let whereClause = {};
+
+    if (userRole === 'TEACHER') {
+      whereClause = { teacherId: userId };
+    }
+
     const classes = await prisma.class.findMany({
+      where: whereClause,
       include: {
         teacher: {
           select: { fullName: true },
@@ -32,6 +42,44 @@ export const getClasses = async (req: Request, res: Response) => {
     res.json(classes);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch classes' });
+  }
+};
+
+export const getClassById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const classData = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        teacher: {
+          select: { fullName: true },
+        },
+        subjects: true,
+        students: {
+          where: { status: 'ACTIVE' },
+          orderBy: { lastName: 'asc' },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            admissionNumber: true,
+          }
+        },
+        _count: {
+          select: { students: true },
+        },
+      },
+    });
+
+    if (!classData) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    res.json(classData);
+  } catch (error) {
+    console.error('Error fetching class:', error);
+    res.status(500).json({ error: 'Failed to fetch class' });
   }
 };
 

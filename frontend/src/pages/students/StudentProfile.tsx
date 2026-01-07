@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
-import { 
-  User, 
-  CreditCard, 
-  Calendar, 
-  Phone, 
-  MapPin, 
-  ArrowLeft, 
+import {
+  User,
+  CreditCard,
+  Calendar,
+  Phone,
+  MapPin,
+  ArrowLeft,
   DollarSign,
   Clock,
   FileText,
   Edit2,
   History,
-  GraduationCap
+  GraduationCap,
+  Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Payment {
   id: string;
@@ -135,7 +138,7 @@ const StudentProfile = () => {
         method: paymentForm.method,
         referenceNumber: paymentForm.referenceNumber
       });
-      
+
       setShowPaymentModal(false);
       setPaymentForm({ amount: '', method: 'CASH', referenceNumber: '' });
       fetchStudent(); // Refresh data
@@ -157,6 +160,134 @@ const StudentProfile = () => {
     }
   };
 
+  const handleDownloadStatement = async () => {
+    if (!student) return;
+    try {
+      const res = await api.get(`/fees/statement/${student.id}`);
+      const { school, student: studentInfo, transactions } = res.data;
+
+      const doc = new jsPDF();
+
+      // HEADER
+      doc.setFillColor(30, 41, 59); // Slate 900
+
+      // Calculate Header Text Height
+      doc.setFontSize(16);
+      doc.setFont('times', 'bold');
+      const schoolNameLines = doc.splitTextToSize(school.name, 110);
+      const nameHeight = schoolNameLines.length * 7; // ~7mm per line
+      const headerHeight = Math.max(45, 15 + nameHeight + 15); // Adjust height dynamically
+
+      doc.rect(0, 0, 210, headerHeight, 'F');
+
+      doc.setTextColor(255, 255, 255);
+
+      // School Name
+      doc.text(schoolNameLines, 14, 18); // Y=18 baseline
+
+      // Address
+      const addressY = 18 + nameHeight - 2; // Below name with slight offset
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(school.address || '', 14, addressY);
+      doc.text(`Email: ${school.email}`, 14, addressY + 6);
+
+      // Statement Title (Right Aligned)
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('STATEMENT OF ACCOUNT', 196, 18, { align: 'right' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 196, 26, { align: 'right' });
+
+      // STUDENT INFO
+      const contentStartY = headerHeight + 15;
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Student: ${studentInfo.name}`, 14, contentStartY);
+      doc.text(`Admission No: ${studentInfo.admissionNumber}`, 14, contentStartY + 6);
+      doc.text(`Class: ${studentInfo.className}`, 14, contentStartY + 12);
+
+      doc.text(`Guardian: ${studentInfo.guardian || 'N/A'}`, 120, contentStartY);
+
+      // SUMMARY BLOCK
+      const totalBilled = transactions.reduce((acc: number, t: any) => t.type === 'DEBIT' ? acc + Number(t.amount) : acc, 0);
+      const totalPaid = transactions.reduce((acc: number, t: any) => t.type === 'CREDIT' ? acc + Number(t.amount) : acc, 0);
+      const currentBalance = totalBilled - totalPaid;
+
+      doc.setFillColor(248, 250, 252); // Slate 50
+      doc.setDrawColor(226, 232, 240); // Slate 200
+      doc.roundedRect(14, contentStartY + 18, 182, 18, 2, 2, 'FD');
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139); // Slate 500
+      doc.text('TOTAL BILLED', 30, contentStartY + 24);
+      doc.text('TOTAL PAID', 95, contentStartY + 24);
+      doc.text('BALANCE DUE', 160, contentStartY + 24);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42); // Slate 900
+      doc.text(`ZMW ${totalBilled.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 30, contentStartY + 31);
+      doc.text(`ZMW ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 95, contentStartY + 31);
+
+      if (currentBalance > 0) doc.setTextColor(220, 38, 38); // Red
+      else doc.setTextColor(22, 163, 74); // Green
+      doc.text(`ZMW ${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 160, contentStartY + 31);
+
+      let balance = 0;
+      const rows = transactions.map((t: any) => {
+        if (t.type === 'DEBIT') balance += t.amount;
+        else balance -= t.amount;
+
+        return [
+          new Date(t.date).toLocaleDateString(),
+          t.description,
+          t.ref,
+          t.type === 'DEBIT' ? Number(t.amount).toFixed(2) : '-',
+          t.type === 'CREDIT' ? Number(t.amount).toFixed(2) : '-',
+          balance.toFixed(2)
+        ];
+      });
+
+      autoTable(doc, {
+        startY: contentStartY + 45,
+        head: [['Date', 'Description', 'Ref', 'Billed', 'Paid', 'Balance']],
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [71, 85, 105], textColor: 255 },
+        columnStyles: {
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right', fontStyle: 'bold' }
+        }
+      });
+
+      // FOOTER SUMMARY
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.text(`Closing Balance: ZMW ${balance.toFixed(2)}`, 196, finalY, { align: 'right' });
+
+      if (balance > 0) {
+        doc.setTextColor(220, 38, 38); // Red
+        doc.text('Please ensure outstanding fees are cleared promptly.', 14, finalY);
+      } else {
+        doc.setTextColor(22, 163, 74); // Green
+        doc.text('Account is in good standing.', 14, finalY);
+      }
+
+      doc.save(`${studentInfo.name.replace(' ', '_')}_Statement.pdf`);
+
+    } catch (error) {
+      console.error('Failed to download statement', error);
+      alert('Failed to download statement');
+    }
+  };
+
   if (loading) {
     return <div className="p-6 text-center">Loading profile...</div>;
   }
@@ -173,7 +304,7 @@ const StudentProfile = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <button 
+      <button
         onClick={() => navigate('/students')}
         className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
       >
@@ -196,12 +327,11 @@ const StudentProfile = () => {
                 <span>{student.class?.name || 'No Class'}</span>
                 <span>•</span>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    student.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${student.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    }`}>
                     {student.status}
                   </span>
-                  <button 
+                  <button
                     onClick={() => setShowStatusModal(true)}
                     className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
                     title="Change Status"
@@ -212,13 +342,22 @@ const StudentProfile = () => {
               </div>
             </div>
           </div>
-          <button 
-            onClick={() => setShowPaymentModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <CreditCard size={18} />
-            Record Payment
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleDownloadStatement}
+              className="bg-white border border-gray-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+            >
+              <Download size={18} />
+              Statement
+            </button>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <CreditCard size={18} />
+              Record Payment
+            </button>
+          </div>
         </div>
       </div>
 
@@ -259,11 +398,11 @@ const StudentProfile = () => {
                   <p className="text-gray-900">{new Date(student.dateOfBirth).toLocaleDateString()}</p>
                 </div>
               </div>
-              
+
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-xs font-medium text-gray-500 uppercase">Scholarship</label>
-                  <button 
+                  <button
                     onClick={() => setShowScholarshipModal(true)}
                     className="text-blue-600 hover:text-blue-700 text-xs font-medium"
                   >
@@ -461,17 +600,16 @@ const StudentProfile = () => {
                 <button
                   key={status}
                   onClick={() => handleStatusUpdate(status)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                    student.status === status 
-                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.status === status
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
                 >
                   <div className="font-medium">{status}</div>
                 </button>
               ))}
             </div>
-            <button 
+            <button
               onClick={() => setShowStatusModal(false)}
               className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
             >
@@ -488,32 +626,30 @@ const StudentProfile = () => {
             <div className="space-y-2 max-h-[60vh] overflow-y-auto">
               <button
                 onClick={() => handleScholarshipUpdate(null)}
-                className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                  !student.scholarshipId
-                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                }`}
+                className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${!student.scholarshipId
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                  }`}
               >
                 <div className="font-medium">None</div>
                 <div className="text-xs opacity-75">Remove scholarship</div>
               </button>
-              
+
               {scholarships.map((scholarship) => (
                 <button
                   key={scholarship.id}
                   onClick={() => handleScholarshipUpdate(scholarship.id)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                    student.scholarshipId === scholarship.id
-                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.scholarshipId === scholarship.id
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
                 >
                   <div className="font-medium">{scholarship.name}</div>
                   <div className="text-xs opacity-75">{scholarship.percentage}% Discount</div>
                 </button>
               ))}
             </div>
-            <button 
+            <button
               onClick={() => setShowScholarshipModal(false)}
               className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
             >
@@ -544,7 +680,7 @@ const StudentProfile = () => {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                 <select
@@ -570,14 +706,14 @@ const StudentProfile = () => {
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPaymentModal(false)}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >

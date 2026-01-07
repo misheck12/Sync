@@ -22,6 +22,7 @@ import settingsRoutes from './routes/settingsRoutes';
 import communicationRoutes from './routes/communicationRoutes';
 import scholarshipRoutes from './routes/scholarshipRoutes';
 import profileRoutes from './routes/profileRoutes';
+import feeReminderRoutes from './routes/feeReminderRoutes';
 import path from 'path';
 
 const app: Application = express();
@@ -63,6 +64,7 @@ app.use('/api/v1/promotions', promotionRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/communication', communicationRoutes);
 app.use('/api/v1/scholarships', scholarshipRoutes);
+app.use('/api/v1/fee-reminders', feeReminderRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

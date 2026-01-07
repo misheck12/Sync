@@ -7,8 +7,11 @@ const prisma = new PrismaClient();
 export const generateStudentReport = async (req: Request, res: Response) => {
   try {
     const { studentId, termId } = req.body;
-    
+
     await generateSingleStudentReport(studentId, termId);
+
+    // Fetch School Settings
+    const settings = await prisma.schoolSettings.findFirst();
 
     // Fetch the generated report to return it
     const report = await prisma.studentTermReport.findUnique({
@@ -39,15 +42,16 @@ export const generateStudentReport = async (req: Request, res: Response) => {
     const totalScore = results.reduce((sum, r) => sum + Number(r.totalScore), 0);
     const averageScore = results.length > 0 ? totalScore / results.length : 0;
 
-    res.json({ 
-      ...report, 
+    res.json({
+      ...report,
       results: results.map(r => ({
         ...r,
         totalScore: Number(r.totalScore),
         subjectName: r.subject?.name || 'Unknown Subject'
       })),
       totalScore,
-      averageScore
+      averageScore,
+      school: settings
     });
 
   } catch (error) {
@@ -59,6 +63,8 @@ export const generateStudentReport = async (req: Request, res: Response) => {
 export const getStudentReport = async (req: Request, res: Response) => {
   try {
     const { studentId, termId } = req.query;
+
+    const settings = await prisma.schoolSettings.findFirst();
 
     if (!studentId || !termId) {
       return res.status(400).json({ error: 'Student ID and Term ID are required' });
@@ -96,15 +102,16 @@ export const getStudentReport = async (req: Request, res: Response) => {
     const totalScore = results.reduce((sum, r) => sum + Number(r.totalScore), 0);
     const averageScore = results.length > 0 ? totalScore / results.length : 0;
 
-    res.json({ 
-      ...report, 
+    res.json({
+      ...report,
       results: results.map(r => ({
         ...r,
         totalScore: Number(r.totalScore),
         subjectName: r.subject?.name || 'Unknown Subject'
       })),
       totalScore,
-      averageScore
+      averageScore,
+      school: settings
     });
 
   } catch (error) {
@@ -115,6 +122,7 @@ export const getStudentReport = async (req: Request, res: Response) => {
 export const getClassReports = async (req: Request, res: Response) => {
   try {
     const { classId, termId } = req.query;
+    const settings = await prisma.schoolSettings.findFirst();
 
     if (!classId || !termId) {
       return res.status(400).json({ error: 'Class ID and Term ID are required' });
@@ -159,23 +167,23 @@ export const getClassReports = async (req: Request, res: Response) => {
     for (const student of students) {
       const report = termReports.find(r => r.studentId === student.id);
       const results = allResults.filter(r => r.studentId === student.id);
-      
-      if (report) {
-         const totalScore = results.reduce((sum, r) => sum + Number(r.totalScore), 0);
-         const averageScore = results.length > 0 ? totalScore / results.length : 0;
 
-         reports.push({
-           ...report,
-           student,
-           class: student.class,
-           results: results.map(r => ({
-             ...r,
-             totalScore: Number(r.totalScore),
-             subjectName: r.subject?.name || 'Unknown Subject'
-           })),
-           totalScore,
-           averageScore
-         });
+      if (report) {
+        const totalScore = results.reduce((sum, r) => sum + Number(r.totalScore), 0);
+        const averageScore = results.length > 0 ? totalScore / results.length : 0;
+
+        reports.push({
+          ...report,
+          student,
+          class: student.class,
+          results: results.map(r => ({
+            ...r,
+            totalScore: Number(r.totalScore),
+            subjectName: r.subject?.name || 'Unknown Subject'
+          })),
+          totalScore,
+          averageScore
+        });
       }
     }
 
@@ -190,7 +198,7 @@ export const generateClassReports = async (req: Request, res: Response) => {
   // Bulk generation for a whole class
   try {
     const { classId, termId } = req.body;
-    
+
     const students = await prisma.student.findMany({
       where: { classId, status: 'ACTIVE' }
     });
@@ -203,7 +211,7 @@ export const generateClassReports = async (req: Request, res: Response) => {
       await generateSingleStudentReport(student.id, termId);
       count++;
     }
-    
+
     res.json({ count, message: `Generated reports for ${count} students` });
   } catch (error) {
     console.error('Batch generation error:', error);
@@ -213,99 +221,131 @@ export const generateClassReports = async (req: Request, res: Response) => {
 
 // Helper function to avoid code duplication
 const generateSingleStudentReport = async (studentId: string, termId: string) => {
-    // 1. Fetch Student and Class
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
-      include: { class: true }
-    });
+  // 0. Fetch Term for dates
+  const term = await prisma.academicTerm.findUnique({
+    where: { id: termId }
+  });
+  if (!term) return;
 
-    if (!student) return;
+  // 1. Fetch Student and Class
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    include: { class: true }
+  });
 
-    // 2. Fetch all assessments for this class and term
-    const assessments = await prisma.assessment.findMany({
-      where: {
-        classId: student.classId,
-        termId: termId
-      },
-      include: {
-        results: {
-          where: { studentId }
-        }
+  if (!student) return;
+
+  // 2. Fetch all assessments for this class and term
+  const assessments = await prisma.assessment.findMany({
+    where: {
+      classId: student.classId,
+      termId: termId
+    },
+    include: {
+      results: {
+        where: { studentId }
+      }
+    }
+  });
+
+  // 3. Fetch Grading Scales
+  const gradingScales = await prisma.gradingScale.findMany({
+    orderBy: { minScore: 'desc' }
+  });
+
+  // 4. Calculate Subject Grades
+  const subjectAssessments: Record<string, typeof assessments> = {};
+  assessments.forEach(a => {
+    if (!subjectAssessments[a.subjectId]) subjectAssessments[a.subjectId] = [];
+    subjectAssessments[a.subjectId].push(a);
+  });
+
+  for (const subjectId in subjectAssessments) {
+    const subjectAssmts = subjectAssessments[subjectId];
+    let totalWeightedScore = 0;
+
+    subjectAssmts.forEach(assessment => {
+      const result = assessment.results[0];
+      if (result) {
+        const scorePercent = (Number(result.score) / Number(assessment.totalMarks));
+        const weight = Number(assessment.weight);
+        totalWeightedScore += scorePercent * weight;
       }
     });
 
-    // 3. Fetch Grading Scales
-    const gradingScales = await prisma.gradingScale.findMany({
-      orderBy: { minScore: 'desc' }
-    });
+    const finalScore = Math.round(totalWeightedScore);
+    const gradeScale = gradingScales.find(g => finalScore >= g.minScore && finalScore <= g.maxScore);
 
-    // 4. Calculate Subject Grades
-    const subjectAssessments: Record<string, typeof assessments> = {};
-    assessments.forEach(a => {
-      if (!subjectAssessments[a.subjectId]) subjectAssessments[a.subjectId] = [];
-      subjectAssessments[a.subjectId].push(a);
-    });
-
-    for (const subjectId in subjectAssessments) {
-      const subjectAssmts = subjectAssessments[subjectId];
-      let totalWeightedScore = 0;
-      
-      subjectAssmts.forEach(assessment => {
-        const result = assessment.results[0];
-        if (result) {
-          const scorePercent = (Number(result.score) / Number(assessment.totalMarks));
-          const weight = Number(assessment.weight);
-          totalWeightedScore += scorePercent * weight;
-        }
-      });
-
-      const finalScore = Math.round(totalWeightedScore);
-      const gradeScale = gradingScales.find(g => finalScore >= g.minScore && finalScore <= g.maxScore);
-      
-      await prisma.termResult.upsert({
-        where: {
-          studentId_subjectId_termId: {
-            studentId,
-            subjectId,
-            termId
-          }
-        },
-        update: {
-          totalScore: finalScore,
-          grade: gradeScale?.grade || 'N/A',
-          remarks: gradeScale?.remark
-        },
-        create: {
+    await prisma.termResult.upsert({
+      where: {
+        studentId_subjectId_termId: {
           studentId,
           subjectId,
-          termId,
-          classId: student.classId,
-          totalScore: finalScore,
-          grade: gradeScale?.grade || 'N/A',
-          remarks: gradeScale?.remark
-        }
-      });
-    }
-
-    // 5. Create/Update Report Card (Simplified for batch)
-    await prisma.studentTermReport.upsert({
-      where: {
-        studentId_termId: {
-          studentId,
           termId
         }
       },
       update: {
-        classId: student.classId,
+        totalScore: finalScore,
+        grade: gradeScale?.grade || 'N/A',
+        remarks: gradeScale?.remark
       },
       create: {
         studentId,
+        subjectId,
         termId,
         classId: student.classId,
-        totalAttendance: 0, // Placeholder
-        totalDays: 60, // Placeholder
+        totalScore: finalScore,
+        grade: gradeScale?.grade || 'N/A',
+        remarks: gradeScale?.remark
       }
     });
+  }
+
+  // 5. Calculate Attendance
+  const attendanceCount = await prisma.attendance.count({
+    where: {
+      studentId,
+      date: {
+        gte: term.startDate,
+        lte: term.endDate
+      },
+      status: { in: ['PRESENT', 'LATE'] }
+    }
+  });
+
+  const schoolDays = await prisma.attendance.groupBy({
+    by: ['date'],
+    where: {
+      classId: student.classId,
+      date: {
+        gte: term.startDate,
+        lte: term.endDate
+      }
+    }
+  });
+  const totalDays = schoolDays.length > 0 ? schoolDays.length : 60;
+
+  // 6. Create/Update Report Card
+  await prisma.studentTermReport.upsert({
+    where: {
+      studentId_termId: {
+        studentId,
+        termId
+      }
+    },
+    update: {
+      classId: student.classId,
+      totalAttendance: attendanceCount,
+      totalDays: totalDays,
+    },
+    create: {
+      studentId,
+      termId,
+      classId: student.classId,
+      totalAttendance: attendanceCount,
+      totalDays: totalDays,
+    }
+  });
 };
 
 export const updateReportRemarks = async (req: Request, res: Response) => {

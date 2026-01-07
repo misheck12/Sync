@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, CalendarCheck, Settings, LogOut, BookOpen, GraduationCap, UserCog, MessageSquare, X } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, CalendarCheck, Settings, LogOut, BookOpen, GraduationCap, UserCog, MessageSquare, X, Award, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -15,63 +15,88 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { settings } = useTheme();
 
   const menuItems = [
-    { 
-      icon: LayoutDashboard, 
-      label: 'Dashboard', 
-      path: '/', 
-      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] 
+    {
+      icon: LayoutDashboard,
+      label: 'Dashboard',
+      path: '/',
+      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']
     },
-    { 
-      icon: GraduationCap, 
-      label: 'My Children', 
-      path: '/my-children', 
-      roles: ['PARENT'] 
+    {
+      icon: GraduationCap,
+      label: 'My Children',
+      path: '/my-children',
+      roles: ['PARENT']
     },
-    { 
-      icon: Users, 
-      label: 'Students', 
-      path: '/students', 
-      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY'] 
+    {
+      icon: Users,
+      label: 'Students',
+      path: '/students',
+      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']
     },
-    { 
-      icon: BookOpen, 
-      label: 'Academics', 
-      path: '/academics', 
-      roles: ['SUPER_ADMIN', 'TEACHER'] 
+    {
+      icon: BookOpen,
+      label: 'Academics',
+      path: '/academics',
+      roles: ['SUPER_ADMIN', 'TEACHER']
     },
-    { 
-      icon: CreditCard, 
-      label: 'Finance', 
-      path: '/finance', 
-      roles: ['SUPER_ADMIN', 'BURSAR'] 
+    {
+      icon: CreditCard,
+      label: 'Finance',
+      path: '/finance',
+      roles: ['SUPER_ADMIN', 'BURSAR']
     },
-    { 
-      icon: CalendarCheck, 
-      label: 'Attendance', 
-      path: '/attendance', 
-      roles: ['SUPER_ADMIN', 'TEACHER', 'SECRETARY'] 
+    {
+      icon: Users,
+      label: 'Attendance',
+      path: '/academics/attendance',
+      roles: ['SUPER_ADMIN', 'TEACHER', 'BURSAR', 'SECRETARY']
     },
-    { 
-      icon: UserCog, 
-      label: 'Users', 
-      path: '/users', 
-      roles: ['SUPER_ADMIN'] 
+    {
+      icon: TrendingUp,
+      label: 'Gradebook',
+      path: '/academics/gradebook',
+      roles: ['SUPER_ADMIN', 'TEACHER', 'BURSAR', 'SECRETARY']
     },
-    { 
-      icon: MessageSquare, 
-      label: 'Communication', 
-      path: '/communication', 
-      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT'] 
+    {
+      icon: UserCog,
+      label: 'Users',
+      path: '/users',
+      roles: ['SUPER_ADMIN']
     },
-    { 
-      icon: Settings, 
-      label: 'Settings', 
-      path: '/settings', 
-      roles: ['SUPER_ADMIN'] 
+    {
+      icon: MessageSquare,
+      label: 'Communication',
+      path: '/communication',
+      roles: ['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT']
+    },
+    {
+      icon: Settings,
+      label: 'Settings',
+      path: '/settings',
+      roles: ['SUPER_ADMIN']
+    },
+    {
+      icon: CalendarCheck,
+      label: 'Timetable',
+      path: '/academics/timetable',
+      roles: ['PARENT', 'STUDENT']
+    },
+    // Using BookOpen for Assignments for now, or ClipboardList if imported
+    {
+      icon: BookOpen,
+      label: 'Assignments',
+      path: '/student/assessments', // Re-using student assessments view or creating new?
+      roles: ['PARENT', 'STUDENT']
+    },
+    {
+      icon: Award,
+      label: 'Academic Reports',
+      path: '/academics/reports',
+      roles: ['PARENT', 'STUDENT']
     },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => 
+  const filteredMenuItems = menuItems.filter(item =>
     user && item.roles.includes(user.role)
   );
 
@@ -79,7 +104,7 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
           onClick={onClose}
         />
@@ -108,11 +133,10 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
                 key={item.label}
                 to={item.path}
                 onClick={onClose}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                  ? 'bg-primary text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
               >
                 <item.icon size={20} />
                 <span className="font-medium">{item.label}</span>
@@ -122,7 +146,7 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <button 
+          <button
             onClick={logout}
             className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
           >

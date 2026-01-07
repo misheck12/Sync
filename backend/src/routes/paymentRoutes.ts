@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPayment, getPayments, getStudentPayments, getFinanceStats } from '../controllers/paymentController';
+import { createPayment, getPayments, getStudentPayments, getFinanceStats, getFinancialReport } from '../controllers/paymentController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/stats', authorizeRole(['SUPER_ADMIN', 'BURSAR']), getFinanceStats);
+router.get('/reports', authorizeRole(['SUPER_ADMIN', 'BURSAR']), getFinancialReport);
 
 router.post('/', authorizeRole(['SUPER_ADMIN', 'BURSAR']), createPayment);
 router.get('/', authorizeRole(['SUPER_ADMIN', 'BURSAR']), getPayments);

@@ -1,19 +1,22 @@
 import { Router } from 'express';
 // Update import to include new controllers
-import { 
-  getFeeTemplates, 
-  createFeeTemplate, 
-  assignFeeToClass, 
-  getFeeTemplateById, 
-  updateFeeTemplate, 
+import {
+  getFeeTemplates,
+  createFeeTemplate,
+  assignFeeToClass,
+  getFeeTemplateById,
+  updateFeeTemplate,
   deleteFeeTemplate,
-  bulkCreateFeeTemplates
+  bulkCreateFeeTemplates,
+  getStudentStatement
 } from '../controllers/feeController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 
 const router = Router();
 
 router.use(authenticateToken);
+
+router.get('/statement/:studentId', getStudentStatement);
 
 router.get('/templates', getFeeTemplates);
 router.post('/templates', authorizeRole(['SUPER_ADMIN', 'BURSAR']), createFeeTemplate);

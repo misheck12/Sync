@@ -33,7 +33,26 @@ const updateStudentSchema = baseStudentSchema.partial().extend({
 
 export const getStudents = async (req: Request, res: Response) => {
   try {
+    const userRole = (req as any).user?.role;
+    const userId = (req as any).user?.userId;
+
+    let whereClause = {};
+
+    if (userRole === 'TEACHER') {
+      const myClasses = await prisma.class.findMany({
+        where: { teacherId: userId },
+        select: { id: true }
+      });
+
+      const classIds = myClasses.map(c => c.id);
+
+      whereClause = {
+        classId: { in: classIds }
+      };
+    }
+
     const students = await prisma.student.findMany({
+      where: whereClause,
       include: {
         class: true,
       },
@@ -51,7 +70,7 @@ export const getStudents = async (req: Request, res: Response) => {
 export const createStudent = async (req: Request, res: Response) => {
   try {
     const data = createStudentSchema.parse(req.body);
-    
+
     let parentId: string | null = null;
 
     // Auto-generate admission number if not provided
@@ -80,7 +99,7 @@ export const createStudent = async (req: Request, res: Response) => {
           }
         }
       }
-      
+
       admissionNumber = `${year}-${nextNum.toString().padStart(4, '0')}`;
     }
 
@@ -93,8 +112,8 @@ export const createStudent = async (req: Request, res: Response) => {
 
       if (existingParent) {
         if (existingParent.role !== 'PARENT') {
-          return res.status(400).json({ 
-            error: `Email ${data.guardianEmail} is already in use by a ${existingParent.role}. Cannot use as Guardian Email.` 
+          return res.status(400).json({
+            error: `Email ${data.guardianEmail} is already in use by a ${existingParent.role}. Cannot use as Guardian Email.`
           });
         }
         console.log('DEBUG: Existing parent found:', existingParent.id);
@@ -104,7 +123,7 @@ export const createStudent = async (req: Request, res: Response) => {
         // Create new parent account
         const password = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         try {
           const newParent = await prisma.user.create({
             data: {
@@ -133,9 +152,9 @@ export const createStudent = async (req: Request, res: Response) => {
               <p>Best regards,<br>School Administration</p>
             </div>
           `;
-          
+
           // Don't await this to avoid blocking the response if email fails
-          sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err => 
+          sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err =>
             console.error('Failed to send parent welcome email:', err)
           );
         } catch (createError: any) {
@@ -157,7 +176,7 @@ export const createStudent = async (req: Request, res: Response) => {
 
     // Resolve className to classId if needed
     let finalClassId = data.classId;
-    
+
     if (data.className && !finalClassId) {
       // Get current academic term
       const currentTerm = await prisma.academicTerm.findFirst({
@@ -243,7 +262,7 @@ export const createStudent = async (req: Request, res: Response) => {
         parentId,
       },
     });
-    
+
     res.status(201).json(student);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -257,7 +276,7 @@ export const createStudent = async (req: Request, res: Response) => {
 export const bulkCreateStudents = async (req: Request, res: Response) => {
   try {
     const studentsData = z.array(createStudentSchema).parse(req.body);
-    
+
     // Get current academic term (most recent or active)
     const currentTerm = await prisma.academicTerm.findFirst({
       orderBy: { startDate: 'desc' }
@@ -280,7 +299,7 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
     const existingClasses = await prisma.class.findMany({
       where: { academicTermId: currentTerm.id }
     });
-    
+
     const classMap = new Map(existingClasses.map(c => [c.name.toLowerCase(), c.id]));
     const classIdMap = new Map(existingClasses.map(c => [c.id, c]));
 
@@ -339,10 +358,10 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
         return { ...student, classId };
       })
     );
-    
+
     // Generate admission numbers for those missing
     const year = new Date().getFullYear();
-    
+
     // Find last admission number to start incrementing
     const lastStudent = await prisma.student.findFirst({
       where: { admissionNumber: { startsWith: `${year}-` } },
@@ -363,15 +382,15 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
       if (!admissionNumber) {
         admissionNumber = `${year}-${(nextNum + index).toString().padStart(4, '0')}`;
       }
-      
+
       // Remove fields not in the database schema
       const { guardianEmail, className, classId, ...studentData } = s;
-      
+
       // Ensure classId is defined (it should be from studentsWithClassIds)
       if (!classId) {
         throw new Error(`Missing classId for student: ${s.firstName} ${s.lastName}`);
       }
-      
+
       return {
         ...studentData,
         classId: classId as string,
@@ -379,16 +398,16 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
         status: 'ACTIVE' as const
       };
     });
-    
+
     const result = await prisma.student.createMany({
       data: dataToCreate,
-      skipDuplicates: true, 
+      skipDuplicates: true,
     });
-    
-    res.status(201).json({ 
-      message: `Successfully imported ${result.count} students`, 
+
+    res.status(201).json({
+      message: `Successfully imported ${result.count} students`,
       count: result.count,
-      term: currentTerm.name 
+      term: currentTerm.name
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -402,7 +421,7 @@ export const bulkCreateStudents = async (req: Request, res: Response) => {
 export const bulkDeleteStudents = async (req: Request, res: Response) => {
   try {
     const { ids } = z.object({ ids: z.array(z.string()) }).parse(req.body);
-    
+
     const result = await prisma.student.deleteMany({
       where: {
         id: {
@@ -410,7 +429,7 @@ export const bulkDeleteStudents = async (req: Request, res: Response) => {
         }
       }
     });
-    
+
     res.json({ message: `Successfully deleted ${result.count} students`, count: result.count });
   } catch (error) {
     console.error('Bulk delete error:', error);
@@ -494,7 +513,7 @@ export const updateStudent = async (req: Request, res: Response) => {
 export const deleteStudent = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // 1. Get student to find parent
     const student = await prisma.student.findUnique({
       where: { id },
@@ -516,10 +535,10 @@ export const deleteStudent = async (req: Request, res: Response) => {
 
       if (remainingChildren === 0) {
         try {
-           await prisma.user.delete({ where: { id: student.parentId } });
-           console.log(`Deleted orphan parent account: ${student.parentId}`);
+          await prisma.user.delete({ where: { id: student.parentId } });
+          console.log(`Deleted orphan parent account: ${student.parentId}`);
         } catch (err) {
-           console.warn(`Could not delete parent account ${student.parentId} - likely has other data linked`);
+          console.warn(`Could not delete parent account ${student.parentId} - likely has other data linked`);
         }
       }
     }
@@ -533,7 +552,12 @@ export const deleteStudent = async (req: Request, res: Response) => {
 export const getMyChildren = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
-    
+
+    // Get Active Term
+    const activeTerm = await prisma.academicTerm.findFirst({
+      where: { isActive: true }
+    });
+
     const students = await prisma.student.findMany({
       where: {
         parentId: userId
@@ -583,25 +607,102 @@ export const getMyChildren = async (req: Request, res: Response) => {
       }
     });
 
-    const studentsWithBalance = students.map(student => {
+    const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const todayName = days[new Date().getDay()];
+
+    const studentsWithExtras = await Promise.all(students.map(async (student) => {
+      // 1. Balance Calculation
       const totalFees = student.feeStructures.reduce((sum, fee) => sum + Number(fee.amountDue), 0);
       const totalPaid = student.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
       const balance = totalFees - totalPaid;
 
-      // We only want to send the last 5 payments to the frontend to keep payload small, 
-      // but we needed all of them for calculation.
+      // 2. Pending/Upcoming Assessments (Last 7 days to Future)
+      let pendingAssessments: any[] = [];
+      let todaysClasses: any[] = [];
+
+      if (activeTerm) {
+        // Find assessments for the class
+        const assessments = await prisma.assessment.findMany({
+          where: {
+            classId: student.classId,
+            termId: activeTerm.id,
+            date: {
+              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Include recent ones
+            }
+          },
+          include: { subject: true },
+          orderBy: { date: 'asc' }
+        });
+
+        // Filter out those already graded (present in assessmentResults)
+        // Note: This matches "Pending Grading" or "Pending Submission"
+        for (const assessment of assessments) {
+          // Check if result exists (Graded)
+          const result = await prisma.assessmentResult.findUnique({
+            where: { assessmentId_studentId: { assessmentId: assessment.id, studentId: student.id } }
+          });
+
+          if (!result) {
+            // Check if submitted but not graded? (Schema has AssessmentSubmission)
+            // For now, simpler: if no Result, show it as Pending/Upcoming
+            pendingAssessments.push(assessment);
+          }
+        }
+
+        // 3. Timetable for Today
+        if (['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].includes(todayName)) {
+          todaysClasses = await prisma.timetablePeriod.findMany({
+            where: {
+              classId: student.classId,
+              academicTermId: activeTerm.id,
+              dayOfWeek: todayName as any
+            },
+            include: { subject: true },
+            orderBy: { startTime: 'asc' }
+          });
+        }
+      }
+
+      // We only want to send the last 5 payments
       const recentPayments = student.payments.slice(0, 5);
 
       return {
         ...student,
         payments: recentPayments,
-        balance
+        balance,
+        pendingAssessments,
+        todaysClasses
       };
-    });
-    
-    res.json(studentsWithBalance);
+    }));
+
+    res.json(studentsWithExtras);
   } catch (error) {
     console.error('Get my children error:', error);
     res.status(500).json({ error: 'Failed to fetch children' });
+  }
+};
+
+export const getStudentProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { userId },
+      include: {
+        class: true
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
+
+    res.json(student);
+  } catch (error) {
+    console.error('Get student profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch student profile' });
   }
 };

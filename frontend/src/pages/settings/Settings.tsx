@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { useTheme } from '../../context/ThemeContext';
-import { Save, School, Calendar, Globe, Phone, Mail, MapPin, MessageSquare, Server, Palette } from 'lucide-react';
+import { Save, School, Calendar, Globe, Phone, Mail, MapPin, MessageSquare, Server, Palette, Bell, Send } from 'lucide-react';
 
 interface SettingsData {
   schoolName: string;
@@ -10,11 +10,21 @@ interface SettingsData {
   schoolEmail: string;
   schoolWebsite: string;
   currentTermId: string;
-  
+
   // Theme
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+
+  // Notification Channels
+  emailNotificationsEnabled: boolean;
+  smsNotificationsEnabled: boolean;
+
+  // Fee Reminder Settings
+  feeReminderEnabled: boolean;
+  feeReminderDaysBefore: number;
+  overdueReminderEnabled: boolean;
+  overdueReminderFrequency: number;
 
   // SMTP
   smtpHost: string;
@@ -48,10 +58,17 @@ const Settings = () => {
     schoolEmail: '',
     schoolWebsite: '',
     currentTermId: '',
-    
+
     primaryColor: '#2563eb',
     secondaryColor: '#475569',
     accentColor: '#f59e0b',
+
+    emailNotificationsEnabled: true,
+    smsNotificationsEnabled: false,
+    feeReminderEnabled: true,
+    feeReminderDaysBefore: 7,
+    overdueReminderEnabled: true,
+    overdueReminderFrequency: 7,
 
     smtpHost: '',
     smtpPort: '',
@@ -81,7 +98,7 @@ const Settings = () => {
         api.get('/settings'),
         api.get('/academic-terms')
       ]);
-      
+
       setSettings({
         schoolName: settingsRes.data.schoolName || '',
         schoolAddress: settingsRes.data.schoolAddress || '',
@@ -89,10 +106,17 @@ const Settings = () => {
         schoolEmail: settingsRes.data.schoolEmail || '',
         schoolWebsite: settingsRes.data.schoolWebsite || '',
         currentTermId: settingsRes.data.currentTermId || '',
-        
+
         primaryColor: settingsRes.data.primaryColor || '#2563eb',
         secondaryColor: settingsRes.data.secondaryColor || '#475569',
         accentColor: settingsRes.data.accentColor || '#f59e0b',
+
+        emailNotificationsEnabled: settingsRes.data.emailNotificationsEnabled ?? true,
+        smsNotificationsEnabled: settingsRes.data.smsNotificationsEnabled ?? false,
+        feeReminderEnabled: settingsRes.data.feeReminderEnabled ?? true,
+        feeReminderDaysBefore: settingsRes.data.feeReminderDaysBefore ?? 7,
+        overdueReminderEnabled: settingsRes.data.overdueReminderEnabled ?? true,
+        overdueReminderFrequency: settingsRes.data.overdueReminderFrequency ?? 7,
 
         smtpHost: settingsRes.data.smtpHost || '',
         smtpPort: settingsRes.data.smtpPort || '',
@@ -140,7 +164,7 @@ const Settings = () => {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">System Settings</h1>
-      
+
       <div className="flex space-x-4 mb-6 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('general')}
@@ -167,7 +191,7 @@ const Settings = () => {
           Communication
         </button>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* General Information */}
         {activeTab === 'general' && (
@@ -176,7 +200,7 @@ const Settings = () => {
               <School className="text-blue-600" size={20} />
               <h2 className="text-lg font-semibold text-gray-800">School Information</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">School Name</label>
@@ -188,7 +212,7 @@ const Settings = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                 <div className="relative">
@@ -347,13 +371,127 @@ const Settings = () => {
         {/* Communication Settings */}
         {activeTab === 'communication' && (
           <div className="space-y-6">
+            {/* Notification Channels */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center gap-2 mb-4 border-b pb-2">
+                <Bell className="text-blue-600" size={20} />
+                <h2 className="text-lg font-semibold text-gray-800">Notification Channels</h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-gray-800">Email Notifications</h3>
+                    <p className="text-sm text-gray-500">Send notifications via email to parents and staff</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.emailNotificationsEnabled}
+                      onChange={(e) => setSettings({ ...settings, emailNotificationsEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-gray-800">SMS Notifications</h3>
+                    <p className="text-sm text-gray-500">Send notifications via SMS to parents</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.smsNotificationsEnabled}
+                      onChange={(e) => setSettings({ ...settings, smsNotificationsEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Fee Reminder Settings */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center gap-2 mb-4 border-b pb-2">
+                <Send className="text-blue-600" size={20} />
+                <h2 className="text-lg font-semibold text-gray-800">Fee Reminder Settings</h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-gray-800">Automatic Fee Reminders</h3>
+                    <p className="text-sm text-gray-500">Send reminders before fee due dates</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.feeReminderEnabled}
+                      onChange={(e) => setSettings({ ...settings, feeReminderEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {settings.feeReminderEnabled && (
+                  <div className="pl-4 border-l-2 border-blue-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Send reminder this many days before due date</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={settings.feeReminderDaysBefore}
+                      onChange={(e) => setSettings({ ...settings, feeReminderDaysBefore: parseInt(e.target.value) || 7 })}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-500">days</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-gray-800">Overdue Reminders</h3>
+                    <p className="text-sm text-gray-500">Send reminders for overdue payments</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.overdueReminderEnabled}
+                      onChange={(e) => setSettings({ ...settings, overdueReminderEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {settings.overdueReminderEnabled && (
+                  <div className="pl-4 border-l-2 border-orange-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Send overdue reminder every</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={settings.overdueReminderFrequency}
+                      onChange={(e) => setSettings({ ...settings, overdueReminderFrequency: parseInt(e.target.value) || 7 })}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-500">days</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* SMTP Settings */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center gap-2 mb-4 border-b pb-2">
                 <Server className="text-blue-600" size={20} />
                 <h2 className="text-lg font-semibold text-gray-800">Email Settings (SMTP)</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
@@ -365,7 +503,7 @@ const Settings = () => {
                     placeholder="smtp.gmail.com"
                   />
                 </div>
-                
+
                 <div className="col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
                   <input
@@ -440,7 +578,7 @@ const Settings = () => {
                 <MessageSquare className="text-blue-600" size={20} />
                 <h2 className="text-lg font-semibold text-gray-800">SMS Gateway Settings</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
@@ -455,7 +593,7 @@ const Settings = () => {
                     <option value="GENERIC">Generic HTTP</option>
                   </select>
                 </div>
-                
+
                 <div className="col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sender ID</label>
                   <input

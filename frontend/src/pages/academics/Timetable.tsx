@@ -52,15 +52,15 @@ const Timetable = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [currentTerm, setCurrentTerm] = useState<AcademicTerm | null>(null);
-  
+
   const [periods, setPeriods] = useState<TimetablePeriod[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   // Form State
   const [newPeriod, setNewPeriod] = useState({
     dayOfWeek: 'MONDAY',
@@ -87,25 +87,58 @@ const Timetable = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [termsRes, classesRes, teachersRes, subjectsRes] = await Promise.all([
+      const isParent = user?.role === 'PARENT';
+
+      const [termsRes, subjectsRes] = await Promise.all([
         api.get('/academic-terms'),
-        api.get('/classes'),
-        api.get('/users/teachers'),
         api.get('/subjects')
       ]);
 
       const activeTerm = termsRes.data.find((t: any) => t.isActive) || termsRes.data[0];
       setCurrentTerm(activeTerm);
-      setClasses(classesRes.data);
-      setTeachers(teachersRes.data);
       setSubjects(subjectsRes.data);
 
-      if (user?.role === 'TEACHER') {
-        setViewMode('TEACHER');
-        setSelectedTeacherId(user.id);
-      } else if (classesRes.data.length > 0) {
-        setSelectedClassId(classesRes.data[0].id);
+      if (isParent) {
+        // For Parents: specific classes only
+        const childrenRes = await api.get('/students/my-children');
+        const childClasses = childrenRes.data
+          .map((c: any) => c.class)
+          .filter((c: any) => c) // remove nulls
+          .reduce((acc: any[], current: any) => {
+            const x = acc.find((item: any) => item.id === current.id);
+            if (!x) return acc.concat([current]);
+            return acc;
+          }, []);
+
+        setClasses(childClasses);
+        if (childClasses.length > 0) {
+          setSelectedClassId(childClasses[0].id);
+        }
+      } else if (user?.role === 'STUDENT') {
+        // Should be single class (their own)
+        const profileRes = await api.get('/students/profile/me');
+        if (profileRes.data.class) {
+          setClasses([profileRes.data.class]);
+          setSelectedClassId(profileRes.data.class.id);
+        }
+      } else {
+        // For Admin/Teachers: All classes
+        const [classesRes, teachersRes] = await Promise.all([
+          api.get('/classes'),
+          api.get('/users/teachers')
+        ]);
+
+        setClasses(classesRes.data);
+        setTeachers(teachersRes.data);
+
+        if (user?.role === 'TEACHER') {
+          setViewMode('TEACHER');
+          setSelectedTeacherId(user.id);
+        } else if (classesRes.data.length > 0) {
+          setSelectedClassId(classesRes.data[0].id);
+        }
       }
+
     } catch (error) {
       console.error('Error fetching initial data:', error);
     }
@@ -150,14 +183,14 @@ const Timetable = () => {
         // If in teacher view, use selected teacher, otherwise use form value
         teacherId: viewMode === 'TEACHER' ? selectedTeacherId : newPeriod.teacherId
       });
-      
+
       setShowAddModal(false);
       // Refresh
       if (viewMode === 'CLASS') fetchClassTimetable();
       else fetchTeacherTimetable();
-      
+
       // Reset form partially
-      setNewPeriod(prev => ({ ...prev, startTime: prev.endTime, endTime: '' })); 
+      setNewPeriod(prev => ({ ...prev, startTime: prev.endTime, endTime: '' }));
     } catch (error: any) {
       console.error('Error adding period:', error);
       alert(error.response?.data?.message || 'Failed to add period');
@@ -193,36 +226,44 @@ const Timetable = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-gray-100 p-1 rounded-lg flex">
-            <button
-              onClick={() => setViewMode('CLASS')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'CLASS' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Class View
-            </button>
-            <button
-              onClick={() => setViewMode('TEACHER')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'TEACHER' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Teacher View
-            </button>
-          </div>
+          {/* View Toggles - Only for Admin/Teachers/Staff */}
+          {['SUPER_ADMIN', 'TEACHER', 'BURSAR', 'SECRETARY'].includes(user?.role || '') && (
+            <div className="bg-gray-100 p-1 rounded-lg flex">
+              <button
+                onClick={() => setViewMode('CLASS')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'CLASS' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                Class View
+              </button>
+              <button
+                onClick={() => setViewMode('TEACHER')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'TEACHER' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                Teacher View
+              </button>
+            </div>
+          )}
 
           {viewMode === 'CLASS' ? (
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            >
-              <option value="">Select Class</option>
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            user?.role === 'STUDENT' && classes.length > 0 ? (
+              <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 font-medium flex items-center gap-2">
+                <span className="text-blue-500 text-xs uppercase font-bold">Your Class:</span>
+                {classes[0].name}
+              </div>
+            ) : (
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Select Class</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )
           ) : (
             <select
               value={selectedTeacherId}
@@ -269,7 +310,7 @@ const Timetable = () => {
                         {period.startTime} - {period.endTime}
                       </span>
                       {(user?.role === 'SUPER_ADMIN' || user?.role === 'TEACHER') && (
-                        <button 
+                        <button
                           onClick={() => handleDeletePeriod(period.id)}
                           className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -391,14 +432,14 @@ const Timetable = () => {
               )}
 
               <div className="flex justify-end space-x-3 mt-6">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >

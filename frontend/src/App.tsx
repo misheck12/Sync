@@ -19,115 +19,139 @@ import Settings from './pages/settings/Settings';
 import Profile from './pages/profile/Profile';
 import Communication from './pages/communication/Communication';
 import MyChildren from './pages/parents/MyChildren';
+import AcademicReports from './pages/parents/AcademicReports';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import RoleGuard from './components/layout/RoleGuard';
 
 import StudentQuiz from './pages/student/StudentQuiz';
 import StudentAssessments from './pages/student/StudentAssessments';
+import AttendanceRegister from './pages/academics/AttendanceRegister';
+import TeacherGradebook from './pages/academics/TeacherGradebook';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <Router>
+          <Toaster position="top-right" />
           <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route element={<ProtectedRoute />}>
-            <Route path="/student/quiz/:assessmentId" element={<StudentQuiz />} />
-            
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/my-children" element={
-                <RoleGuard allowedRoles={['PARENT']}>
-                  <MyChildren />
-                </RoleGuard>
-              } />
-              <Route path="/student/assessments" element={
-                <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN']}>
-                  <StudentAssessments />
-                </RoleGuard>
-              } />
-              
-              <Route path="/students" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']}>
-                  <Students />
-                </RoleGuard>
-              } />
-              <Route path="/students/:id" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']}>
-                  <StudentProfile />
-                </RoleGuard>
-              } />
-              
-              <Route path="/finance" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR']}>
-                  <Finance />
-                </RoleGuard>
-              } />
-              
-              <Route path="/attendance" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'SECRETARY']}>
-                  <Attendance />
-                </RoleGuard>
-              } />
-              
-              <Route path="/academics" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
-                  <Academics />
-                </RoleGuard>
-              } />
-              <Route path="/academics/grading-scales" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
-                  <GradingScales />
-                </RoleGuard>
-              } />
-              <Route path="/academics/report-cards" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
-                  <ReportCards />
-                </RoleGuard>
-              } />
-              <Route path="/academics/timetable" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'STUDENT', 'PARENT']}>
-                  <Timetable />
-                </RoleGuard>
-              } />
-              <Route path="/subjects" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
-                  <Subjects />
-                </RoleGuard>
-              } />
-              <Route path="/classes" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'SECRETARY']}>
-                  <Classes />
-                </RoleGuard>
-              } />
-              
-              <Route path="/users" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN']}>
-                  <Users />
-                </RoleGuard>
-              } />
+            <Route path="/login" element={<Login />} />
 
-              <Route path="/communication" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT']}>
-                  <Communication />
-                </RoleGuard>
-              } />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/student/quiz/:assessmentId" element={<StudentQuiz />} />
 
-              <Route path="/settings" element={
-                <RoleGuard allowedRoles={['SUPER_ADMIN']}>
-                  <Settings />
-                </RoleGuard>
-              } />
+              <Route element={<DashboardLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/my-children" element={
+                  <RoleGuard allowedRoles={['PARENT']}>
+                    <MyChildren />
+                  </RoleGuard>
+                } />
+                <Route path="/student/assessments" element={
+                  <RoleGuard allowedRoles={['STUDENT', 'SUPER_ADMIN', 'PARENT']}>
+                    <StudentAssessments />
+                  </RoleGuard>
+                } />
+
+                <Route path="/students" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']}>
+                    <Students />
+                  </RoleGuard>
+                } />
+                <Route path="/students/:id" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY']}>
+                    <StudentProfile />
+                  </RoleGuard>
+                } />
+
+                <Route path="/finance" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR']}>
+                    <Finance />
+                  </RoleGuard>
+                } />
+
+                <Route path="/attendance" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'SECRETARY']}>
+                    <Attendance />
+                  </RoleGuard>
+                } />
+
+                <Route path="/academics" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                    <Academics />
+                  </RoleGuard>
+                } />
+                <Route path="/academics/grading-scales" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                    <GradingScales />
+                  </RoleGuard>
+                } />
+                <Route path="/academics/report-cards" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                    <ReportCards />
+                  </RoleGuard>
+                } />
+
+
+                // ... (In Routes)
+                <Route path="/academics/attendance" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'SECRETARY']}>
+                    <AttendanceRegister />
+                  </RoleGuard>
+                } />
+                <Route path="/academics/gradebook" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'BURSAR', 'SECRETARY']}>
+                    <TeacherGradebook />
+                  </RoleGuard>
+                } />
+
+                <Route path="/academics/timetable" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'STUDENT', 'PARENT']}>
+                    <Timetable />
+                  </RoleGuard>
+                } />
+                <Route path="/subjects" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER']}>
+                    <Subjects />
+                  </RoleGuard>
+                } />
+                <Route path="/classes" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'TEACHER', 'SECRETARY']}>
+                    <Classes />
+                  </RoleGuard>
+                } />
+
+                <Route path="/users" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN']}>
+                    <Users />
+                  </RoleGuard>
+                } />
+
+                <Route path="/communication" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN', 'BURSAR', 'TEACHER', 'SECRETARY', 'PARENT']}>
+                    <Communication />
+                  </RoleGuard>
+                } />
+
+                <Route path="/academics/reports" element={
+                  <RoleGuard allowedRoles={['PARENT', 'STUDENT']}>
+                    <AcademicReports />
+                  </RoleGuard>
+                } />
+                <Route path="/settings" element={
+                  <RoleGuard allowedRoles={['SUPER_ADMIN']}>
+                    <Settings />
+                  </RoleGuard>
+                } />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
       </ThemeProvider>
     </AuthProvider>
   );

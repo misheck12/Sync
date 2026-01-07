@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Users, AlertCircle, CheckCircle, Printer } from 'lucide-react';
+import { FileText, AlertCircle, CheckCircle, Printer, Download, FileSpreadsheet } from 'lucide-react';
+import { exportToCSV, exportToExcel } from '../../utils/exportUtils';
 import { reportCardService, StudentReport } from '../../services/reportCardService';
 import api from '../../utils/api';
 import StudentReportCard from '../../components/academics/StudentReportCard';
+import ClassBroadsheet from '../../components/academics/ClassBroadsheet';
+
 
 interface Class {
   id: string;
@@ -31,12 +34,13 @@ const ReportCards: React.FC = () => {
   const [selectedTerm, setSelectedTerm] = useState('');
 
   const [report, setReport] = useState<StudentReport | null>(null);
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [classReports, setClassReports] = useState<StudentReport[]>([]);
   const [printingAll, setPrintingAll] = useState(false);
+  const [showBroadsheet, setShowBroadsheet] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [teacherRemark, setTeacherRemark] = useState('');
   const [principalRemark, setPrincipalRemark] = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
@@ -77,8 +81,10 @@ const ReportCards: React.FC = () => {
     if (selectedClass) {
       fetchStudents(selectedClass);
     } else {
+
       setStudents([]);
     }
+    setShowBroadsheet(false);
   }, [selectedClass]);
 
   const fetchInitialData = async () => {
@@ -120,48 +126,86 @@ const ReportCards: React.FC = () => {
     }
   };
 
-  const handleGenerateClassReports = async () => {
+
+
+
+
+  const handleExport = async (type: 'PRINT' | 'EXCEL' | 'CSV') => {
     if (!selectedClass || !selectedTerm) return;
 
     try {
       setGenerating(true);
       setError(null);
-      setSuccess(null);
-      const data = await reportCardService.generateClassReports(selectedClass, selectedTerm);
-      setSuccess(`Successfully generated reports for ${data.count} students`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate class reports');
-    } finally {
-      setGenerating(false);
-    }
-  };
 
-  const handleBulkPrint = async () => {
-    if (!selectedClass || !selectedTerm) return;
+      // Auto-generate reports to ensure data is fresh
+      await reportCardService.generateClassReports(selectedClass, selectedTerm);
 
-    try {
-      setGenerating(true);
-      setError(null);
+      // Ensure we have ALL reports
       const reports = await reportCardService.getClassReports(selectedClass, selectedTerm);
       if (reports.length === 0) {
-        setError('No reports found for this class');
+        setError('No students found in this class.');
         return;
       }
       setClassReports(reports);
-      setPrintingAll(true);
-      // Wait for render then print
-      setTimeout(() => {
-        window.print();
-        // Optional: Reset after print dialog closes (though we can't detect close easily)
-        // setPrintingAll(false); 
-      }, 1000);
+
+      const className = classes.find(c => c.id === selectedClass)?.name || 'Class';
+      const termName = terms.find(t => t.id === selectedTerm)?.name || 'Term';
+
+      if (type === 'PRINT') {
+        setPrintingAll(true);
+        setTimeout(() => {
+          window.print();
+        }, 1000);
+      } else if (type === 'EXCEL') {
+        exportToExcel(reports, className, termName);
+        setSuccess('Excel exported successfully');
+      } else if (type === 'CSV') {
+        exportToCSV(reports, className, termName);
+        setSuccess('CSV exported successfully');
+      }
     } catch (err: any) {
       console.error(err);
-      setError('Failed to fetch class reports for printing');
+      setError('Failed to export reports');
+    } finally {
+      setGenerating(false);
+      setShowExportMenu(false);
+    }
+  };
+
+
+
+  const handleViewBroadsheet = async () => {
+    if (!selectedClass || !selectedTerm) return;
+    try {
+      setGenerating(true);
+      // Auto-generate reports
+      await reportCardService.generateClassReports(selectedClass, selectedTerm);
+
+      const reports = await reportCardService.getClassReports(selectedClass, selectedTerm);
+      if (reports.length === 0) {
+        setError('No students found in this class.');
+        return;
+      }
+      setClassReports(reports);
+      setShowBroadsheet(true);
+      setReport(null); // Clear single report
+    } catch (err: any) {
+      setError('Failed to load broadsheet');
     } finally {
       setGenerating(false);
     }
   };
+
+  if (showBroadsheet) {
+    return (
+      <div className="p-6 h-[calc(100vh-64px)]">
+        <ClassBroadsheet
+          reports={classReports}
+          onClose={() => setShowBroadsheet(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -229,21 +273,49 @@ const ReportCards: React.FC = () => {
             <FileText size={20} />
             {generating && selectedStudent ? 'Generating...' : 'Generate Student Report'}
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={!selectedClass || !selectedTerm || generating}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+            >
+              <Download size={20} />
+              Export / Print
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <button
+                  onClick={() => handleExport('PRINT')}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700 border-b border-gray-50"
+                >
+                  <Printer size={16} className="text-blue-600" />
+                  Print Reports (PDF)
+                </button>
+                <button
+                  onClick={() => handleExport('EXCEL')}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700 border-b border-gray-50"
+                >
+                  <FileSpreadsheet size={16} className="text-green-600" />
+                  Export Excel (Results)
+                </button>
+                <button
+                  onClick={() => handleExport('CSV')}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                >
+                  <FileText size={16} className="text-gray-500" />
+                  Export CSV
+                </button>
+              </div>
+            )}
+          </div>
           <button
-            onClick={handleGenerateClassReports}
+            onClick={handleViewBroadsheet}
             disabled={!selectedClass || !selectedTerm || generating}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed"
           >
-            <Users size={20} />
-            {generating && !selectedStudent ? 'Generating...' : 'Generate Class Reports'}
-          </button>
-          <button
-            onClick={handleBulkPrint}
-            disabled={!selectedClass || !selectedTerm || generating}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-          >
-            <Printer size={20} />
-            {printingAll ? 'Preparing Print...' : 'Print All Reports'}
+            <FileSpreadsheet size={20} />
+            Broadsheet
           </button>
         </div>
 
@@ -280,7 +352,7 @@ const ReportCards: React.FC = () => {
 
       {printingAll && classReports.length > 0 && (
         <div className="print-only">
-          {classReports.map((r, i) => (
+          {classReports.map((r) => (
             <div key={r.id} style={{ pageBreakAfter: 'always' }} className="pb-8">
               <StudentReportCard report={r} editable={false} />
             </div>

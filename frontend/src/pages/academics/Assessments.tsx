@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Calendar, BookOpen, Users, ChevronRight, ArrowLeft, Save, Edit3, Trash2 } from 'lucide-react';
+import { Plus, FileText, Calendar, BookOpen, Users, ChevronRight, ArrowLeft, Save, Edit3, Trash2 } from 'lucide-react';
 import api from '../../utils/api';
 import QuestionBuilder from '../../components/academics/QuestionBuilder';
+import SubjectGradebook from '../../components/academics/SubjectGradebook';
+import { BarChart2, TrendingUp, Award, Calculator, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Assessment {
   id: string;
@@ -30,7 +33,7 @@ interface AssessmentResult {
 }
 
 const Assessments = () => {
-  const [view, setView] = useState<'list' | 'create' | 'grade' | 'questions'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'grade' | 'questions' | 'gradebook'>('list');
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
@@ -130,6 +133,57 @@ const Assessments = () => {
     }
   };
 
+  const downloadTemplate = () => {
+    if (!currentAssessment) return;
+    const wsData = [
+      ['Admission No', 'Student Name', 'Score', 'Remarks'],
+      ...students.map(s => [s.admissionNumber, `${s.firstName} ${s.lastName}`, '', ''])
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "Grades");
+    XLSX.writeFile(wb, `${currentAssessment.title}_Template.xlsx`);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+      const newGrades = { ...grades };
+      let updated = 0;
+
+      // Skip header row
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const admNo = row[0]?.toString();
+        const score = row[2];
+        const remarks = row[3];
+
+        if (admNo) {
+          const student = students.find(s => s.admissionNumber === admNo);
+          if (student) {
+            newGrades[student.id] = {
+              score: score !== undefined ? String(score) : '',
+              remarks: remarks || ''
+            };
+            updated++;
+          }
+        }
+      }
+      setGrades(newGrades);
+      alert(`Imported grades for ${updated} students.`);
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const openGradebook = async (assessment: Assessment) => {
     setCurrentAssessment(assessment);
     setView('grade');
@@ -217,6 +271,24 @@ const Assessments = () => {
 
         />
       </div>
+    );
+  }
+
+  if (view === 'gradebook') {
+    // These variables are not used here, they seem to be part of a different context.
+    // const wsData: any[][] = [
+    //    [`Subject Gradebook: ${subjectNameStr} - ${classNameStr}`],
+    //    headers
+    // ];
+    return (
+      <SubjectGradebook
+        classId={selectedClass}
+        subjectId={selectedSubject}
+        termId={''}
+        onBack={() => setView('list')}
+        classNameStr={classes.find(c => c.id === selectedClass)?.name || 'Class'}
+        subjectNameStr={subjects.find(s => s.id === selectedSubject)?.name || 'Subject'}
+      />
     );
   }
 
@@ -402,13 +474,23 @@ const Assessments = () => {
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => setView('list')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft size={20} className="mr-2" />
-            Back to Assessments
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setView('list')}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft size={20} className="mr-2" />
+              Back to Assessments
+            </button>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <button onClick={downloadTemplate} className="flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium">
+              <Download size={16} className="mr-1" /> Template
+            </button>
+            <label className="flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer">
+              <Upload size={16} className="mr-1" /> Import
+              <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleFileUpload} />
+            </label>
+          </div>
 
           <button
             onClick={saveGrades}
@@ -422,7 +504,7 @@ const Assessments = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200 bg-gray-50">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">{currentAssessment.title}</h2>
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
@@ -434,6 +516,35 @@ const Assessments = () => {
               <div className="text-right">
                 <div className="text-sm text-gray-500">Total Marks</div>
                 <div className="text-2xl font-bold text-gray-800">{currentAssessment.totalMarks}</div>
+              </div>
+            </div>
+
+            {/* Analytics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+              <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                <div className="text-xs text-gray-500 font-medium uppercase mb-1 flex items-center gap-1">
+                  <BarChart2 size={14} className="text-blue-500" /> Average Score
+                </div>
+                <div className="text-xl font-bold text-gray-800">
+                  {(Object.values(grades).reduce((acc, g) => acc + (Number(g.score) || 0), 0) / (Object.keys(grades).length || 1)).toFixed(1)}
+                  <span className="text-xs text-gray-400 font-normal ml-1">/ {currentAssessment.totalMarks}</span>
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                <div className="text-xs text-gray-500 font-medium uppercase mb-1 flex items-center gap-1">
+                  <TrendingUp size={14} className="text-green-500" /> Pass Rate
+                </div>
+                <div className="text-xl font-bold text-gray-800">
+                  {(Object.values(grades).filter(g => (Number(g.score) || 0) >= (currentAssessment.totalMarks * 0.5)).length / (Object.keys(grades).length || 1) * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                <div className="text-xs text-gray-500 font-medium uppercase mb-1 flex items-center gap-1">
+                  <Award size={14} className="text-purple-500" /> Highest Score
+                </div>
+                <div className="text-xl font-bold text-gray-800">
+                  {Math.max(...Object.values(grades).map(g => Number(g.score) || 0))}
+                </div>
               </div>
             </div>
           </div>
@@ -488,124 +599,182 @@ const Assessments = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="flex gap-4 flex-1">
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">All Classes</option>
-            {classes.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <select
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">All Subjects</option>
-            {subjects.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Assessments</h1>
+        <p className="text-gray-500 mt-1">Manage exams, tests, and homework assignments.</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-1 gap-4 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none sm:w-64">
+            <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors appearance-none cursor-pointer"
+            >
+              <option value="">All Classes</option>
+              {classes.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 rotate-90" size={14} />
+          </div>
+          <div className="relative flex-1 sm:flex-none sm:w-64">
+            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors appearance-none cursor-pointer"
+            >
+              <option value="">All Subjects</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 rotate-90" size={14} />
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex gap-2 w-full sm:w-auto">
+          {selectedClass && selectedSubject && (
+            <button
+              onClick={() => setView('gradebook')}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 transition-colors shadow-sm"
+              title="View full subject matrix"
+            >
+              <Calculator size={18} />
+              <span className="hidden sm:inline">Gradebook</span>
+            </button>
+          )}
           {selectedAssessments.size > 0 && (
             <button
               onClick={handleBulkDelete}
               disabled={deleting}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors disabled:bg-red-300"
+              className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-colors disabled:bg-red-300 shadow-sm"
             >
-              <Trash2 size={20} />
-              Delete ({selectedAssessments.size})
+              <Trash2 size={18} />
+              <span className="hidden sm:inline">Delete ({selectedAssessments.size})</span>
             </button>
           )}
           <button
             onClick={() => setView('create')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto"
           >
-            <Plus size={20} />
-            New Assessment
+            <Plus size={18} />
+            <span className="hidden sm:inline">New Assessment</span>
+            <span className="sm:hidden">Create</span>
           </button>
         </div>
+      </div>
 
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading assessments...</div>
-        ) : assessments.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-            <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">No assessments found</h3>
-            <p className="text-gray-500 mt-1">Create a new assessment to get started</p>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
+          <p>Loading assessments...</p>
+        </div>
+      ) : assessments.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+          <div className="bg-blue-50 text-blue-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText size={32} />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {assessments.map(assessment => (
-              <div key={assessment.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedAssessments.has(assessment.id)}
-                      onChange={() => toggleSelection(assessment.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${assessment.type === 'EXAM' ? 'bg-red-100 text-red-700' :
-                      assessment.type === 'TEST' ? 'bg-orange-100 text-orange-700' :
-                        assessment.type === 'QUIZ' ? 'bg-blue-100 text-blue-700' :
-                          'bg-green-100 text-green-700'
-                      }`}>
+          <h3 className="text-xl font-bold text-gray-900">No assessments found</h3>
+          <p className="text-gray-500 mt-2 max-w-sm mx-auto">
+            {selectedClass || selectedSubject
+              ? "Try adjusting your filters to find what you're looking for."
+              : "Create your first assessment to start tracking student performance."}
+          </p>
+          {!selectedClass && !selectedSubject && (
+            <button
+              onClick={() => setView('create')}
+              className="mt-6 text-blue-600 font-medium hover:text-blue-700"
+            >
+              Create New Assessment
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {assessments.map(assessment => {
+            const typeColors =
+              assessment.type === 'EXAM' ? { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700' } :
+                assessment.type === 'TEST' ? { border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' } :
+                  assessment.type === 'QUIZ' ? { border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' } :
+                    { border: 'border-green-500', bg: 'bg-green-50', text: 'text-green-700' };
+
+            return (
+              <div
+                key={assessment.id}
+                className={`bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 relative group overflow-hidden border-l-4 ${typeColors.border}`}
+              >
+                <div className="p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wide ${typeColors.bg} ${typeColors.text}`}>
                       {assessment.type}
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      {new Date(assessment.date).toLocaleDateString()}
                     </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-gray-400 flex items-center bg-gray-50 px-2 py-1 rounded">
+                        <Calendar size={12} className="mr-1.5" />
+                        {new Date(assessment.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={selectedAssessments.has(assessment.id)}
+                        onChange={() => toggleSelection(assessment.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                    {assessment.title}
+                  </h3>
+
+                  <div className="flex flex-col gap-1.5 mt-4">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <BookOpen size={16} className="mr-2 text-gray-400" />
+                      <span className="truncate font-medium">{assessment.subject.name}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Users size={16} className="mr-2 text-gray-400" />
+                      <span className="truncate">{assessment.class.name}</span>
+                    </div>
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1">{assessment.title}</h3>
+                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-xl font-bold text-gray-800 leading-none">
+                      {assessment._count?.results || 0}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 mt-1">Graded</span>
+                  </div>
 
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Users size={16} className="mr-2" />
-                    {assessment.class.name}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <BookOpen size={16} className="mr-2" />
-                    {assessment.subject.name}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-900">{assessment._count?.results || 0}</span> graded
-                  </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     {(assessment.type === 'QUIZ' || assessment.type === 'TEST' || assessment.type === 'EXAM') && (
                       <button
                         onClick={() => openQuestionBuilder(assessment)}
-                        className="flex items-center text-gray-600 hover:text-blue-600 font-medium text-sm px-2 py-1 rounded hover:bg-blue-50"
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-gray-200"
                         title="Manage Questions"
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={18} />
                       </button>
                     )}
                     <button
                       onClick={() => openGradebook(assessment)}
-                      className="flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm"
+                      className="flex items-center bg-white border border-gray-200 text-gray-700 hover:text-blue-600 hover:border-blue-200 px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm group-hover:border-blue-300"
                     >
-                      Open Gradebook
-                      <ChevronRight size={16} className="ml-1" />
+                      Grade
+                      <ChevronRight size={16} className="ml-1 text-gray-400 group-hover:text-blue-500" />
                     </button>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

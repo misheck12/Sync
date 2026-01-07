@@ -1,13 +1,14 @@
 import { Router } from 'express';
-import { 
-  createAssessment, 
-  getAssessments, 
+import {
+  createAssessment,
+  getAssessments,
   getAssessmentById,
-  recordResults, 
+  recordResults,
   getAssessmentResults,
   getStudentResults,
   deleteAssessment,
-  bulkDeleteAssessments
+  bulkDeleteAssessments,
+  getGradebook
 } from '../controllers/assessmentController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 
@@ -18,6 +19,7 @@ router.use(authenticateToken);
 // Assessment Management
 router.post('/', authorizeRole(['TEACHER', 'SUPER_ADMIN']), createAssessment);
 router.get('/', getAssessments);
+router.get('/gradebook', authorizeRole(['TEACHER', 'SUPER_ADMIN', 'BURSAR', 'SECRETARY']), getGradebook);
 router.get('/:id', getAssessmentById);
 router.delete('/:id', authorizeRole(['TEACHER', 'SUPER_ADMIN']), deleteAssessment);
 router.post('/bulk-delete', authorizeRole(['TEACHER', 'SUPER_ADMIN']), bulkDeleteAssessments);

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, AlertCircle } from 'lucide-react';
+import { TrendingUp, Users, AlertCircle, BookOpen, Clock, Calendar, CheckSquare, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import api from '../../utils/api';
 
-interface DashboardStats {
+// Admin Stats Interface
+interface AdminStats {
+  role: 'ADMIN';
   dailyRevenue: number;
   activeStudents: number;
   outstandingFees: number;
@@ -23,16 +25,49 @@ interface DashboardStats {
   }[];
 }
 
+// Teacher Stats Interface
+interface TeacherStats {
+  role: 'TEACHER';
+  stats: {
+    totalStudents: number;
+    totalClasses: number;
+    todayScheduleCount: number;
+  };
+  myClasses: {
+    id: string;
+    name: string;
+    gradeLevel: number;
+    _count: { students: number };
+  }[];
+  todaySchedule: {
+    id: string;
+    startTime: string;
+    endTime: string;
+    class: { name: string };
+    subject: { name: string; code: string };
+  }[];
+  recentAssessments: {
+    id: string;
+    title: string;
+    date: string;
+    class: { name: string };
+    subject: { name: string };
+    _count: { results: number };
+  }[];
+}
+
+type DashboardData = AdminStats | TeacherStats;
+
 const Dashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/dashboard/stats');
-        setStats(response.data);
+        setData(response.data);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
       } finally {
@@ -53,6 +88,121 @@ const Dashboard = () => {
     return <div className="p-6">Loading dashboard...</div>;
   }
 
+  // --- TEACHER VIEW ---
+  if (data?.role === 'TEACHER') {
+    const stats = (data as TeacherStats).stats;
+    const { todaySchedule, recentAssessments, myClasses } = data as TeacherStats;
+
+    return (
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl font-bold text-gray-800">Teacher Dashboard</h1>
+          <p className="text-gray-500">Welcome back, {user?.name}. Here is your academic overview.</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
+              <Users size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">My Students</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
+              <GraduationCap size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">My Classes</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalClasses}</p>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
+              <Clock size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Lessons Today</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.todayScheduleCount}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Today's Schedule */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Calendar size={20} className="text-blue-500" />
+                Today's Schedule
+              </h2>
+              <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {todaySchedule.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No classes scheduled for today.</div>
+              ) : (
+                todaySchedule.map((period) => (
+                  <div key={period.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-4">
+                    <div className="text-center min-w-[80px]">
+                      <div className="text-sm font-bold text-gray-900">{period.startTime}</div>
+                      <div className="text-xs text-gray-400">{period.endTime}</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-blue-900">{period.subject.name}</div>
+                      <div className="text-xs text-gray-500">{period.class.name}</div>
+                    </div>
+                    <Link to="/academics/attendance" className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
+                      Attendance
+                    </Link>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Recent Assessments */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <CheckSquare size={20} className="text-green-500" />
+                Recent Assessments
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {recentAssessments.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No recent assessments found.</div>
+              ) : (
+                recentAssessments.map((assessment) => (
+                  <div key={assessment.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-4">
+                    <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+                      <BookOpen size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-gray-900">{assessment.title}</div>
+                      <div className="text-xs text-gray-500">
+                        {assessment.class.name} • {assessment.subject.name} • {new Date(assessment.date).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-gray-900">{assessment._count.results} Graded</div>
+                      <Link to="/academics/gradebook" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Grade Now</Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- ADMIN / BURSAR VIEW (Existing) ---
+  const stats = data as AdminStats;
   return (
     <div className="p-4 md:p-6">
       <div className="mb-6 md:mb-8">
@@ -101,7 +251,7 @@ const Dashboard = () => {
         <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-800">Recent Payments</h2>
         </div>
-        
+
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
@@ -130,9 +280,9 @@ const Dashboard = () => {
                     <td className="px-6 py-4">ZMW {Number(payment.amount).toLocaleString()}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                        ${payment.method === 'CASH' ? 'bg-green-100 text-green-800' : 
-                          payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-blue-100 text-blue-800'}`}>
+                        ${payment.method === 'CASH' ? 'bg-green-100 text-green-800' :
+                          payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-blue-100 text-blue-800'}`}>
                         {payment.method.replace('_', ' ')}
                       </span>
                     </td>
@@ -162,9 +312,9 @@ const Dashboard = () => {
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${payment.method === 'CASH' ? 'bg-green-100 text-green-800' : 
-                        payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-blue-100 text-blue-800'}`}>
+                      ${payment.method === 'CASH' ? 'bg-green-100 text-green-800' :
+                        payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'}`}>
                       {payment.method.replace('_', ' ')}
                     </span>
                     <span className="text-gray-500">

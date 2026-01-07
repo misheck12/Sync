@@ -228,6 +228,16 @@ model SchoolSettings {
   currentTermId     String?  @unique
   currentTerm       AcademicTerm? @relation(fields: [currentTermId], references: [id])
   
+  // Notification Channel Toggles
+  emailNotificationsEnabled  Boolean @default(true)
+  smsNotificationsEnabled    Boolean @default(false)
+  
+  // Fee Reminder Settings
+  feeReminderEnabled         Boolean @default(true)
+  feeReminderDaysBefore      Int     @default(7)  // Days before due date to send reminder
+  overdueReminderEnabled     Boolean @default(true)
+  overdueReminderFrequency   Int     @default(7)  // Days between overdue reminders
+
   // Communication Settings (SMTP)
   smtpHost          String?
   smtpPort          Int?

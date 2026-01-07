@@ -11,11 +11,21 @@ const updateSettingsSchema = z.object({
   schoolEmail: z.string().email().optional().or(z.literal('')),
   schoolWebsite: z.string().url().optional().or(z.literal('')),
   currentTermId: z.string().uuid().optional().nullable(),
-  
+
   // Theme
   primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).optional(),
   secondaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).optional(),
   accentColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).optional(),
+
+  // Notification Channel Toggles
+  emailNotificationsEnabled: z.boolean().optional(),
+  smsNotificationsEnabled: z.boolean().optional(),
+
+  // Fee Reminder Settings
+  feeReminderEnabled: z.boolean().optional(),
+  feeReminderDaysBefore: z.number().min(1).max(30).optional(),
+  overdueReminderEnabled: z.boolean().optional(),
+  overdueReminderFrequency: z.number().min(1).max(30).optional(),
 
   // SMTP
   smtpHost: z.string().optional().or(z.literal('')),

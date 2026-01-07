@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Check, GraduationCap, Edit2, Trash2, Upload } from 'lucide-react';
+import FinanceReports from './FinanceReports';
+
+import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 import Scholarships from './Scholarships';
 import BulkImportModal from '../../components/BulkImportModal';
+import ExportDropdown from '../../components/ExportDropdown';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 
 interface Payment {
   id: string;
@@ -52,7 +58,7 @@ const getGradeLabel = (grade: number) => {
 };
 
 const Finance = () => {
-  const [activeTab, setActiveTab] = useState<'payments' | 'fees' | 'scholarships'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'fees' | 'scholarships' | 'reminders' | 'reports'>('payments');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
@@ -87,6 +93,13 @@ const Finance = () => {
     referenceNumber: ''
   });
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // Fee Reminders state
+  const [debtors, setDebtors] = useState<any[]>([]);
+  const [loadingDebtors, setLoadingDebtors] = useState(false);
+  const [selectedDebtors, setSelectedDebtors] = useState<string[]>([]);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -265,6 +278,274 @@ const Finance = () => {
     return matchesSearch && matchesMethod && matchesClass && matchesDate;
   });
 
+  // Fetch students with outstanding fees
+  const fetchDebtors = async () => {
+    setLoadingDebtors(true);
+    try {
+      const response = await api.get('/fee-reminders/outstanding');
+      setDebtors(response.data);
+    } catch (error) {
+      console.error('Error fetching debtors:', error);
+    } finally {
+      setLoadingDebtors(false);
+    }
+  };
+
+  // Send fee reminders
+  const sendFeeReminders = async (studentIds?: string[], isOverdue = false) => {
+    setSendingReminders(true);
+    try {
+      const response = await api.post('/fee-reminders/send', {
+        studentIds: studentIds || selectedDebtors,
+        isOverdue
+      });
+      alert(`${response.data.message}\n\nEmails sent: ${response.data.results.emailsSent}\nSMS sent: ${response.data.results.smsSent}`);
+      setSelectedDebtors([]);
+    } catch (error) {
+      console.error('Error sending reminders:', error);
+      alert('Failed to send reminders');
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
+  // Generate payment receipt PDF
+  const generatePaymentReceipt = async (payment: Payment) => {
+    try {
+      const settingsRes = await api.get('/settings');
+      const schoolName = settingsRes.data.schoolName || 'School';
+      const schoolAddress = settingsRes.data.schoolAddress || '';
+      const schoolPhone = settingsRes.data.schoolPhone || '';
+      const schoolEmail = settingsRes.data.schoolEmail || '';
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // --- QR Code Generation ---
+      const qrData = JSON.stringify({
+        id: payment.id,
+        student: `${payment.student.firstName} ${payment.student.lastName}`,
+        amount: payment.amount,
+        date: payment.paymentDate,
+        school: schoolName,
+        verified: true
+      });
+
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+        width: 120,
+        margin: 0,
+        color: { dark: '#1e293b', light: '#ffffff' }
+      });
+
+      // --- Color Palette ---
+      const primaryColor: [number, number, number] = [30, 58, 138]; // Deep Navy Blue
+      const accentColor: [number, number, number] = [241, 245, 249]; // Slate-100 (Backgrounds)
+      const textColor: [number, number, number] = [30, 41, 59]; // Slate-800
+      const mutedColor: [number, number, number] = [100, 116, 139]; // Slate-500
+
+      // --- Header ---
+      // Top Strip
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, pageWidth, 5, 'F');
+
+      // School Info (Left - Full Width Safe)
+      doc.setTextColor(...primaryColor);
+      doc.setFontSize(18);
+      doc.setFont('times', 'bold');
+      doc.text(schoolName.toUpperCase(), 14, 20);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...mutedColor);
+
+      let yPos = 26;
+      if (schoolAddress) {
+        doc.text(schoolAddress, 14, yPos);
+        yPos += 5;
+      }
+      if (schoolPhone || schoolEmail) {
+        doc.text([schoolPhone, schoolEmail].filter(Boolean).join(' | '), 14, yPos);
+      }
+
+      // Horizontal Line Divider
+      const headerBottom = 40;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, headerBottom, pageWidth - 14, headerBottom);
+
+      // --- Receipt Meta Section (Below Header) ---
+      const metaY = headerBottom + 15;
+
+      // Left: Receipt Title & Number
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...mutedColor);
+      doc.text('OFFICIAL RECEIPT', 14, metaY);
+
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`#${payment.id.substring(0, 8).toUpperCase()}`, 14, metaY + 8);
+
+      // Right: Date & Badge
+      doc.setFontSize(10);
+      doc.setTextColor(...mutedColor);
+      doc.text('Date Issued:', pageWidth - 50, metaY, { align: 'right' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...textColor);
+      doc.text(new Date(payment.paymentDate).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      }), pageWidth - 14, metaY, { align: 'right' });
+
+      // Verified Badge
+      doc.setFillColor(220, 252, 231); // Green-100
+      doc.setTextColor(22, 163, 74);   // Green-600
+      doc.roundedRect(pageWidth - 44, metaY + 3, 30, 8, 4, 4, 'F');
+      doc.setFontSize(7);
+      doc.text('VERIFIED', pageWidth - 29, metaY + 8, { align: 'center' });
+
+      // --- Information Section (Grid Layout) ---
+      const startY = 80; // Pushed down
+      const colWidth = (pageWidth - 34) / 2;
+
+      // Student Section
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...primaryColor);
+      doc.text('STUDENT INFORMATION', 14, startY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...mutedColor);
+      doc.text('Name:', 14, startY + 10);
+      doc.text('Admission No:', 14, startY + 17);
+      doc.text('Class:', 14, startY + 24);
+
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${payment.student.firstName} ${payment.student.lastName}`, 50, startY + 10);
+      doc.text(payment.student.admissionNumber, 50, startY + 17);
+      doc.text(payment.student.class?.name || 'N/A', 50, startY + 24);
+
+      // Payment Details Section
+      const col2X = 14 + colWidth + 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...primaryColor);
+      doc.text('PAYMENT DETAILS', col2X, startY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...mutedColor);
+      doc.text('Payment Method:', col2X, startY + 10);
+      doc.text('Reference No:', col2X, startY + 17);
+      doc.text('Received By:', col2X, startY + 24);
+
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(payment.method.replace('_', ' '), col2X + 40, startY + 10);
+      doc.text(payment.referenceNumber || 'N/A', col2X + 40, startY + 17);
+      doc.text(payment.recordedBy.fullName, col2X + 40, startY + 24);
+
+      // --- Table Section ---
+      autoTable(doc, {
+        startY: startY + 40,
+        head: [['DESCRIPTION', 'AMOUNT (ZMW)']],
+        body: [
+          ['School Fees Payment', Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })]
+        ],
+        theme: 'plain', // Minimalist theme
+        headStyles: {
+          fillColor: [248, 250, 252],
+          textColor: [71, 85, 105],
+          fontStyle: 'bold',
+          fontSize: 9,
+          halign: 'left',
+          cellPadding: 10,
+          lineWidth: { bottom: 0.5 },
+          lineColor: [226, 232, 240]
+        },
+        bodyStyles: {
+          fontSize: 11,
+          textColor: [15, 23, 42],
+          cellPadding: 12,
+          valign: 'middle',
+          lineWidth: { bottom: 0.5 },
+          lineColor: [241, 245, 249]
+        },
+        columnStyles: {
+          1: { halign: 'right', fontStyle: 'bold' }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      // --- Total & Verification Footer ---
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+
+      // Total Box (Right Aligned, Elegant)
+      doc.setFillColor(...accentColor);
+      doc.roundedRect(pageWidth - 70, finalY, 56, 20, 1, 1, 'F');
+
+      doc.setFontSize(9);
+      doc.setTextColor(...mutedColor);
+      doc.text('Total Amount', pageWidth - 65, finalY + 7);
+
+      doc.setFontSize(14);
+      doc.setTextColor(...primaryColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`ZMW ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 65, finalY + 15);
+
+      // Verification Logic (Bottom)
+      const footerY = pageHeight - 50;
+
+      // Separator
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
+
+      // QR Code
+      doc.addImage(qrCodeDataUrl, 'PNG', 14, footerY + 5, 25, 25);
+
+      // Verification Text
+      doc.setFontSize(10);
+      doc.setTextColor(...primaryColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('VERIFIED DOCUMENT', 45, footerY + 12);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...mutedColor);
+      doc.text('This receipt is system-generated and includes a secure QR code.', 45, footerY + 18);
+      doc.text('No signature is required. Scan the QR code to verify authenticity.', 45, footerY + 23);
+
+      // Bottom Watermark/Text
+      doc.setFontSize(8);
+      doc.setTextColor(203, 213, 225); // Very light
+      doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+
+      // Download
+      doc.save(`receipt_${payment.student.lastName}_${payment.id.substring(0, 8)}.pdf`);
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      alert('Failed to generate receipt');
+    }
+  };
+
+  // Toggle debtor selection
+  const toggleDebtorSelection = (id: string) => {
+    setSelectedDebtors(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  // Toggle all debtors
+  const toggleAllDebtors = () => {
+    if (selectedDebtors.length === debtors.length) {
+      setSelectedDebtors([]);
+    } else {
+      setSelectedDebtors(debtors.map(d => d.id));
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -336,10 +617,182 @@ const Finance = () => {
         >
           Scholarships
         </button>
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'reports'
+            ? 'bg-white text-slate-800 shadow-sm'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+          <TrendingUp size={16} />
+          Reports
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('reminders');
+            fetchDebtors();
+          }}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'reminders'
+            ? 'bg-white text-slate-800 shadow-sm'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+          <Bell size={16} />
+          Reminders
+        </button>
       </div>
 
-      {activeTab === 'scholarships' ? (
+      {activeTab === 'reports' ? (
+        <FinanceReports />
+      ) : activeTab === 'scholarships' ? (
         <Scholarships />
+      ) : activeTab === 'reminders' ? (
+        /* Fee Reminders Tab */
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Fee Reminders</h2>
+              <p className="text-slate-500">Send payment reminders to parents with outstanding fees</p>
+            </div>
+            <div className="flex gap-3">
+              {selectedDebtors.length > 0 && (
+                <button
+                  onClick={() => sendFeeReminders()}
+                  disabled={sendingReminders}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  <Send size={18} />
+                  Send Reminder ({selectedDebtors.length})
+                </button>
+              )}
+              <button
+                onClick={() => sendFeeReminders(debtors.map(d => d.id), true)}
+                disabled={sendingReminders || debtors.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
+              >
+                <Bell size={18} />
+                Send to All Overdue
+              </button>
+            </div>
+          </div>
+
+          {/* Debtors Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedDebtors.length === debtors.length && debtors.length > 0}
+                        onChange={toggleAllDebtors}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Student</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Class</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Guardian</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Outstanding</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Status</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {loadingDebtors ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading students with outstanding fees...</td>
+                    </tr>
+                  ) : debtors.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                            <DollarSign className="text-green-600" size={24} />
+                          </div>
+                          <p className="font-medium text-slate-700">All fees are paid!</p>
+                          <p className="text-sm">No students with outstanding balances</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    debtors.map((debtor) => (
+                      <tr key={debtor.id} className={`hover:bg-slate-50 transition-colors ${selectedDebtors.includes(debtor.id) ? 'bg-blue-50' : ''}`}>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedDebtors.includes(debtor.id)}
+                            onChange={() => toggleDebtorSelection(debtor.id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-800">{debtor.firstName} {debtor.lastName}</div>
+                          <div className="text-xs text-slate-500">{debtor.admissionNumber}</div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{debtor.className || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-slate-800">{debtor.guardianName || 'N/A'}</div>
+                          <div className="text-xs text-slate-500">{debtor.guardianPhone || 'No phone'}</div>
+                          {debtor.guardianEmail && (
+                            <div className="text-xs text-blue-600">{debtor.guardianEmail}</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-lg font-bold text-red-600">ZMW {Number(debtor.outstandingAmount).toLocaleString()}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {debtor.isOverdue ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Overdue
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => sendFeeReminders([debtor.id], debtor.isOverdue)}
+                            disabled={sendingReminders}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+                          >
+                            <Send size={14} />
+                            Send
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Summary */}
+          {debtors.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-sm text-slate-500">Total Students</p>
+                  <p className="text-2xl font-bold text-slate-800">{debtors.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Total Outstanding</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    ZMW {debtors.reduce((sum, d) => sum + Number(d.outstandingAmount), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Overdue Students</p>
+                  <p className="text-2xl font-bold text-orange-600">{debtors.filter(d => d.isOverdue).length}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       ) : activeTab === 'payments' ? (
         <>
           {/* Stats Cards */}
@@ -378,7 +831,7 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Filters and Search */}
+          {/* Search and Action Bar */}
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
             <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
               <div className="flex-1 relative">
@@ -393,40 +846,43 @@ const Finance = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                <select
-                  className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
+                <button
+                  onClick={() => setShowFilterModal(true)}
+                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors border ${(classFilter !== 'ALL' || methodFilter !== 'ALL' || dateRange.start || dateRange.end)
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
                 >
-                  <option value="ALL">All Classes</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  value={methodFilter}
-                  onChange={(e) => setMethodFilter(e.target.value)}
-                >
-                  <option value="ALL">All Methods</option>
-                  <option value="CASH">Cash</option>
-                  <option value="MOBILE_MONEY">Mobile Money</option>
-                  <option value="BANK_DEPOSIT">Bank Deposit</option>
-                </select>
-
-                <input
-                  type="date"
-                  className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                />
-                <span className="text-slate-400">-</span>
-                <input
-                  type="date"
-                  className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  <Filter size={18} />
+                  <span>Filter</span>
+                  {(classFilter !== 'ALL' || methodFilter !== 'ALL' || dateRange.start || dateRange.end) && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded-full">
+                      {[classFilter !== 'ALL', methodFilter !== 'ALL', dateRange.start || dateRange.end].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
+                <ExportDropdown
+                  data={filteredPayments.map(p => ({
+                    date: new Date(p.paymentDate).toLocaleDateString(),
+                    studentName: `${p.student.firstName} ${p.student.lastName}`,
+                    admissionNumber: p.student.admissionNumber,
+                    className: p.student.class?.name || 'No Class',
+                    amount: Number(p.amount).toFixed(2),
+                    method: p.method.replace('_', ' '),
+                    reference: p.referenceNumber || '-',
+                    recordedBy: p.recordedBy.fullName
+                  }))}
+                  columns={[
+                    { key: 'date', header: 'Date' },
+                    { key: 'studentName', header: 'Student Name' },
+                    { key: 'admissionNumber', header: 'Admission #' },
+                    { key: 'className', header: 'Class' },
+                    { key: 'amount', header: 'Amount (ZMW)' },
+                    { key: 'method', header: 'Method' },
+                    { key: 'reference', header: 'Reference' },
+                    { key: 'recordedBy', header: 'Recorded By' }
+                  ]}
+                  filename={`payments_export_${new Date().toISOString().split('T')[0]}`}
                 />
               </div>
             </div>
@@ -445,16 +901,17 @@ const Finance = () => {
                     <th className="px-6 py-4 font-semibold text-slate-600">Method</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Reference</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Recorded By</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-slate-500">No payments found</td>
+                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No payments found</td>
                     </tr>
                   ) : (
                     filteredPayments.map((payment) => (
@@ -489,6 +946,16 @@ const Finance = () => {
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                           {payment.recordedBy.fullName}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => generatePaymentReceipt(payment)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                            title="Download Receipt"
+                          >
+                            <FileText size={14} />
+                            Receipt
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -554,6 +1021,88 @@ const Finance = () => {
           )}
         </div>
       )
+      }
+      {/* Filter Modal */}
+      {
+        showFilterModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Filter Payments</h2>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-slate-500" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                  >
+                    <option value="ALL">All Classes</option>
+                    {classes.map(cls => (
+                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={methodFilter}
+                    onChange={(e) => setMethodFilter(e.target.value)}
+                  >
+                    <option value="ALL">All Methods</option>
+                    <option value="CASH">Cash</option>
+                    <option value="MOBILE_MONEY">Mobile Money</option>
+                    <option value="BANK_DEPOSIT">Bank Deposit</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date Range</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="date"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                    />
+                    <span className="text-slate-400">to</span>
+                    <input
+                      type="date"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-between mt-6">
+                <button
+                  onClick={() => {
+                    setClassFilter('ALL');
+                    setMethodFilter('ALL');
+                    setDateRange({ start: '', end: '' });
+                  }}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       }
 
       {/* Add Payment Modal */}

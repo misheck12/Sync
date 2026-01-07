@@ -34,7 +34,7 @@ export const addQuestionsToAssessment = async (req: Request, res: Response) => {
     await prisma.$transaction(async (tx: any) => {
       for (const q of questions) {
         const questionData = questionSchema.parse(q);
-        
+
         const createdQuestion = await tx.question.create({
           data: {
             assessmentId,
@@ -73,12 +73,12 @@ export const addQuestionsToAssessment = async (req: Request, res: Response) => {
 export const getAssessmentQuestions = async (req: Request, res: Response) => {
   try {
     const { assessmentId } = req.params;
-    
+
     // Check if user is student or teacher
     // If student, don't return correct answers or isCorrect flags
     // For now, assuming teacher view or internal logic handles it
     // But wait, if this is for taking the quiz, we must hide answers.
-    
+
     const questions = await prisma.question.findMany({
       where: { assessmentId },
       include: {
@@ -103,7 +103,7 @@ export const getAssessmentQuestions = async (req: Request, res: Response) => {
 export const getQuizForStudent = async (req: Request, res: Response) => {
   try {
     const { assessmentId } = req.params;
-    
+
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: {
@@ -152,7 +152,7 @@ export const submitQuiz = async (req: Request, res: Response) => {
 
     // If studentId is a User ID (from frontend auth), find the actual Student ID
     let actualStudentId = studentId;
-    
+
     // Check if this ID looks like a User ID (UUID) and try to find a student linked to it
     // Or just try to find a student with this userId
     const studentProfile = await prisma.student.findUnique({
@@ -177,7 +177,7 @@ export const submitQuiz = async (req: Request, res: Response) => {
 
       // 2. Record Responses
       let totalScore = 0;
-      
+
       for (const resp of responses) {
         const question = await tx.question.findUnique({
           where: { id: resp.questionId },
@@ -195,7 +195,7 @@ export const submitQuiz = async (req: Request, res: Response) => {
             isCorrect = true;
             score = question.points;
           }
-          
+
           await tx.studentResponse.create({
             data: {
               submissionId: submission.id,
@@ -213,7 +213,7 @@ export const submitQuiz = async (req: Request, res: Response) => {
             }
           });
         }
-        
+
         totalScore += score;
       }
 
@@ -236,16 +236,35 @@ export const submitQuiz = async (req: Request, res: Response) => {
 
 export const getStudentAssessments = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.userId;
-    
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const user = (req as any).user;
 
-    // Find student profile
-    const student = await prisma.student.findUnique({
-      where: { userId }
-    });
+    // Determine which student to fetch for
+    let student;
+
+    if (user.role === 'PARENT') {
+      const targetStudentId = req.query.studentId as string;
+      if (!targetStudentId) {
+        return res.status(400).json({ error: 'Student ID is required when accessing as parent' });
+      }
+
+      // Verify ownership
+      student = await prisma.student.findUnique({
+        where: { id: targetStudentId }
+      });
+
+      if (!student || student.parentId !== user.userId) {
+        return res.status(403).json({ error: 'Unauthorized: You are not the guardian of this student' });
+      }
+
+    } else {
+      // Regular Student Access
+      const userId = user.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      student = await prisma.student.findUnique({
+        where: { userId }
+      });
+    }
 
     if (!student) {
       return res.status(404).json({ error: 'Student profile not found' });

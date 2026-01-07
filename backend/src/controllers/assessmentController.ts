@@ -29,7 +29,7 @@ const recordResultsSchema = z.object({
 export const createAssessment = async (req: Request, res: Response) => {
   try {
     const data = createAssessmentSchema.parse(req.body);
-    
+
     const { date, ...restData } = data;
     const assessment = await prisma.assessment.create({
       data: {
@@ -37,7 +37,7 @@ export const createAssessment = async (req: Request, res: Response) => {
         date: new Date(date),
       },
     });
-    
+
     res.status(201).json(assessment);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -51,7 +51,7 @@ export const createAssessment = async (req: Request, res: Response) => {
 export const getAssessments = async (req: Request, res: Response) => {
   try {
     const { classId, subjectId, termId } = req.query;
-    
+
     const where: any = {};
     if (classId) where.classId = String(classId);
     if (subjectId) where.subjectId = String(subjectId);
@@ -68,7 +68,7 @@ export const getAssessments = async (req: Request, res: Response) => {
       },
       orderBy: { date: 'desc' },
     });
-    
+
     res.json(assessments);
   } catch (error) {
     console.error('Get assessments error:', error);
@@ -112,11 +112,11 @@ export const deleteAssessment = async (req: Request, res: Response) => {
 export const bulkDeleteAssessments = async (req: Request, res: Response) => {
   try {
     const { ids } = z.object({ ids: z.array(z.string().uuid()) }).parse(req.body);
-    
+
     await prisma.assessment.deleteMany({
       where: { id: { in: ids } }
     });
-    
+
     res.json({ message: `Successfully deleted ${ids.length} assessments` });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -145,7 +145,7 @@ export const recordResults = async (req: Request, res: Response) => {
     }
 
     // Use transaction to upsert results
-    const operations = results.map(result => 
+    const operations = results.map(result =>
       prisma.assessmentResult.upsert({
         where: {
           assessmentId_studentId: {
@@ -183,7 +183,7 @@ export const recordResults = async (req: Request, res: Response) => {
 export const getAssessmentResults = async (req: Request, res: Response) => {
   try {
     const { id } = req.params; // assessmentId
-    
+
     const results = await prisma.assessmentResult.findMany({
       where: { assessmentId: id },
       include: {
@@ -200,7 +200,7 @@ export const getAssessmentResults = async (req: Request, res: Response) => {
         student: { lastName: 'asc' }
       }
     });
-    
+
     res.json(results);
   } catch (error) {
     console.error('Get results error:', error);
@@ -236,5 +236,48 @@ export const getStudentResults = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get student results error:', error);
     res.status(500).json({ error: 'Failed to fetch student results' });
+  }
+};
+
+export const getGradebook = async (req: Request, res: Response) => {
+  try {
+    const { classId, subjectId, termId } = req.query;
+
+    if (!classId || !subjectId || !termId) {
+      return res.status(400).json({ error: 'Class, Subject and Term IDs are required' });
+    }
+
+    // 1. Get Assessments
+    const assessments = await prisma.assessment.findMany({
+      where: {
+        classId: String(classId),
+        subjectId: String(subjectId),
+        termId: String(termId)
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    // 2. Get Students (using specific ID/String casting to be safe)
+    const students = await prisma.student.findMany({
+      where: { classId: String(classId) },
+      orderBy: { lastName: 'asc' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        admissionNumber: true
+      }
+    });
+
+    // 3. Get All Results for these assessments
+    const assessmentIds = assessments.map(a => a.id);
+    const results = await prisma.assessmentResult.findMany({
+      where: { assessmentId: { in: assessmentIds } }
+    });
+
+    res.json({ assessments, students, results });
+  } catch (error) {
+    console.error('Get gradebook error:', error);
+    res.status(500).json({ error: 'Failed to fetch gradebook data' });
   }
 };

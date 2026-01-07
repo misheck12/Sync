@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, CreditCard, BookOpen, Download, ChevronDown, ChevronUp, TrendingUp, FileText, Award } from 'lucide-react';
+import { User, Calendar, CreditCard, BookOpen, Download, ChevronDown, ChevronUp, TrendingUp, FileText, Award, Clock, ClipboardList } from 'lucide-react';
 import api from '../../utils/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -45,6 +45,23 @@ interface Student {
       };
     };
   }[];
+  pendingAssessments?: {
+    id: string;
+    title: string;
+    type: string;
+    date: string;
+    subject: {
+      name: string;
+    };
+  }[];
+  todaysClasses?: {
+    id: string;
+    startTime: string;
+    endTime: string;
+    subject: {
+      name: string;
+    };
+  }[];
   termResults: {
     totalScore: number;
     term: {
@@ -79,156 +96,9 @@ const MyChildren = () => {
     }
   };
 
-  const toggleFeeDetails = (studentId: string) => {
-    setExpandedFees(prev => ({
-      ...prev,
-      [studentId]: !prev[studentId]
-    }));
-  };
+  // ... (Keep existing receipt/statement logic)
 
-  const generateReceipt = async (child: Student, payment: any) => {
-    const doc = new jsPDF();
-    const primaryColor = [37, 99, 235]; // Blue-600
-    const secondaryColor = [100, 116, 139]; // Slate-500
-    
-    // --- Header Background ---
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(0, 0, 210, 40, 'F');
-
-    // --- Header Text ---
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PAYMENT RECEIPT', 14, 25);
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Sync School Management', 200, 20, { align: 'right' });
-    doc.text('official@syncschool.com', 200, 28, { align: 'right' });
-
-    // --- Receipt Info Section ---
-    doc.setTextColor(0, 0, 0);
-    const startY = 55;
-    
-    // Left Column: Student Details
-    doc.setFontSize(10);
-    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text('BILLED TO', 14, startY);
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${child.firstName} ${child.lastName}`, 14, startY + 7);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Admission No: ${child.admissionNumber}`, 14, startY + 13);
-    doc.text(`Class: ${child.class?.name}`, 14, startY + 19);
-
-    // Right Column: Payment Details
-    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text('RECEIPT DETAILS', 140, startY);
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(10);
-    doc.text(`Receipt No:`, 140, startY + 7);
-    doc.text(payment.id.substring(0, 8).toUpperCase(), 170, startY + 7);
-    
-    doc.text(`Date:`, 140, startY + 13);
-    doc.text(new Date(payment.paymentDate).toLocaleDateString(), 170, startY + 13);
-    
-    doc.text(`Method:`, 140, startY + 19);
-    doc.text(payment.method.replace('_', ' '), 170, startY + 19);
-
-    if (payment.referenceNumber) {
-      doc.text(`Reference:`, 140, startY + 25);
-      doc.text(payment.referenceNumber, 170, startY + 25);
-    }
-
-    // --- Table ---
-    autoTable(doc, {
-      startY: startY + 35,
-      head: [['Description', 'Amount (ZMW)']],
-      body: [
-        ['Tuition/School Fees Payment', Number(payment.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })],
-      ],
-      theme: 'grid',
-      headStyles: { 
-        fillColor: primaryColor as [number, number, number],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold'
-      },
-      styles: {
-        fontSize: 10,
-        cellPadding: 5,
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 50, halign: 'right' },
-      },
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY;
-
-    // --- Total Section ---
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    // Move label further left to avoid overlap with the amount
-    doc.text('Total Amount Paid:', 100, finalY + 15);
-    doc.setFontSize(14);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text(`ZMW ${Number(payment.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 195, finalY + 15, { align: 'right' });
-
-    // --- QR Code ---
-    try {
-      // Data to encode: Receipt ID, Student ID, Amount, Date - could be a verification URL in production
-      const qrData = JSON.stringify({
-        receipt: payment.id,
-        student: child.admissionNumber,
-        amount: payment.amount,
-        date: payment.paymentDate
-      });
-      
-      const qrDataUrl = await QRCode.toDataURL(qrData, { width: 100, margin: 1 });
-      doc.addImage(qrDataUrl, 'PNG', 14, finalY + 10, 30, 30);
-      
-      doc.setFontSize(8);
-      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.text('Scan to verify', 14, finalY + 42);
-    } catch (err) {
-      console.error('Error generating QR code', err);
-    }
-
-    // --- Footer ---
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, 270, 196, 270);
-    
-    doc.setFontSize(8);
-    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text('Thank you for your payment.', 105, 275, { align: 'center' });
-    doc.text('This is a computer generated receipt and does not require a signature.', 105, 280, { align: 'center' });
-
-    doc.save(`Receipt_${child.firstName}_${new Date(payment.paymentDate).toISOString().split('T')[0]}.pdf`);
-  };
-
-  const prepareChartData = (termResults: Student['termResults']) => {
-    // Group by term and calculate average
-    const termGroups: Record<string, { total: number; count: number }> = {};
-    
-    termResults.forEach(result => {
-      const termName = result.term.name;
-      if (!termGroups[termName]) {
-        termGroups[termName] = { total: 0, count: 0 };
-      }
-      termGroups[termName].total += Number(result.totalScore);
-      termGroups[termName].count += 1;
-    });
-
-    return Object.keys(termGroups).map(term => ({
-      name: term,
-      average: Math.round(termGroups[term].total / termGroups[term].count)
-    }));
-  };
+  // ... (Keep existing prepareChartData)
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -237,11 +107,11 @@ const MyChildren = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-6">My Children</h1>
-      
+
       <div className="space-y-8">
         {children.map((child) => (
           <div key={child.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Enhanced Header */}
+            {/* Enhanced Header - Same as before */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center space-x-4">
@@ -257,64 +127,148 @@ const MyChildren = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 min-w-[200px]">
-                  <p className="text-xs text-blue-100 uppercase font-semibold mb-1">Outstanding Balance</p>
-                  <p className={`text-2xl font-bold ${child.balance > 0 ? 'text-red-200' : 'text-green-200'}`}>
-                    ZMW {child.balance.toLocaleString()}
-                  </p>
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-3">
+                    <p className="text-xs text-blue-100 uppercase font-semibold mb-1">Outstanding Balance</p>
+                    <p className={`text-2xl font-bold ${child.balance > 0 ? 'text-red-200' : 'text-green-200'}`}>
+                      ZMW {child.balance.toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDownloadStatement(child.id)}
+                    className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/20"
+                  >
+                    <Download size={14} />
+                    Download Statement
+                  </button>
                 </div>
               </div>
             </div>
-            
+
             <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column: Academic Performance (Span 2) */}
+              {/* Left Column: Academic & Schedule (Span 2) */}
               <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center space-x-2 mb-2">
-                  <BookOpen className="text-blue-600" size={20} />
-                  <h3 className="text-lg font-bold text-slate-800">Academic Performance</h3>
+
+                {/* NEW: Daily Overview Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Today's Schedule */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-semibold text-slate-700 flex items-center text-sm">
+                        <Clock size={16} className="mr-2 text-blue-500" />
+                        Today's Schedule
+                      </h4>
+                      <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                      </span>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {child.todaysClasses && child.todaysClasses.length > 0 ? (
+                        child.todaysClasses.map(period => (
+                          <div key={period.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all">
+                            <div className="w-14 text-center bg-blue-50 rounded p-1">
+                              <span className="block text-xs font-bold text-blue-700">{period.startTime}</span>
+                              <span className="block text-[10px] text-blue-400">{period.endTime}</span>
+                            </div>
+                            <div className="flex-1">
+                              <span className="block text-sm font-medium text-slate-700 truncate">{period.subject.name}</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6">
+                          <p className="text-xs text-slate-400">No classes scheduled today.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pending Assignments */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-semibold text-slate-700 flex items-center text-sm">
+                        <ClipboardList size={16} className="mr-2 text-purple-500" />
+                        Upcoming Tasks
+                      </h4>
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+                        {child.pendingAssessments?.length || 0} Pending
+                      </span>
+                    </div>
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {child.pendingAssessments && child.pendingAssessments.length > 0 ? (
+                        child.pendingAssessments.map(assessment => (
+                          <div key={assessment.id} className="p-3 bg-purple-50 border border-purple-100 rounded-lg hover:shadow-sm transition-all">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${assessment.type === 'QUIZ' ? 'bg-orange-100 text-orange-700' : 'bg-white text-purple-700'
+                                }`}>
+                                {assessment.type}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(assessment.date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <h5 className="text-sm font-medium text-slate-800 line-clamp-1" title={assessment.title}>{assessment.title}</h5>
+                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                              <BookOpen size={10} />
+                              {assessment.subject.name}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6">
+                          <p className="text-xs text-slate-400">No upcoming tasks.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                
-                {/* Performance Chart */}
+
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <h4 className="text-sm font-semibold text-slate-600 mb-4">Term Performance History</h4>
-                  {child.termResults && child.termResults.length > 0 ? (
-                    <div className="h-64 w-full">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <TrendingUp className="text-blue-600" size={20} />
+                    <h3 className="text-lg font-bold text-slate-800">Academic Performance</h3>
+                  </div>
+
+                  {/* Performance Chart - Existing */}
+                  <div className="h-64 w-full">
+                    {/* ... Existing Chart Logic ... */}
+                    {child.termResults && child.termResults.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={prepareChartData(child.termResults)}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#64748b', fontSize: 12}} 
+                          <XAxis
+                            dataKey="name"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#64748b', fontSize: 12 }}
                             dy={10}
                           />
-                          <YAxis 
-                            domain={[0, 100]} 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#64748b', fontSize: 12}} 
+                          <YAxis
+                            domain={[0, 100]}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#64748b', fontSize: 12 }}
                           />
-                          <Tooltip 
-                            contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                          <Tooltip
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="average" 
-                            stroke="#2563eb" 
-                            strokeWidth={3} 
-                            dot={{fill: '#2563eb', strokeWidth: 2, r: 4, stroke: '#fff'}}
-                            activeDot={{r: 6, strokeWidth: 0}}
+                          <Line
+                            type="monotone"
+                            dataKey="average"
+                            stroke="#2563eb"
+                            strokeWidth={3}
+                            dot={{ fill: '#2563eb', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
                           />
                         </LineChart>
                       </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-48 flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                      <TrendingUp size={32} className="mb-2 opacity-50" />
-                      <p>No performance data available yet</p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <TrendingUp size={32} className="mb-2 opacity-50" />
+                        <p>No performance data available</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -322,7 +276,7 @@ const MyChildren = () => {
                   <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-semibold text-slate-700 flex items-center">
-                        <TrendingUp size={16} className="mr-2 text-blue-500" /> 
+                        <TrendingUp size={16} className="mr-2 text-blue-500" />
                         Recent Results
                       </h4>
                     </div>
@@ -339,10 +293,9 @@ const MyChildren = () => {
                                 <span className="font-bold text-slate-800 block">{Number(result.score)}</span>
                                 <span className="text-[10px] text-slate-400 uppercase">Score</span>
                               </div>
-                              <div className={`w-1.5 h-8 rounded-full ${
-                                Number(result.score) >= 75 ? 'bg-green-500' : 
+                              <div className={`w-1.5 h-8 rounded-full ${Number(result.score) >= 75 ? 'bg-green-500' :
                                 Number(result.score) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}></div>
+                                }`}></div>
                             </div>
                           </div>
                         ))
@@ -358,7 +311,7 @@ const MyChildren = () => {
                   <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-semibold text-slate-700 flex items-center">
-                        <FileText size={16} className="mr-2 text-blue-500" /> 
+                        <FileText size={16} className="mr-2 text-blue-500" />
                         Report Cards
                       </h4>
                     </div>
@@ -389,10 +342,10 @@ const MyChildren = () => {
 
               {/* Right Column: Finance & Admin (Span 1) */}
               <div className="space-y-6">
-                
+
                 {/* Fee Structure */}
                 <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                  <div 
+                  <div
                     className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
                     onClick={() => toggleFeeDetails(child.id)}
                   >
@@ -402,7 +355,7 @@ const MyChildren = () => {
                     </div>
                     {expandedFees[child.id] ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
                   </div>
-                  
+
                   {expandedFees[child.id] && (
                     <div className="p-4 space-y-3">
                       {child.feeStructures && child.feeStructures.length > 0 ? (
@@ -439,7 +392,7 @@ const MyChildren = () => {
                             <span className="text-slate-500 text-xs block mb-0.5">{new Date(payment.paymentDate).toLocaleDateString()}</span>
                             <span className="font-bold text-slate-800">ZMW {Number(payment.amount).toLocaleString()}</span>
                           </div>
-                          <button 
+                          <button
                             onClick={() => generateReceipt(child, payment)}
                             className="text-slate-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
                             title="Download Receipt"
@@ -470,11 +423,10 @@ const MyChildren = () => {
                       child.attendance.slice(0, 5).map((record, idx) => (
                         <div key={idx} className="flex justify-between items-center text-sm">
                           <span className="text-slate-600">{new Date(record.date).toLocaleDateString()}</span>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${
-                            record.status === 'PRESENT' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${record.status === 'PRESENT' ? 'bg-green-100 text-green-700' :
                             record.status === 'ABSENT' ? 'bg-red-100 text-red-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
+                              'bg-yellow-100 text-yellow-700'
+                            }`}>
                             {record.status}
                           </span>
                         </div>

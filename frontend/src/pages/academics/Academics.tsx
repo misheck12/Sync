@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import Subjects from '../subjects/Subjects';
 import Classes from '../classes/Classes';
 import Terms from '../terms/Terms';
@@ -10,35 +11,50 @@ import Promotions from './Promotions';
 import LessonPlanner from './LessonPlanner';
 
 const Academics = () => {
-  const [view, setView] = useState<'classes' | 'subjects' | 'terms' | 'assessments' | 'grading' | 'reports' | 'timetable' | 'promotions' | 'lesson-planner'>('classes');
+  const { user } = useAuth();
+  const [view, setView] = useState('');
 
-  const tabs = [
-    { id: 'classes', label: 'Classes' },
-    { id: 'subjects', label: 'Subjects' },
-    { id: 'lesson-planner', label: 'Lesson Planner' },
-    { id: 'timetable', label: 'Timetable' },
-    { id: 'assessments', label: 'Assessments' },
-    { id: 'grading', label: 'Grading Scales' },
-    { id: 'reports', label: 'Report Cards' },
-    { id: 'terms', label: 'Terms' },
-    { id: 'promotions', label: 'Promotions' },
+  const allTabs = [
+    { id: 'assessments', label: 'Assessments', roles: ['SUPER_ADMIN', 'TEACHER'] },
+    { id: 'reports', label: 'Report Cards', roles: ['SUPER_ADMIN', 'TEACHER', 'SECRETARY'] },
+    { id: 'lesson-planner', label: 'Lesson Planner', roles: ['SUPER_ADMIN', 'TEACHER'] },
+    { id: 'timetable', label: 'Timetable', roles: ['SUPER_ADMIN', 'TEACHER', 'BURSAR', 'SECRETARY', 'PARENT', 'STUDENT'] },
+    { id: 'classes', label: 'Classes', roles: ['SUPER_ADMIN', 'SECRETARY'] },
+    { id: 'subjects', label: 'Subjects', roles: ['SUPER_ADMIN'] },
+    { id: 'grading', label: 'Grading Scales', roles: ['SUPER_ADMIN'] },
+    { id: 'terms', label: 'Terms', roles: ['SUPER_ADMIN'] },
+    { id: 'promotions', label: 'Promotions', roles: ['SUPER_ADMIN'] },
   ];
+
+  const allowedTabs = allTabs.filter(tab =>
+    user && (tab.roles.includes(user.role) || user.role === 'SUPER_ADMIN')
+  );
+
+  useEffect(() => {
+    // If current view is not in allowed tabs, defaults to first allowed
+    if (allowedTabs.length > 0) {
+      if (!view || !allowedTabs.find(t => t.id === view)) {
+        setView(allowedTabs[0].id);
+      }
+    }
+  }, [user, allowedTabs.length, view]);
+
+  if (!user) return null;
 
   return (
     <div className="p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-800">Academic Management</h1>
-        
+
         <div className="bg-white p-1 rounded-lg border border-gray-200 flex flex-wrap gap-1">
-          {tabs.map((tab) => (
+          {allowedTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setView(tab.id as any)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-                view === tab.id 
-                  ? 'bg-blue-100 text-blue-700 shadow-sm' 
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${view === tab.id
+                  ? 'bg-blue-100 text-blue-700 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -47,15 +63,16 @@ const Academics = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 min-h-[400px]">
-        {view === 'classes' && <Classes />}
-        {view === 'subjects' && <Subjects />}
-        {view === 'assessments' && <Assessments />}
-        {view === 'grading' && <GradingScales />}
-        {view === 'reports' && <ReportCards />}
-        {view === 'timetable' && <Timetable />}
-        {view === 'lesson-planner' && <LessonPlanner />}
-        {view === 'terms' && <Terms />}
-        {view === 'promotions' && <Promotions />}
+        {/* Render only if role allows to prevent unauthorized access via state manipulation */}
+        {view === 'classes' && allowedTabs.find(t => t.id === 'classes') && <Classes />}
+        {view === 'subjects' && allowedTabs.find(t => t.id === 'subjects') && <Subjects />}
+        {view === 'assessments' && allowedTabs.find(t => t.id === 'assessments') && <Assessments />}
+        {view === 'grading' && allowedTabs.find(t => t.id === 'grading') && <GradingScales />}
+        {view === 'reports' && allowedTabs.find(t => t.id === 'reports') && <ReportCards />}
+        {view === 'timetable' && allowedTabs.find(t => t.id === 'timetable') && <Timetable />}
+        {view === 'lesson-planner' && allowedTabs.find(t => t.id === 'lesson-planner') && <LessonPlanner />}
+        {view === 'terms' && allowedTabs.find(t => t.id === 'terms') && <Terms />}
+        {view === 'promotions' && allowedTabs.find(t => t.id === 'promotions') && <Promotions />}
       </div>
     </div>
   );

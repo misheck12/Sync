@@ -74,7 +74,7 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
     // 2. Get all students in the class with their scholarship info
     const students = await prisma.student.findMany({
       where: { classId: classId, status: 'ACTIVE' },
-      include: { 
+      include: {
         scholarship: true,
         feeStructures: {
           where: { feeTemplateId: feeTemplateId }
@@ -90,7 +90,7 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
     const studentsToAssign = students.filter(student => student.feeStructures.length === 0);
 
     if (studentsToAssign.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'All students in this class already have this fee assigned',
         alreadyAssigned: students.length
       });
@@ -103,7 +103,7 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
     for (const student of studentsToAssign) {
       try {
         let amountDue = Number(feeTemplate.amount);
-        
+
         // Apply scholarship if exists
         if (student.scholarship) {
           const discountPercentage = Number(student.scholarship.percentage);
@@ -120,7 +120,7 @@ export const assignFeeToClass = async (req: Request, res: Response) => {
             dueDate: dueDate,
           },
         });
-        
+
         createdRecords.push(record);
       } catch (error) {
         errors.push({
@@ -201,8 +201,8 @@ export const deleteFeeTemplate = async (req: Request, res: Response) => {
     });
 
     if (usageCount > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete fee template as it has already been assigned to students. Consider archiving or modifying it instead.' 
+      return res.status(400).json({
+        error: 'Cannot delete fee template as it has already been assigned to students. Consider archiving or modifying it instead.'
       });
     }
 
@@ -259,5 +259,96 @@ export const bulkCreateFeeTemplates = async (req: Request, res: Response) => {
     }
     console.error('Bulk create fee templates error:', error);
     res.status(500).json({ error: 'Failed to import fee templates' });
+  }
+};
+
+export const getStudentStatement = async (req: Request, res: Response) => {
+  try {
+    const { studentId } = req.params;
+
+    // 1. Get School Info
+    const settings = await prisma.schoolSettings.findFirst();
+
+    // 2. Get Student Info
+    // 2. Get Student Info
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        class: true,
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // SECURITY: Access Control
+    const user = (req as any).user;
+    if (user.role === 'PARENT' && student.parentId !== user.userId) {
+      return res.status(403).json({ error: 'Unauthorized: This student does not belong to your account.' });
+    }
+
+    // Restrict other roles if necessary (e.g. STUDENT shouldn't see this)
+    if (!['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER', 'PARENT'].includes(user.role)) {
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    // 3. Get Fees (Debits)
+    const fees = await prisma.studentFeeStructure.findMany({
+      where: { studentId },
+      include: {
+        feeTemplate: {
+          include: { academicTerm: true }
+        }
+      }
+    });
+
+    // 4. Get Payments (Credits)
+    const payments = await prisma.payment.findMany({
+      where: { studentId },
+      orderBy: { paymentDate: 'asc' }
+    });
+
+    // 5. Combine and Sort
+    const transactions = [
+      ...fees.map(f => ({
+        id: f.id,
+        date: f.createdAt, // Or dueDate if preferred
+        type: 'DEBIT',
+        description: f.feeTemplate.name,
+        term: f.feeTemplate.academicTerm.name,
+        amount: Number(f.amountDue),
+        ref: '-'
+      })),
+      ...payments.map(p => ({
+        id: p.id,
+        date: p.paymentDate,
+        type: 'CREDIT',
+        description: `Payment (${p.method.replace('_', ' ')})`,
+        term: '-', // Could infer term based on date
+        amount: Number(p.amount),
+        ref: p.referenceNumber || '-'
+      }))
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    res.json({
+      school: {
+        name: settings?.schoolName || 'School Name',
+        address: settings?.schoolAddress || '',
+        email: settings?.schoolEmail || '',
+        logoUrl: settings?.logoUrl || ''
+      },
+      student: {
+        name: `${student.firstName} ${student.lastName}`,
+        admissionNumber: student.admissionNumber,
+        className: student.class.name,
+        guardian: student.guardianName
+      },
+      transactions
+    });
+
+  } catch (error) {
+    console.error('Get student statement error:', error);
+    res.status(500).json({ error: 'Failed to generate statement' });
   }
 };

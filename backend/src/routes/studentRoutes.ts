@@ -1,13 +1,14 @@
 import { Router } from 'express';
-import { 
-  getStudents, 
-  createStudent, 
-  getStudentById, 
-  updateStudent, 
-  deleteStudent, 
+import {
+  getStudents,
+  createStudent,
+  getStudentById,
+  updateStudent,
+  deleteStudent,
   getMyChildren,
   bulkCreateStudents,
-  bulkDeleteStudents
+  bulkDeleteStudents,
+  getStudentProfile
 } from '../controllers/studentController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 
@@ -15,6 +16,7 @@ const router = Router();
 
 router.use(authenticateToken);
 
+router.get('/profile/me', authorizeRole(['STUDENT']), getStudentProfile);
 router.get('/my-children', authorizeRole(['PARENT']), getMyChildren);
 router.get('/', getStudents);
 router.post('/bulk', authorizeRole(['SUPER_ADMIN', 'SECRETARY']), bulkCreateStudents);

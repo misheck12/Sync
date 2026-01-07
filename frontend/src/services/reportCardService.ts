@@ -27,8 +27,17 @@ export interface StudentReport {
   averageScore: number;
   rank?: number;
   attendancePercentage: number;
+  totalAttendance?: number;
+  totalDays?: number;
   classTeacherRemark?: string;
   principalRemark?: string;
+  school?: {
+    schoolName: string;
+    schoolAddress?: string;
+    schoolPhone?: string;
+    schoolEmail?: string;
+    logoUrl?: string;
+  };
   results: TermResult[];
   student?: {
     firstName: string;
