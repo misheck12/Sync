@@ -226,7 +226,7 @@ export function generatePaymentReceiptEmail(
   amount: number,
   paymentDate: Date,
   method: string,
-  referenceNumber: string,
+  transactionId: string,
   schoolName: string
 ): { subject: string; text: string; html: string; sms: string } {
   const subject = `✅ Payment Receipt - ${schoolName}`;
@@ -238,7 +238,7 @@ export function generatePaymentReceiptEmail(
   });
 
   // Concise SMS with Guardian Name
-  const sms = `Hi ${guardianName.split(' ')[0]}, received ZMW ${formattedAmount} for ${studentName} at ${schoolName}. Ref: ${referenceNumber}.`;
+  const sms = `Hi ${guardianName.split(' ')[0]}, received ZMW ${formattedAmount} for ${studentName} at ${schoolName}. Ref: ${transactionId}.`;
 
   const text = `
 Dear Parent/Guardian,
@@ -249,7 +249,7 @@ Payment Details:
 - Amount: ZMW ${formattedAmount}
 - Date: ${formattedDate}
 - Method: ${method.replace('_', ' ')}
-- Reference: ${referenceNumber}
+- Transaction ID: ${transactionId}
 
 Thank you for your prompt payment.
 
@@ -335,10 +335,10 @@ ${schoolName}
                       </tr>
                       <tr>
                         <td style="padding: 12px 0;">
-                          <span style="color: #64748b; font-size: 14px;">Reference Number</span>
+                          <span style="color: #64748b; font-size: 14px;">Transaction ID</span>
                         </td>
                         <td style="padding: 12px 0; text-align: right;">
-                          <strong style="color: #3b82f6; font-size: 14px; font-family: monospace;">${referenceNumber}</strong>
+                          <strong style="color: #3b82f6; font-size: 14px; font-family: monospace;">${transactionId}</strong>
                         </td>
                       </tr>
                     </table>

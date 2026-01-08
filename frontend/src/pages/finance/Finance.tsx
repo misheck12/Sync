@@ -16,7 +16,8 @@ interface Payment {
   amount: number;
   paymentDate: string;
   method: 'CASH' | 'MOBILE_MONEY' | 'BANK_DEPOSIT';
-  referenceNumber?: string;
+  transactionId?: string;
+  notes?: string;
   student: {
     firstName: string;
     lastName: string;
@@ -90,7 +91,7 @@ const Finance = () => {
     studentId: '',
     amount: '',
     method: 'CASH',
-    referenceNumber: ''
+    notes: ''
   });
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -252,7 +253,7 @@ const Finance = () => {
         amount: Number(paymentForm.amount)
       });
       setShowAddModal(false);
-      setPaymentForm({ studentId: '', amount: '', method: 'CASH', referenceNumber: '' });
+      setPaymentForm({ studentId: '', amount: '', method: 'CASH', notes: '' });
       fetchPayments();
     } catch (error) {
       console.error('Error recording payment:', error);
@@ -265,7 +266,7 @@ const Finance = () => {
       payment.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.student.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+      payment.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesMethod = methodFilter === 'ALL' || payment.method === methodFilter;
     const matchesClass = classFilter === 'ALL' || payment.student.class?.id === classFilter;
@@ -444,7 +445,7 @@ const Finance = () => {
       doc.setTextColor(...textColor);
       doc.setFont('helvetica', 'bold');
       doc.text(payment.method.replace('_', ' '), col2X + 40, startY + 10);
-      doc.text(payment.referenceNumber || 'N/A', col2X + 40, startY + 17);
+      doc.text(payment.transactionId || 'N/A', col2X + 40, startY + 17);
       doc.text(payment.recordedBy.fullName, col2X + 40, startY + 24);
 
       // --- Table Section ---
@@ -869,7 +870,8 @@ const Finance = () => {
                     className: p.student.class?.name || 'No Class',
                     amount: Number(p.amount).toFixed(2),
                     method: p.method.replace('_', ' '),
-                    reference: p.referenceNumber || '-',
+                    transactionId: p.transactionId || '-',
+                    notes: p.notes || '-',
                     recordedBy: p.recordedBy.fullName
                   }))}
                   columns={[
@@ -879,7 +881,8 @@ const Finance = () => {
                     { key: 'className', header: 'Class' },
                     { key: 'amount', header: 'Amount (ZMW)' },
                     { key: 'method', header: 'Method' },
-                    { key: 'reference', header: 'Reference' },
+                    { key: 'transactionId', header: 'Transaction ID' },
+                    { key: 'notes', header: 'Notes' },
                     { key: 'recordedBy', header: 'Recorded By' }
                   ]}
                   filename={`payments_export_${new Date().toISOString().split('T')[0]}`}
@@ -899,7 +902,8 @@ const Finance = () => {
                     <th className="px-6 py-4 font-semibold text-slate-600">Class</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Amount (ZMW)</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Method</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600">Reference</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Transaction ID</th>
+                    <th className="px-6 py-4 font-semibold text-slate-600">Notes</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Recorded By</th>
                     <th className="px-6 py-4 font-semibold text-slate-600 text-right">Actions</th>
                   </tr>
@@ -907,11 +911,11 @@ const Finance = () => {
                 <tbody className="divide-y divide-slate-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
+                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No payments found</td>
+                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500">No payments found</td>
                     </tr>
                   ) : (
                     filteredPayments.map((payment) => (
@@ -942,7 +946,10 @@ const Finance = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-slate-600 font-mono text-sm">
-                          {payment.referenceNumber || '-'}
+                          {payment.transactionId || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 text-sm max-w-xs truncate">
+                          {payment.notes || '-'}
                         </td>
                         <td className="px-6 py-4 text-slate-600">
                           {payment.recordedBy.fullName}
@@ -1154,13 +1161,13 @@ const Finance = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Reference Number</label>
-                  <input
-                    type="text"
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <textarea
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Optional"
-                    value={paymentForm.referenceNumber}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
+                    placeholder="Optional notes about this payment"
+                    rows={2}
+                    value={paymentForm.notes}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                   />
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">

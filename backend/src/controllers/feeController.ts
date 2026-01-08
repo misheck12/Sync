@@ -327,7 +327,7 @@ export const getStudentStatement = async (req: Request, res: Response) => {
         description: `Payment (${p.method.replace('_', ' ')})`,
         term: '-', // Could infer term based on date
         amount: Number(p.amount),
-        ref: p.referenceNumber || '-'
+        ref: p.transactionId || '-'
       }))
     ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

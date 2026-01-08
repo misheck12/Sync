@@ -309,16 +309,18 @@ model StudentFeeStructure {
 
 model Payment {
   id              String        @id @default(uuid())
+  transactionId   String?       @unique // Auto-generated: TXN-YYYYMMDD-XXXX
   studentId       String
   student         Student       @relation(fields: [studentId], references: [id])
   amount          Decimal       @db.Decimal(10, 2)
   paymentDate     DateTime      @default(now())
   method          PaymentMethod
-  referenceNumber String?
+  notes           String?       // Optional notes about the payment
   recordedByUserId String
   recordedBy      User          @relation(fields: [recordedByUserId], references: [id])
   createdAt       DateTime      @default(now())
 
+  @@index([transactionId])
   @@map("payments")
 }
 

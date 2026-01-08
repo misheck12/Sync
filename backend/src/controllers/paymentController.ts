@@ -10,12 +10,27 @@ const createPaymentSchema = z.object({
   studentId: z.string().uuid(),
   amount: z.number().positive(),
   method: z.enum(['CASH', 'MOBILE_MONEY', 'BANK_DEPOSIT']),
-  referenceNumber: z.string().optional(),
+  notes: z.string().optional(),
 });
+
+// Generate unique transaction ID: TXN-XXXXXXXX (8 char UUID)
+const generateTransactionId = (): string => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = 'TXN-';
+  for (let i = 0; i < 8; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
 
 export const createPayment = async (req: Request, res: Response) => {
   try {
-    const { studentId, amount, method, referenceNumber } = createPaymentSchema.parse(req.body);
+    const parseResult = createPaymentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors });
+    }
+
+    const { studentId, amount, method, notes } = parseResult.data;
     const userId = (req as any).user?.userId;
 
     if (!userId) {
@@ -31,12 +46,16 @@ export const createPayment = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
+    // Generate transaction ID
+    const transactionId = generateTransactionId();
+
     const payment = await prisma.payment.create({
       data: {
+        transactionId,
         studentId,
         amount,
         method,
-        referenceNumber,
+        notes,
         recordedByUserId: userId,
       },
       include: {
@@ -87,7 +106,7 @@ export const createPayment = async (req: Request, res: Response) => {
           Number(amount),
           new Date(),
           method,
-          referenceNumber || 'N/A',
+          transactionId,
           schoolName
         );
 

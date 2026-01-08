@@ -9,16 +9,16 @@ const prisma = new PrismaClient();
 const baseStudentSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
-  admissionNumber: z.string().optional(),
+  admissionNumber: z.string().nullable().optional().transform(val => (val === '' || val === null) ? undefined : val),
   dateOfBirth: z.string().transform((str) => new Date(str)),
   gender: z.enum(['MALE', 'FEMALE']),
-  guardianName: z.string().optional(),
-  guardianPhone: z.string().optional(),
-  guardianEmail: z.string().email().optional(),
-  address: z.string().optional(),
-  classId: z.string().uuid().optional(),
-  className: z.string().optional(),
-  scholarshipId: z.string().uuid().optional().nullable(),
+  guardianName: z.string().nullable().optional().transform(val => (val === '' || val === null) ? undefined : val),
+  guardianPhone: z.string().nullable().optional().transform(val => (val === '' || val === null) ? undefined : val),
+  guardianEmail: z.string().email().nullable().optional().or(z.literal('')).transform(val => (val === '' || val === null) ? undefined : val),
+  address: z.string().nullable().optional().transform(val => (val === '' || val === null) ? undefined : val),
+  classId: z.string().uuid().nullable().optional().or(z.literal('')).transform(val => (val === '' || val === null) ? undefined : val),
+  className: z.string().nullable().optional().transform(val => (val === '' || val === null) ? undefined : val),
+  scholarshipId: z.string().uuid().nullable().optional().or(z.literal('')).transform(val => (val === '' || val === null) ? undefined : val),
 });
 
 const createStudentSchema = baseStudentSchema.refine(data => data.classId || data.className, {
@@ -69,11 +69,17 @@ export const getStudents = async (req: Request, res: Response) => {
 
 export const createStudent = async (req: Request, res: Response) => {
   try {
-    const data = createStudentSchema.parse(req.body);
+    const parseResult = createStudentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors });
+    }
+
+    const data = parseResult.data;
 
     let parentId: string | null = null;
 
     // Auto-generate admission number if not provided
+    // Format: YYYYNNNN (e.g., 20260001)
     let admissionNumber = data.admissionNumber;
     if (!admissionNumber) {
       const year = new Date().getFullYear();
@@ -81,7 +87,7 @@ export const createStudent = async (req: Request, res: Response) => {
       const lastStudent = await prisma.student.findFirst({
         where: {
           admissionNumber: {
-            startsWith: `${year}-`
+            startsWith: `${year}`
           }
         },
         orderBy: {
@@ -90,17 +96,16 @@ export const createStudent = async (req: Request, res: Response) => {
       });
 
       let nextNum = 1;
-      if (lastStudent) {
-        const parts = lastStudent.admissionNumber.split('-');
-        if (parts.length === 2) {
-          const lastNum = parseInt(parts[1], 10);
-          if (!isNaN(lastNum)) {
-            nextNum = lastNum + 1;
-          }
+      if (lastStudent && lastStudent.admissionNumber.length === 8) {
+        // Extract last 4 digits as the sequential number
+        const lastNumStr = lastStudent.admissionNumber.substring(4);
+        const lastNum = parseInt(lastNumStr, 10);
+        if (!isNaN(lastNum)) {
+          nextNum = lastNum + 1;
         }
       }
 
-      admissionNumber = `${year}-${nextNum.toString().padStart(4, '0')}`;
+      admissionNumber = `${year}${nextNum.toString().padStart(4, '0')}`;
     }
 
     // If guardian email is provided, try to link or create a parent account
@@ -473,7 +478,13 @@ export const getStudentById = async (req: Request, res: Response) => {
 export const updateStudent = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { reason, ...data } = updateStudentSchema.parse(req.body);
+
+    const parseResult = updateStudentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors });
+    }
+
+    const { reason, ...data } = parseResult.data;
     const userId = (req as any).user?.userId;
 
     // If class is changing, we need to log it
