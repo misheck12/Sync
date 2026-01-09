@@ -43,3 +43,39 @@ export const createAcademicTerm = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to create academic term' });
   }
 };
+
+export const updateAcademicTerm = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, startDate, endDate, isActive } = termSchema.parse(req.body);
+
+    const term = await prisma.academicTerm.update({
+      where: { id },
+      data: {
+        name,
+        startDate,
+        endDate,
+        isActive,
+      },
+    });
+
+    res.json(term);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to update academic term' });
+  }
+};
+
+export const deleteAcademicTerm = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.academicTerm.delete({
+      where: { id },
+    });
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete academic term' });
+  }
+};

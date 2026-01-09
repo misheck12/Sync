@@ -10,7 +10,7 @@ const createTopicSchema = z.object({
   title: z.string().min(3),
   description: z.string().optional(),
   subjectId: z.string().uuid(),
-  gradeLevel: z.number().int().min(1).max(12),
+  gradeLevel: z.number().int().min(-3).max(12), // Allow negative values for ECD (Baby, Middle, Reception)
   orderIndex: z.number().int().optional(),
 });
 
@@ -22,7 +22,7 @@ const createLessonPlanSchema = z.object({
   classId: z.string().uuid(),
   subjectId: z.string().uuid(),
   termId: z.string().uuid(),
-  weekStartDate: z.string().datetime(), // ISO Date string
+  weekStartDate: z.string(), // Allow YYYY-MM-DD formatted strings
   title: z.string().min(3),
   content: z.string().min(10),
   fileUrl: z.string().url().optional().or(z.literal('')),
