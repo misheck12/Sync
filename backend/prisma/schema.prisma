@@ -187,6 +187,8 @@ model Tenant {
   notifications   Notification[]
   conversations   Conversation[]
   subscriptionPayments SubscriptionPayment[]
+  auditLogs       AuditLog[]
+  usageMetrics    UsageMetric[]
   
   @@index([slug])
   @@index([status])
@@ -640,10 +642,15 @@ model User {
   conversationParticipants ConversationParticipant[]
   messagesSent             Message[]
   pushSubscriptions        PushSubscription[]
+  
+  // Audit logs created by this user
+  auditLogs                AuditLog[]
 
   // Email is unique within a tenant (same email can exist in different schools)
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([tenantId, role])  // For filtering users by role
+  @@index([tenantId, isActive])  // For filtering active users
   @@map("users")
 }
 
@@ -704,6 +711,9 @@ model Student {
   // Admission number unique per tenant
   @@unique([tenantId, admissionNumber])
   @@index([tenantId])
+  @@index([tenantId, status])              // Filter active/inactive students
+  @@index([tenantId, classId])             // Class roster queries
+  @@index([tenantId, createdAt])           // Recent enrollments
   @@map("students")
 }
 
@@ -885,12 +895,17 @@ model Payment {
   amount          Decimal       @db.Decimal(10, 2)
   paymentDate     DateTime      @default(now())
   method          PaymentMethod
-  referenceNumber String?
+  transactionId   String?       @unique  // Auto-generated TXN-XXXXXXXX
+  notes           String?                // Optional payment notes
   recordedByUserId String
   recordedBy      User          @relation(fields: [recordedByUserId], references: [id])
   createdAt       DateTime      @default(now())
 
   @@index([tenantId])
+  @@index([tenantId, paymentDate])        // Financial reports
+  @@index([tenantId, studentId])          // Student payment history
+  @@index([tenantId, method, paymentDate]) // Payment method analytics
+  @@index([transactionId])                // Transaction lookup
   @@map("payments")
 }
 
@@ -912,6 +927,9 @@ model Attendance {
   recordedBy       User             @relation(fields: [recordedByUserId], references: [id])
 
   @@index([tenantId])
+  @@index([tenantId, date])                // Daily attendance
+  @@index([tenantId, studentId, date])     // Student attendance history
+  @@index([tenantId, classId, date])       // Class attendance reports
   @@map("attendance")
 }
 
@@ -1282,3 +1300,68 @@ model Scholarship {
   @@index([tenantId])
   @@map("scholarships")
 }
+
+// ==========================================
+// AUDIT LOGGING - Track all important actions
+// ==========================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  
+  // Multi-tenant relation
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Who performed the action
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // What action was performed
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, PAYMENT, EXPORT, etc.
+  entityType  String   // Student, Payment, User, etc.
+  entityId    String?  // ID of the affected entity
+  
+  // Before/After values for tracking changes
+  oldValue    Json?    // Previous state (for UPDATE/DELETE)
+  newValue    Json?    // New state (for CREATE/UPDATE)
+  
+  // Additional metadata
+  metadata    Json?    // Any extra context
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, userId])
+  @@index([tenantId, action])
+  @@map("audit_logs")
+}
+
+// ==========================================
+// USAGE METRICS - Track feature usage
+// ==========================================
+
+model UsageMetric {
+  id          String   @id @default(uuid())
+  
+  // Multi-tenant relation
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // What metric is being tracked
+  metricType  String   // SMS_SENT, EMAILS_SENT, API_CALLS, STORAGE_MB, REPORTS_GENERATED
+  value       Int      @default(0)
+  
+  // Time period for aggregation
+  periodStart DateTime @default(now())
+  periodEnd   DateTime?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([tenantId, metricType, periodStart])
+  @@unique([tenantId, metricType, periodStart])
+  @@map("usage_metrics")
+}
+

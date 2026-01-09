@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: sync_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - sync_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/lyangend/sync/backend:master
     container_name: sync_backend
@@ -8,9 +25,14 @@ services:
     network_mode: "host"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?schema=public
+      - REDIS_URL=redis://localhost:6379
       - PORT=3002
       - JWT_SECRET=${JWT_SECRET}
       - NODE_ENV=production
+      - BASE_DOMAINS=localhost,sync.app,amenshi.com
+    depends_on:
+      redis:
+        condition: service_healthy
 
   frontend:
     image: ghcr.io/lyangend/sync/frontend:master
@@ -26,3 +48,6 @@ services:
 networks:
   sync_network:
     driver: bridge
+
+volumes:
+  redis_data:

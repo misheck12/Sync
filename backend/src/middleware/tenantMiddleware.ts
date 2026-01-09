@@ -1,5 +1,16 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { PrismaClient, SubscriptionTier, SubscriptionStatus } from '@prisma/client';
+/**
+ * Tenant Middleware for Multi-Tenant Architecture
+ * Handles tenant resolution, scoping, and feature gating
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
+import {
+    getTenantConfig,
+    setTenantConfig,
+    getTenantByDomain,
+    setTenantDomain,
+} from '../services/cacheService';
 
 const prisma = new PrismaClient();
 
@@ -7,7 +18,18 @@ const prisma = new PrismaClient();
 // TYPES
 // ==========================================
 
-export interface TenantFeatures {
+export interface TenantInfo {
+    id: string;
+    name: string;
+    slug: string;
+    domain?: string | null;
+    tier: string;
+    status: string;
+    maxStudents: number;
+    maxTeachers: number;
+    maxUsers: number;
+    maxClasses: number;
+    maxStorageGB: number;
     smsEnabled: boolean;
     emailEnabled: boolean;
     onlineAssessmentsEnabled: boolean;
@@ -20,292 +42,208 @@ export interface TenantFeatures {
     apiAccessEnabled: boolean;
     timetableEnabled: boolean;
     syllabusEnabled: boolean;
-}
-
-export interface TenantLimits {
-    maxStudents: number;
-    maxTeachers: number;
-    maxUsers: number;
-    maxClasses: number;
-    maxStorageGB: number;
-}
-
-export interface TenantUsage {
     currentStudentCount: number;
     currentTeacherCount: number;
     currentUserCount: number;
-    currentStorageUsedMB: number;
 }
 
-export interface TenantInfo {
-    id: string;
-    slug: string;
-    name: string;
-    tier: SubscriptionTier;
-    status: SubscriptionStatus;
-    features: TenantFeatures;
-    limits: TenantLimits;
-    usage: TenantUsage;
-}
-
-export interface TenantRequest extends Request {
-    tenant?: TenantInfo;
-    user?: {
-        userId: string;
-        tenantId: string;
-        role: string;
-    };
-}
-
-// ==========================================
-// HELPER FUNCTIONS
-// ==========================================
-
-/**
- * Extract tenant slug from request
- * Supports: subdomain, path parameter, JWT token, or header
- */
-function extractTenantIdentifier(req: Request): string | null {
-    // 1. Check for X-Tenant-ID header (useful for API calls)
-    const headerTenantId = req.headers['x-tenant-id'] as string;
-    if (headerTenantId) {
-        return headerTenantId;
+declare global {
+    namespace Express {
+        interface Request {
+            tenant?: TenantInfo;
+            tenantId?: string;
+        }
     }
-
-    // 2. Check for tenant in query params (for development)
-    const queryTenant = req.query.tenant as string;
-    if (queryTenant) {
-        return queryTenant;
-    }
-
-    // 3. Check subdomain (production setup)
-    const host = req.headers.host || '';
-    const subdomain = host.split('.')[0];
-
-    // Skip common non-tenant subdomains
-    const skipSubdomains = ['www', 'api', 'localhost', '127'];
-    if (subdomain && !skipSubdomains.includes(subdomain) && !subdomain.includes(':')) {
-        return subdomain;
-    }
-
-    // 4. Check for tenantId in JWT (will be added after auth)
-    const user = (req as TenantRequest).user;
-    if (user?.tenantId) {
-        return user.tenantId;
-    }
-
-    return null;
-}
-
-/**
- * Extract features from tenant record
- */
-function extractFeatures(tenant: any): TenantFeatures {
-    return {
-        smsEnabled: tenant.smsEnabled,
-        emailEnabled: tenant.emailEnabled,
-        onlineAssessmentsEnabled: tenant.onlineAssessmentsEnabled,
-        parentPortalEnabled: tenant.parentPortalEnabled,
-        reportCardsEnabled: tenant.reportCardsEnabled,
-        attendanceEnabled: tenant.attendanceEnabled,
-        feeManagementEnabled: tenant.feeManagementEnabled,
-        chatEnabled: tenant.chatEnabled,
-        advancedReportsEnabled: tenant.advancedReportsEnabled,
-        apiAccessEnabled: tenant.apiAccessEnabled,
-        timetableEnabled: tenant.timetableEnabled,
-        syllabusEnabled: tenant.syllabusEnabled,
-    };
-}
-
-/**
- * Extract limits from tenant record
- */
-function extractLimits(tenant: any): TenantLimits {
-    return {
-        maxStudents: tenant.maxStudents,
-        maxTeachers: tenant.maxTeachers,
-        maxUsers: tenant.maxUsers,
-        maxClasses: tenant.maxClasses,
-        maxStorageGB: tenant.maxStorageGB,
-    };
-}
-
-/**
- * Extract current usage from tenant record
- */
-function extractUsage(tenant: any): TenantUsage {
-    return {
-        currentStudentCount: tenant.currentStudentCount,
-        currentTeacherCount: tenant.currentTeacherCount,
-        currentUserCount: tenant.currentUserCount,
-        currentStorageUsedMB: tenant.currentStorageUsedMB,
-    };
 }
 
 // ==========================================
-// MIDDLEWARE
+// TENANT RESOLUTION MIDDLEWARE
 // ==========================================
 
 /**
- * Resolve tenant from request and attach to req.tenant
- * This should run after authentication middleware
+ * Resolve tenant from subdomain or custom domain
+ * Should be applied early in the middleware chain
  */
-// ==========================================
-// MIDDLEWARE
-// ==========================================
-
-/**
- * Resolve tenant from request and attach to req.tenant
- * This should run after authentication middleware
- */
-export const resolveTenant: RequestHandler = async (req, res, next) => {
+export const resolveTenant = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
     try {
-        const tenantRequest = req as TenantRequest;
-        const tenantIdentifier = extractTenantIdentifier(req);
+        const host = req.headers.host || '';
+        const hostname = host.split(':')[0]; // Remove port if present
 
-        if (!tenantIdentifier) {
-            // Optional: for auth routes like /login where tenant isn't known yet
-            // Just continue without tenant? Or strictly require it?
-            // For now, we'll continue but tenantRequest.tenant will be undefined.
-            // Routes that REQUIRE tenant will fail later or we can check here.
-
-            // Actually, for global middleware, we should allow passing if no tenant identifier found
-            // UNLESS it's a route that specifically needs it.
-            // But for now, let's keep the logic: if ID provided but not found -> 404.
-            // If ID NOT provided -> continue (tenant undefined).
-            // But the original code returned 400. Let's make it optional if not provided?
-            // No, the original code returned 400. Let's check logic.
-
-            // If we make it global middleware in app.ts, it runs on /login too.
-            // /login doesn't have tenant ID in header usually (unless provided).
-            // So on /login, this would fail with 400.
-            // WE MUST FIX THIS.
-
-            // Strategy: Try to resolve. If not found, just next() without tenant.
-            // Specific routes that need tenant will check req.tenant.
-            next();
-            return;
+        // Skip tenant resolution for certain paths
+        if (req.path.startsWith('/api/v1/platform') || req.path.startsWith('/health')) {
+            return next();
         }
 
-        // Try to find tenant by ID or slug
-        const tenant = await prisma.tenant.findFirst({
-            where: {
-                OR: [
-                    { id: tenantIdentifier },
-                    { slug: tenantIdentifier },
-                ],
-            },
-        });
+        let tenantId: string | null = null;
 
-        if (!tenant) {
-            res.status(404).json({
-                error: 'School not found',
-                message: `No school found with identifier: ${tenantIdentifier}`,
-            });
-            return;
-        }
+        // 1. Check custom domain first (e.g., school.com)
+        let cachedTenantId = await getTenantByDomain(hostname);
 
-        // Check subscription status
-        if (tenant.status === 'SUSPENDED') {
-            res.status(403).json({
-                error: 'Subscription suspended',
-                message: 'Your school subscription has been suspended. Please contact support.',
-                code: 'SUBSCRIPTION_SUSPENDED',
-            });
-            return;
-        }
+        if (cachedTenantId) {
+            tenantId = cachedTenantId;
+        } else {
+            // 2. Check if it's a subdomain (e.g., school.sync.app)
+            const subdomain = extractSubdomain(hostname);
 
-        if (tenant.status === 'CANCELLED') {
-            res.status(403).json({
-                error: 'Subscription cancelled',
-                message: 'Your school subscription has been cancelled.',
-                code: 'SUBSCRIPTION_CANCELLED',
-            });
-            return;
-        }
+            if (subdomain) {
+                cachedTenantId = await getTenantByDomain(subdomain);
+                if (cachedTenantId) {
+                    tenantId = cachedTenantId;
+                } else {
+                    // Lookup by slug
+                    const tenant = await prisma.tenant.findUnique({
+                        where: { slug: subdomain },
+                        select: { id: true },
+                    });
 
-        if (tenant.status === 'EXPIRED') {
-            res.status(403).json({
-                error: 'Subscription expired',
-                message: 'Your school subscription has expired. Please renew to continue.',
-                code: 'SUBSCRIPTION_EXPIRED',
-            });
-            return;
-        }
-
-        // Check trial expiration
-        if (tenant.status === 'TRIAL' && tenant.trialEndsAt) {
-            if (new Date() > tenant.trialEndsAt) {
-                res.status(403).json({
-                    error: 'Trial expired',
-                    message: 'Your free trial has expired. Please upgrade to continue.',
-                    code: 'TRIAL_EXPIRED',
-                    upgradeUrl: '/settings/billing',
+                    if (tenant) {
+                        tenantId = tenant.id;
+                        await setTenantDomain(subdomain, tenant.id);
+                    }
+                }
+            } else {
+                // 3. Lookup by custom domain
+                const tenant = await prisma.tenant.findUnique({
+                    where: { domain: hostname },
+                    select: { id: true },
                 });
-                return;
+
+                if (tenant) {
+                    tenantId = tenant.id;
+                    await setTenantDomain(hostname, tenant.id);
+                }
             }
         }
 
-        // Attach tenant info to request
-        tenantRequest.tenant = {
-            id: tenant.id,
-            slug: tenant.slug,
-            name: tenant.name,
-            tier: tenant.tier,
-            status: tenant.status,
-            features: extractFeatures(tenant),
-            limits: extractLimits(tenant),
-            usage: extractUsage(tenant),
-        };
+        // If tenant found, load full config
+        if (tenantId) {
+            let tenantConfig = await getTenantConfig(tenantId);
+
+            if (!tenantConfig) {
+                const tenant = await prisma.tenant.findUnique({
+                    where: { id: tenantId },
+                });
+
+                if (tenant) {
+                    tenantConfig = tenant as any;
+                    await setTenantConfig(tenantId, tenantConfig!);
+                }
+            }
+
+            if (tenantConfig) {
+                req.tenant = tenantConfig as TenantInfo;
+                req.tenantId = tenantId;
+            }
+        }
 
         next();
     } catch (error) {
         console.error('Tenant resolution error:', error);
-        res.status(500).json({
-            error: 'Internal server error',
-            message: 'Failed to resolve tenant',
-        });
+        next();
     }
 };
 
 /**
- * Require a specific feature to be enabled for the tenant
- * Usage: router.get('/sms', requireFeature('smsEnabled'), sendSmsController)
+ * Extract subdomain from hostname
  */
-export const requireFeature = (feature: keyof TenantFeatures): RequestHandler => {
-    return (req, res, next) => {
-        const tenantRequest = req as TenantRequest;
-        if (!tenantRequest.tenant) {
-            res.status(500).json({
-                error: 'Tenant not resolved',
-                message: 'Tenant middleware must run before feature check',
+const extractSubdomain = (hostname: string): string | null => {
+    const baseDomains = (process.env.BASE_DOMAINS || 'localhost,sync.app,amenshi.com').split(',');
+
+    for (const baseDomain of baseDomains) {
+        if (hostname.endsWith(`.${baseDomain.trim()}`)) {
+            const subdomain = hostname.replace(`.${baseDomain.trim()}`, '');
+            // Make sure it's not www or other reserved subdomains
+            if (!['www', 'api', 'admin', 'platform'].includes(subdomain)) {
+                return subdomain;
+            }
+        }
+    }
+
+    return null;
+};
+
+// ==========================================
+// TENANT REQUIREMENT MIDDLEWARE
+// ==========================================
+
+/**
+ * Require a valid tenant for the request
+ * Returns 404 if tenant not found or inactive
+ */
+export const requireTenant = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    if (!req.tenant || !req.tenantId) {
+        res.status(404).json({
+            error: 'Tenant not found',
+            message: 'The requested school or organization was not found.',
+        });
+        return;
+    }
+
+    // Check tenant status
+    if (req.tenant.status === 'SUSPENDED') {
+        res.status(403).json({
+            error: 'Account Suspended',
+            message: 'This account has been suspended. Please contact support.',
+        });
+        return;
+    }
+
+    if (req.tenant.status === 'CANCELLED' || req.tenant.status === 'EXPIRED') {
+        res.status(403).json({
+            error: 'Subscription Expired',
+            message: 'Your subscription has expired. Please renew to continue using the service.',
+        });
+        return;
+    }
+
+    next();
+};
+
+// ==========================================
+// FEATURE GATING MIDDLEWARE
+// ==========================================
+
+type FeatureFlag =
+    | 'smsEnabled'
+    | 'emailEnabled'
+    | 'onlineAssessmentsEnabled'
+    | 'parentPortalEnabled'
+    | 'reportCardsEnabled'
+    | 'attendanceEnabled'
+    | 'feeManagementEnabled'
+    | 'chatEnabled'
+    | 'advancedReportsEnabled'
+    | 'apiAccessEnabled'
+    | 'timetableEnabled'
+    | 'syllabusEnabled';
+
+/**
+ * Create middleware to check if a feature is enabled for the tenant
+ */
+export const requireFeature = (feature: FeatureFlag) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        if (!req.tenant) {
+            res.status(404).json({
+                error: 'Tenant not found',
+                message: 'The requested school or organization was not found.',
             });
             return;
         }
 
-        if (!tenantRequest.tenant.features[feature]) {
-            const featureNames: Record<keyof TenantFeatures, string> = {
-                smsEnabled: 'SMS Notifications',
-                emailEnabled: 'Email Notifications',
-                onlineAssessmentsEnabled: 'Online Assessments',
-                parentPortalEnabled: 'Parent Portal',
-                reportCardsEnabled: 'Report Cards',
-                attendanceEnabled: 'Attendance Tracking',
-                feeManagementEnabled: 'Fee Management',
-                chatEnabled: 'In-App Chat',
-                advancedReportsEnabled: 'Advanced Reports',
-                apiAccessEnabled: 'API Access',
-                timetableEnabled: 'Timetable Management',
-                syllabusEnabled: 'Syllabus Tracking',
-            };
-
+        if (!req.tenant[feature]) {
             res.status(403).json({
                 error: 'Feature not available',
-                message: `${featureNames[feature]} is not available on your current plan.`,
+                message: `This feature is not available in your current plan. Please upgrade to access this functionality.`,
                 feature,
-                currentTier: tenantRequest.tenant.tier,
-                upgradeUrl: '/settings/billing',
-                code: 'FEATURE_NOT_AVAILABLE',
+                currentTier: req.tenant.tier,
             });
             return;
         }
@@ -314,116 +252,124 @@ export const requireFeature = (feature: keyof TenantFeatures): RequestHandler =>
     };
 };
 
+// ==========================================
+// USAGE LIMIT MIDDLEWARE
+// ==========================================
+
 /**
- * Check if adding a new resource would exceed tenant limits
- * Usage: router.post('/students', checkLimit('students'), createStudentController)
+ * Check if tenant has reached their student limit
  */
-export const checkLimit = (resourceType: 'students' | 'teachers' | 'users' | 'classes'): RequestHandler => {
-    return async (req, res, next) => {
-        const tenantRequest = req as TenantRequest;
-        if (!tenantRequest.tenant) {
-            res.status(500).json({
-                error: 'Tenant not resolved',
-                message: 'Tenant middleware must run before limit check',
-            });
-            return;
-        }
+export const checkStudentLimit = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    if (!req.tenant) {
+        return next();
+    }
 
-        const limitMap: Record<typeof resourceType, { limit: keyof TenantLimits; current: keyof TenantUsage }> = {
-            students: { limit: 'maxStudents', current: 'currentStudentCount' },
-            teachers: { limit: 'maxTeachers', current: 'currentTeacherCount' },
-            users: { limit: 'maxUsers', current: 'currentUserCount' },
-            classes: { limit: 'maxClasses', current: 'currentStudentCount' }, // Classes tracked via students
-        };
+    if (req.tenant.currentStudentCount >= req.tenant.maxStudents) {
+        res.status(403).json({
+            error: 'Limit reached',
+            message: `You have reached your plan's student limit (${req.tenant.maxStudents}). Please upgrade to add more students.`,
+            currentCount: req.tenant.currentStudentCount,
+            limit: req.tenant.maxStudents,
+            tier: req.tenant.tier,
+        });
+        return;
+    }
 
-        const { limit, current } = limitMap[resourceType];
-        const maxAllowed = tenantRequest.tenant.limits[limit];
-        const currentCount = tenantRequest.tenant.usage[current];
-
-        // -1 means unlimited
-        if (maxAllowed !== -1 && currentCount >= maxAllowed) {
-            const resourceNames: Record<typeof resourceType, string> = {
-                students: 'students',
-                teachers: 'teachers',
-                users: 'users',
-                classes: 'classes',
-            };
-
-            res.status(403).json({
-                error: 'Limit reached',
-                message: `You have reached the maximum of ${maxAllowed} ${resourceNames[resourceType]} allowed on your plan.`,
-                resourceType,
-                current: currentCount,
-                limit: maxAllowed,
-                currentTier: tenantRequest.tenant.tier,
-                upgradeUrl: '/settings/billing',
-                code: 'LIMIT_REACHED',
-            });
-            return;
-        }
-
-        next();
-    };
+    next();
 };
 
 /**
- * Update tenant usage counts after creating/deleting resources
+ * Check if tenant has reached their user limit
  */
-export const updateTenantUsage = async (
-    tenantId: string,
-    resourceType: 'students' | 'teachers' | 'users',
-    operation: 'increment' | 'decrement'
-) => {
-    const fieldMap: Record<typeof resourceType, string> = {
-        students: 'currentStudentCount',
-        teachers: 'currentTeacherCount',
-        users: 'currentUserCount',
-    };
+export const checkUserLimit = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    if (!req.tenant) {
+        return next();
+    }
 
-    const field = fieldMap[resourceType];
-    const change = operation === 'increment' ? 1 : -1;
+    if (req.tenant.currentUserCount >= req.tenant.maxUsers) {
+        res.status(403).json({
+            error: 'Limit reached',
+            message: `You have reached your plan's user limit (${req.tenant.maxUsers}). Please upgrade to add more users.`,
+            currentCount: req.tenant.currentUserCount,
+            limit: req.tenant.maxUsers,
+            tier: req.tenant.tier,
+        });
+        return;
+    }
 
-    await prisma.tenant.update({
-        where: { id: tenantId },
-        data: {
-            [field]: {
-                [operation]: 1,
-            },
-        },
-    });
+    next();
 };
 
 /**
- * Get tenant by ID (utility function)
+ * Check if tenant has reached their class limit
  */
-export const getTenantById = async (tenantId: string) => {
-    return prisma.tenant.findUnique({
-        where: { id: tenantId },
+export const checkClassLimit = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    if (!req.tenant) {
+        return next();
+    }
+
+    const currentClassCount = await prisma.class.count({
+        where: { tenantId: req.tenantId! },
     });
+
+    if (currentClassCount >= req.tenant.maxClasses) {
+        res.status(403).json({
+            error: 'Limit reached',
+            message: `You have reached your plan's class limit (${req.tenant.maxClasses}). Please upgrade to add more classes.`,
+            currentCount: currentClassCount,
+            limit: req.tenant.maxClasses,
+            tier: req.tenant.tier,
+        });
+        return;
+    }
+
+    next();
+};
+
+// ==========================================
+// TENANT SCOPING UTILITIES
+// ==========================================
+
+/**
+ * Get tenant-scoped Prisma filters
+ * Use this in controllers to ensure queries are tenant-scoped
+ */
+export const getTenantScope = (req: Request) => {
+    if (!req.tenantId) {
+        throw new Error('Tenant ID not found in request');
+    }
+    return { tenantId: req.tenantId };
 };
 
 /**
- * Validate that a resource belongs to the tenant
- * Prevents cross-tenant data access
+ * Add tenant ID to data for creation
  */
-export const validateTenantAccess = async (
-    tenantId: string,
-    model: 'student' | 'user' | 'class' | 'payment',
-    resourceId: string
-): Promise<boolean> => {
-    const modelMap: Record<typeof model, any> = {
-        student: prisma.student,
-        user: prisma.user,
-        class: prisma.class,
-        payment: prisma.payment,
-    };
+export const withTenant = <T extends Record<string, any>>(req: Request, data: T): T & { tenantId: string } => {
+    if (!req.tenantId) {
+        throw new Error('Tenant ID not found in request');
+    }
+    return { ...data, tenantId: req.tenantId };
+};
 
-    const resource = await modelMap[model].findFirst({
-        where: {
-            id: resourceId,
-            tenantId,
-        },
-    });
-
-    return !!resource;
+export default {
+    resolveTenant,
+    requireTenant,
+    requireFeature,
+    checkStudentLimit,
+    checkUserLimit,
+    checkClassLimit,
+    getTenantScope,
+    withTenant,
 };
