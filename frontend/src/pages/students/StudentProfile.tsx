@@ -24,7 +24,8 @@ interface Payment {
   amount: string;
   paymentDate: string;
   method: string;
-  referenceNumber: string;
+  transactionId?: string;
+  status?: string;
 }
 
 interface ClassMovement {
@@ -85,8 +86,9 @@ const StudentProfile = () => {
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     method: 'CASH',
-    referenceNumber: ''
+    notes: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchStudent = async () => {
     try {
@@ -129,23 +131,30 @@ const StudentProfile = () => {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!student) return;
+    if (!student || submitting) return;
 
+    setSubmitting(true);
     try {
       await api.post('/payments', {
         studentId: student.id,
         amount: Number(paymentForm.amount),
         method: paymentForm.method,
-        referenceNumber: paymentForm.referenceNumber
+        notes: paymentForm.notes
       });
 
-      setShowPaymentModal(false);
-      setPaymentForm({ amount: '', method: 'CASH', referenceNumber: '' });
+      closePaymentModal();
       fetchStudent(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to record payment', error);
-      alert('Failed to record payment');
+      alert(error.response?.data?.message || 'Failed to record payment');
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const closePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPaymentForm({ amount: '', method: 'CASH', notes: '' });
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
@@ -509,7 +518,7 @@ const StudentProfile = () => {
                   <tr>
                     <th className="px-6 py-3 font-medium">Date</th>
                     <th className="px-6 py-3 font-medium">Method</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
+                    <th className="px-6 py-3 font-medium">Status</th>
                     <th className="px-6 py-3 font-medium text-right">Amount</th>
                   </tr>
                 </thead>
@@ -527,8 +536,10 @@ const StudentProfile = () => {
                         <td className="px-6 py-4 text-gray-600 capitalize">
                           {payment.method.replace('_', ' ').toLowerCase()}
                         </td>
-                        <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                          {payment.referenceNumber || '-'}
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${payment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {payment.status || 'COMPLETED'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 text-right font-medium text-gray-900">
                           ZMW {Number(payment.amount).toLocaleString()}
@@ -664,60 +675,73 @@ const StudentProfile = () => {
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Record Payment</h2>
             <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">ZMW</span>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="0.00"
-                  />
+              {/* Student Info Banner */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {student.firstName[0]}{student.lastName[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-800">{student.firstName} {student.lastName}</p>
+                    <p className="text-sm text-slate-500">
+                      {student.admissionNumber} • Balance:
+                      <span className={balance > 0 ? 'text-red-600 font-medium ml-1' : 'text-green-600 font-medium ml-1'}>
+                        ZMW {Math.abs(balance).toLocaleString()}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
                 <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={paymentForm.method}
                   onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
                 >
                   <option value="CASH">Cash</option>
                   <option value="MOBILE_MONEY">Mobile Money</option>
                   <option value="BANK_DEPOSIT">Bank Deposit</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
-                <input
-                  type="text"
-                  value={paymentForm.referenceNumber}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Optional"
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional notes about this payment"
+                  rows={2}
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                 />
               </div>
-
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  onClick={closePaymentModal}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={submitting}
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  Save Payment
+                  {submitting ? 'Saving...' : 'Save Payment'}
                 </button>
               </div>
             </form>

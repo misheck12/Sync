@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import Scholarships from './Scholarships';
 import BulkImportModal from '../../components/BulkImportModal';
 import ExportDropdown from '../../components/ExportDropdown';
+import StudentSelector from '../../components/StudentSelector';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
@@ -70,7 +71,7 @@ const Finance = () => {
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string }[]>([]);
+  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string; class?: { id: string; name: string } }[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -148,7 +149,15 @@ const Finance = () => {
   const fetchStudents = async () => {
     try {
       const response = await api.get('/students');
-      setStudents(response.data);
+      // Ensure students have class info for the StudentSelector
+      const studentsWithClass = response.data.map((s: any) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        admissionNumber: s.admissionNumber,
+        class: s.class || undefined
+      }));
+      setStudents(studentsWithClass);
     } catch (error) {
       console.error('Error fetching students:', error);
     }
@@ -1250,20 +1259,13 @@ const Finance = () => {
               <h2 className="text-xl font-bold mb-4">Record New Payment</h2>
               <form onSubmit={handleRecordPayment} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Student</label>
-                  <select
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Find Student</label>
+                  <StudentSelector
+                    students={students}
+                    classes={classes}
                     value={paymentForm.studentId}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, studentId: e.target.value })}
-                  >
-                    <option value="">Select Student</option>
-                    {students.map(student => (
-                      <option key={student.id} value={student.id}>
-                        {student.firstName} {student.lastName} ({student.admissionNumber})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(studentId) => setPaymentForm({ ...paymentForm, studentId })}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
