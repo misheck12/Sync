@@ -150,3 +150,21 @@ export const getDashboardStats = async (req: TenantRequest, res: Response) => {
     handleControllerError(res, error, 'getDashboardStats');
   }
 };
+
+export const getTenantAnnouncements = async (req: TenantRequest, res: Response) => {
+  try {
+    const announcements = await prisma.platformAnnouncement.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(announcements);
+  } catch (error) {
+    handleControllerError(res, error, 'getTenantAnnouncements');
+  }
+};

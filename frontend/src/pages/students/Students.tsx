@@ -53,15 +53,17 @@ const Students = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   // Computed stats
-  const stats = React.useMemo(() => {
-    const total = students.length;
-    const active = students.filter(s => s.status === 'ACTIVE').length;
-    const male = students.filter(s => s.gender === 'MALE').length;
-    const female = students.filter(s => s.gender === 'FEMALE').length;
-    const transferred = students.filter(s => s.status === 'TRANSFERRED').length;
-    const graduated = students.filter(s => s.status === 'GRADUATED').length;
-    return { total, active, male, female, transferred, graduated };
-  }, [students]);
+  // Stats state
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    male: 0,
+    female: 0,
+    transferred: 0,
+    graduated: 0
+  });
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -78,14 +80,48 @@ const Students = () => {
   });
 
   useEffect(() => {
-    fetchStudents();
     fetchClasses();
+    fetchStats();
   }, []);
 
-  const fetchStudents = async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchStudents();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [currentPage, itemsPerPage, classFilter, statusFilter, genderFilter, searchTerm]);
+
+  const fetchStats = async () => {
     try {
-      const response = await api.get('/students');
-      setStudents(response.data);
+      const response = await api.get('/students/stats');
+      setStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch stats', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/students', {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchTerm,
+          classId: classFilter,
+          status: statusFilter,
+          gender: genderFilter
+        }
+      });
+      // Handle response structure { data, meta }
+      if (response.data.meta) {
+        setStudents(response.data.data);
+        setTotalPages(response.data.meta.totalPages);
+        setTotalStudents(response.data.meta.total);
+      } else {
+        // Fallback if backend not ready (shouldn't happen)
+        setStudents(response.data);
+      }
     } catch (error) {
       console.error('Failed to fetch students', error);
     } finally {
@@ -278,28 +314,14 @@ const Students = () => {
     document.body.removeChild(link);
   };
 
-  // Apply all filters
-  const filteredStudents = students.filter(student => {
-    const matchesSearch =
-      student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.admissionNumber.includes(searchTerm) ||
-      student.guardianName.toLowerCase().includes(searchTerm.toLowerCase());
+  // Logic for filteredStudents and paginatedStudents is now redundant as 'students' contains the current page data.
+  // We alias students to filteredStudents/paginatedStudents to minimize changes to render logic
+  const filteredStudents = students;
+  const paginatedStudents = students;
 
-    const matchesClass = !classFilter || student.classId === classFilter;
-    const matchesStatus = !statusFilter || student.status === statusFilter;
-    const matchesGender = !genderFilter || student.gender === genderFilter;
-
-    return matchesSearch && matchesClass && matchesStatus && matchesGender;
-  });
-
-
-
-  // Pagination
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  // No-op for startIndex/endIndex calculation since server handles it
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -719,9 +741,9 @@ const Students = () => {
         {/* Pagination */}
         <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <span>
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
+            Showing {students.length === 0 ? 0 : startIndex + 1}-{startIndex + students.length} of {totalStudents} students
             {(classFilter || statusFilter || searchTerm) && (
-              <span className="text-gray-400"> (filtered from {students.length} total)</span>
+              <span className="text-gray-400"> (filtered from {stats.total} total)</span>
             )}
           </span>
           <div className="flex items-center space-x-2">

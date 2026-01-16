@@ -80,15 +80,27 @@ export async function sendEmail(tenantId: string, options: NotificationOptions):
       return false;
     }
 
+    // Port 465 = SSL/TLS (secure: true)
+    // Port 587 = STARTTLS (secure: false, will upgrade to TLS)
+    const port = settings.smtpPort || 587;
+    const isSecure = port === 465; // Only port 465 uses direct SSL
+
     const transporter = nodemailer.createTransport({
       host: settings.smtpHost,
-      port: settings.smtpPort || 587,
-      secure: settings.smtpSecure ?? true,
+      port: port,
+      secure: isSecure, // false for 587 (STARTTLS), true for 465 (SSL)
       auth: {
         user: settings.smtpUser,
         pass: settings.smtpPassword,
       },
-    });
+      // TLS options for better compatibility
+      tls: {
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        ciphers: 'SSLv3',
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+    } as any);
 
     const mailOptions = {
       from: `"${settings.smtpFromName || settings.schoolName || 'School'}" <${settings.smtpFromEmail || settings.smtpUser}>`,
@@ -247,7 +259,7 @@ export function generatePaymentReceiptEmail(
   amount: number,
   paymentDate: Date,
   method: string,
-  referenceNumber: string,
+  transactionRef: string,
   schoolName: string
 ): { subject: string; text: string; html: string; sms: string } {
   const subject = `✅ Payment Receipt - ${schoolName}`;
@@ -259,7 +271,7 @@ export function generatePaymentReceiptEmail(
   });
 
   // Concise SMS with Guardian Name
-  const sms = `Hi ${guardianName.split(' ')[0]}, received ZMW ${formattedAmount} for ${studentName} at ${schoolName}. Ref: ${referenceNumber}.`;
+  const sms = `Hi ${guardianName.split(' ')[0]}, received ZMW ${formattedAmount} for ${studentName} at ${schoolName}. Ref: ${transactionRef}.`;
 
   const text = `
 Dear Parent/Guardian,
@@ -270,7 +282,7 @@ Payment Details:
 - Amount: ZMW ${formattedAmount}
 - Date: ${formattedDate}
 - Method: ${method.replace('_', ' ')}
-- Reference: ${referenceNumber}
+- Transaction ID: ${transactionRef}
 
 Thank you for your prompt payment.
 
@@ -356,10 +368,10 @@ ${schoolName}
                       </tr>
                       <tr>
                         <td style="padding: 12px 0;">
-                          <span style="color: #64748b; font-size: 14px;">Reference Number</span>
+                          <span style="color: #64748b; font-size: 14px;">Transaction ID</span>
                         </td>
                         <td style="padding: 12px 0; text-align: right;">
-                          <strong style="color: #3b82f6; font-size: 14px; font-family: monospace;">${referenceNumber}</strong>
+                          <strong style="color: #3b82f6; font-size: 14px; font-family: monospace;">${transactionRef}</strong>
                         </td>
                       </tr>
                     </table>

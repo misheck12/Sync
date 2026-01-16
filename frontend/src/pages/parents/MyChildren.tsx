@@ -25,6 +25,7 @@ interface Student {
     paymentDate: string;
     method: string;
     referenceNumber?: string;
+    status: string;
   }[];
   feeStructures: {
     id: string;
@@ -96,9 +97,119 @@ const MyChildren = () => {
     }
   };
 
-  // ... (Keep existing receipt/statement logic)
+  const toggleFeeDetails = (studentId: string) => {
+    setExpandedFees(prev => ({ ...prev, [studentId]: !prev[studentId] }));
+  };
 
-  // ... (Keep existing prepareChartData)
+  const prepareChartData = (termResults: any[]) => {
+    return termResults.map(r => ({
+      name: r.term.name,
+      average: Number(r.totalScore)
+    }));
+  };
+
+  const handleDownloadStatement = async (studentId: string) => {
+    try {
+      const response = await api.get(`/students/${studentId}/statement`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'statement.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading statement', error);
+      alert('Failed to download statement');
+    }
+  };
+
+  const generateReceipt = (student: Student, payment: any) => {
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(37, 99, 235); // Blue
+    doc.text('PAYMENT RECEIPT', 105, 20, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Receipt #: ${payment.id.substring(0, 8).toUpperCase()}`, 105, 28, { align: 'center' });
+
+    // Details
+    doc.setTextColor(0);
+    doc.setFontSize(12);
+    doc.text(`Student: ${student.firstName} ${student.lastName}`, 20, 50);
+    doc.text(`Admission #: ${student.admissionNumber}`, 20, 58);
+    doc.text(`Date: ${new Date(payment.paymentDate).toLocaleDateString()}`, 20, 66);
+
+    // Amount
+    doc.setFontSize(16);
+    doc.text(`Amount Paid: ZMW ${Number(payment.amount).toLocaleString()}`, 20, 85);
+
+    doc.setFontSize(12);
+    doc.text(`Method: ${payment.method}`, 20, 95);
+    doc.text(`Status: ${payment.status || 'COMPLETED'}`, 20, 103);
+
+    doc.save(`receipt_${payment.id}.pdf`);
+  };
+
+  // Payment State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedChild, setSelectedChild] = useState<Student | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [paymentOperator, setPaymentOperator] = useState('mtn');
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  // ... (keep existing handleDownloadStatement)
+
+
+  const handlePayClick = (child: Student) => {
+    console.log('DEBUG: handlePayClick called for child:', child.id, child.firstName);
+    setSelectedChild(child);
+    const amount = child.balance > 0 ? child.balance.toString() : '';
+    console.log('DEBUG: Setting payment amount to:', amount);
+    setPaymentAmount(amount);
+    setShowPaymentModal(true);
+  };
+
+  const submitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('DEBUG: submitPayment called');
+    if (!selectedChild) {
+      console.error('DEBUG: No selected child!');
+      return;
+    }
+
+    setProcessingPayment(true);
+    const payload = {
+      studentId: selectedChild.id,
+      amount: Number(paymentAmount),
+      method: 'MOBILE_MONEY',
+      operator: paymentOperator,
+      phoneNumber: paymentPhone,
+      notes: 'Parent Dashboard Payment'
+    };
+    console.log('DEBUG: Sending payment payload:', payload);
+
+    try {
+      const response = await api.post('/payments', payload);
+      console.log('DEBUG: Payment API response:', response.data);
+      alert('Payment initiated! Please verify on your phone.');
+      setShowPaymentModal(false);
+      fetchChildren();
+    } catch (error: any) {
+      console.error('DEBUG: Payment API error:', error);
+      console.error('DEBUG: Error response data:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      alert('Payment failed: ' + errorMessage);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -111,7 +222,7 @@ const MyChildren = () => {
       <div className="space-y-8">
         {children.map((child) => (
           <div key={child.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Enhanced Header - Same as before */}
+            {/* Enhanced Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center space-x-4">
@@ -134,13 +245,22 @@ const MyChildren = () => {
                       ZMW {child.balance.toLocaleString()}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDownloadStatement(child.id)}
-                    className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/20"
-                  >
-                    <Download size={14} />
-                    Download Statement
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePayClick(child)}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg"
+                    >
+                      <CreditCard size={14} />
+                      Pay Now
+                    </button>
+                    <button
+                      onClick={() => handleDownloadStatement(child.id)}
+                      className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/20"
+                    >
+                      <Download size={14} />
+                      Statement
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -390,7 +510,15 @@ const MyChildren = () => {
                         <div key={idx} className="flex justify-between items-center text-sm p-2 rounded hover:bg-slate-50 transition-colors">
                           <div>
                             <span className="text-slate-500 text-xs block mb-0.5">{new Date(payment.paymentDate).toLocaleDateString()}</span>
-                            <span className="font-bold text-slate-800">ZMW {Number(payment.amount).toLocaleString()}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800">ZMW {Number(payment.amount).toLocaleString()}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${payment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                payment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {payment.status || 'COMPLETED'}
+                              </span>
+                            </div>
                           </div>
                           <button
                             onClick={() => generateReceipt(child, payment)}
@@ -451,8 +579,88 @@ const MyChildren = () => {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedChild && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <CreditCard size={18} />
+                Pay Fees for {selectedChild.firstName}
+              </h3>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={submitPayment} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (ZMW)</label>
+                <input
+                  type="number"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-bold text-lg"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Money Operator</label>
+                <select
+                  value={paymentOperator}
+                  onChange={(e) => setPaymentOperator(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="mtn">MTN Money</option>
+                  <option value="airtel">Airtel Money</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={paymentPhone}
+                  onChange={(e) => setPaymentPhone(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="2609..."
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Enter number in format 260xxxxxxxxx</p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800">
+                <p>A prompt will be sent to your phone. Approve the transaction to complete payment.</p>
+                <p className="text-xs mt-1 opacity-75">+3.5% processing fee applies.</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={processingPayment}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processingPayment ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Make Payment'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default MyChildren;

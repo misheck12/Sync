@@ -55,20 +55,34 @@ export const sendEmailForTenant = async (
     });
 
     // 2. Create Transporter
+    // Port 465 = SSL/TLS (secure: true)
+    // Port 587 = STARTTLS (secure: false, will upgrade to TLS)
+    // Port 25 = Plain (secure: false)
     const port = tenant.smtpPort || 587;
-    const isSecure = port === 465;
+    const isSecure = port === 465; // Only port 465 uses direct SSL
 
     console.log(`DEBUG: Configuring Transporter: Host=${tenant.smtpHost}, Port=${port}, Secure=${isSecure}`);
 
     const transporter = nodemailer.createTransport({
       host: tenant.smtpHost,
       port: port,
-      secure: isSecure,
+      secure: isSecure, // false for 587 (STARTTLS), true for 465 (SSL)
       auth: {
         user: tenant.smtpUser,
         pass: tenant.smtpPassword,
       },
-    });
+      // TLS options for better compatibility
+      tls: {
+        // Allow self-signed certificates in development
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        // Required for some Gmail configurations
+        ciphers: 'SSLv3',
+      },
+      // Connection timeout
+      connectionTimeout: 10000,
+      // Greeting timeout  
+      greetingTimeout: 10000,
+    } as any);
 
     // 3. Send Email
     console.log(`DEBUG: Attempting to send email to ${to}`);
@@ -88,6 +102,10 @@ export const sendEmailForTenant = async (
       console.error('---------------------------------------------------');
       console.error('AUTHENTICATION ERROR:');
       console.error('The SMTP server rejected your username or password.');
+      console.error('For Gmail, ensure you are using an App Password:');
+      console.error('1. Go to https://myaccount.google.com/apppasswords');
+      console.error('2. Generate a new App Password for "Mail"');
+      console.error('3. Use that 16-character password (no spaces)');
       console.error('---------------------------------------------------');
     }
 

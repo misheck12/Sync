@@ -349,7 +349,12 @@ export const getStudentStatement = async (req: TenantRequest, res: Response) => 
 
     // 4. Get Payments (Credits)
     const payments = await prisma.payment.findMany({
-      where: { tenantId, studentId },
+      where: {
+        tenantId,
+        studentId,
+        // @ts-ignore
+        status: 'COMPLETED'
+      },
       orderBy: { paymentDate: 'asc' }
     });
 
@@ -371,7 +376,7 @@ export const getStudentStatement = async (req: TenantRequest, res: Response) => 
         description: `Payment (${p.method.replace('_', ' ')})`,
         term: '-',
         amount: Number(p.amount),
-        ref: p.referenceNumber || '-'
+        ref: p.transactionId || '-'
       }))
     ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

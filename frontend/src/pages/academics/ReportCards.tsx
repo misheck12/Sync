@@ -3,6 +3,9 @@ import { FileText, AlertCircle, CheckCircle, Printer, Download, FileSpreadsheet 
 import { exportToCSV, exportToExcel } from '../../utils/exportUtils';
 import { reportCardService, StudentReport } from '../../services/reportCardService';
 import api from '../../utils/api';
+import JSZip from 'jszip';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import StudentReportCard from '../../components/academics/StudentReportCard';
 import ClassBroadsheet from '../../components/academics/ClassBroadsheet';
 
@@ -170,6 +173,78 @@ const ReportCards: React.FC = () => {
       setGenerating(false);
       setShowExportMenu(false);
     }
+
+  };
+
+  const handleBulkZip = async () => {
+    if (!selectedClass || !selectedTerm) return;
+    try {
+      setGenerating(true);
+      setError(null);
+
+      // Generating reports
+      await reportCardService.generateClassReports(selectedClass, selectedTerm);
+      const reports = await reportCardService.getClassReports(selectedClass, selectedTerm);
+      if (reports.length === 0) {
+        setError('No students found');
+        setGenerating(false);
+        return;
+      }
+      setClassReports(reports);
+      setPrintingAll(true);
+
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const zip = new JSZip();
+      const reportElements = document.querySelectorAll('.print-only > div');
+
+      for (let i = 0; i < reportElements.length; i++) {
+        const element = reportElements[i] as HTMLElement;
+        const report = reports[i];
+        const studentName = `${report.student?.lastName || 'Student'}_${report.student?.firstName || i}`;
+
+        try {
+          const canvas = await html2canvas(element, {
+            scale: 1.5, // slightly lower scale for speed
+            useCORS: true,
+            logging: false
+          } as any);
+          const imgData = canvas.toDataURL('image/jpeg', 0.8);
+
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+          const pdfBlob = pdf.output('blob');
+
+          zip.file(`${studentName}.pdf`, pdfBlob);
+        } catch (e) {
+          console.error(`Failed to capture report for ${studentName}`, e);
+        }
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reports_${classes.find(c => c.id === selectedClass)?.name || 'Class'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setSuccess(`Downloaded ${reports.length} reports.`);
+
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to generate ZIP');
+    } finally {
+      setGenerating(false);
+      setPrintingAll(false);
+      setShowExportMenu(false);
+    }
   };
 
 
@@ -290,7 +365,16 @@ const ReportCards: React.FC = () => {
                   className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700 border-b border-gray-50"
                 >
                   <Printer size={16} className="text-blue-600" />
+                  <Printer size={16} className="text-blue-600" />
                   Print Reports (PDF)
+                </button>
+                <button
+                  onClick={handleBulkZip}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700 border-b border-gray-50"
+                  disabled={generating}
+                >
+                  <Download size={16} className="text-purple-600" />
+                  Download ZIP (Bulk)
                 </button>
                 <button
                   onClick={() => handleExport('EXCEL')}

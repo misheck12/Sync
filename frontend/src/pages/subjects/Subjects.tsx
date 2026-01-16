@@ -13,15 +13,17 @@ interface Subject {
 const Subjects = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'syllabus'>('list');
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<{ id: string; fullName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
-  const [formData, setFormData] = useState({ name: '', code: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', teacherId: '' });
   const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     fetchSubjects();
+    fetchTeachers();
   }, []);
 
   const fetchSubjects = async () => {
@@ -35,6 +37,15 @@ const Subjects = () => {
     }
   };
 
+  const fetchTeachers = async () => {
+    try {
+      const response = await api.get('/users?role=TEACHER');
+      setTeachers(response.data);
+    } catch (error) {
+      console.error('Failed to fetch teachers', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -45,7 +56,7 @@ const Subjects = () => {
       }
       fetchSubjects();
       setShowModal(false);
-      setFormData({ name: '', code: '' });
+      setFormData({ name: '', code: '', teacherId: '' });
       setEditingSubject(null);
     } catch (error) {
       console.error('Failed to save subject', error);
@@ -66,13 +77,13 @@ const Subjects = () => {
 
   const openEditModal = (subject: Subject) => {
     setEditingSubject(subject);
-    setFormData({ name: subject.name, code: subject.code });
+    setFormData({ name: subject.name, code: subject.code, teacherId: '' }); // Add teacherId if available in subject
     setShowModal(true);
   };
 
   const openAddModal = () => {
     setEditingSubject(null);
-    setFormData({ name: '', code: '' });
+    setFormData({ name: '', code: '', teacherId: '' });
     setShowModal(true);
   };
 
@@ -92,8 +103,8 @@ const Subjects = () => {
           <button
             onClick={() => setActiveTab('list')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'list'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
               }`}
           >
             <List size={18} />
@@ -102,8 +113,8 @@ const Subjects = () => {
           <button
             onClick={() => setActiveTab('syllabus')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors ${activeTab === 'syllabus'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
               }`}
           >
             <BookOpen size={18} />
@@ -221,6 +232,19 @@ const Subjects = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g. MATH101"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assign Teacher (Optional)</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.teacherId}
+                  onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                >
+                  <option value="">-- Select Teacher --</option>
+                  {teachers.map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button

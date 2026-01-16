@@ -34,6 +34,7 @@ router.post('/activities', logActivity);
 
 // Tasks
 router.post('/tasks', createTask);
+router.get('/tasks', getMyTasks);
 router.get('/tasks/my', getMyTasks);
 
 export default router;

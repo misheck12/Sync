@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getSettings, updateSettings, getPublicSettings, getUsageStats } from '../controllers/settingsController';
+import { downloadBackup } from '../controllers/backupController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 import { tenantHandler, publicHandler } from '../utils/routeTypes';
 
@@ -14,5 +15,6 @@ router.use(authenticateToken);
 router.get('/', tenantHandler(getSettings));
 router.put('/', authorizeRole(['SUPER_ADMIN']), tenantHandler(updateSettings));
 router.get('/usage', authorizeRole(['SUPER_ADMIN']), tenantHandler(getUsageStats));
+router.get('/backup', authorizeRole(['SUPER_ADMIN']), tenantHandler(downloadBackup));
 
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Crown,
     Check,
@@ -6,12 +6,13 @@ import {
     Users,
     GraduationCap,
     Building,
-    Zap,
     AlertTriangle,
     CreditCard,
     Clock,
     TrendingUp,
-    ChevronRight
+    ChevronRight,
+    Server,
+    Smartphone
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -29,6 +30,10 @@ interface Plan {
     maxTeachers: number;
     maxUsers: number;
     maxClasses: number;
+    maxStorageGB: number;
+    monthlyApiCallLimit?: number;
+    includedSmsPerMonth?: number;
+    includedEmailsPerMonth?: number;
     features: string[];
     isPopular: boolean;
 }
@@ -53,7 +58,8 @@ interface SubscriptionStatus {
     features: Record<string, boolean>;
 }
 
-const featureLabels: Record<string, string> = {
+// Default feature labels (will be overridden by API data)
+const defaultFeatureLabels: Record<string, string> = {
     attendance: 'Attendance Tracking',
     fee_management: 'Fee Management',
     report_cards: 'Report Cards',
@@ -85,7 +91,20 @@ const Subscription: React.FC = () => {
     const [status, setStatus] = useState<SubscriptionStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-    const [upgrading, setUpgrading] = useState(false);
+    const [payments, setPayments] = useState<any[]>([]);
+    const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+    const [selectedPayment, setSelectedPayment] = useState<any>(null);
+    const [proofRef, setProofRef] = useState('');
+    const [proofNotes, setProofNotes] = useState('');
+    const [submittingProof, setSubmittingProof] = useState(false);
+    const [featureLabels, setFeatureLabels] = useState<Record<string, string>>(defaultFeatureLabels);
+
+    // Mobile Money Payment Modal State
+    const [isMomoModalOpen, setIsMomoModalOpen] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [momoOperator, setMomoOperator] = useState<'mtn' | 'airtel'>('mtn');
+    const [momoPhone, setMomoPhone] = useState('');
+    const [processingMomo, setProcessingMomo] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -93,12 +112,18 @@ const Subscription: React.FC = () => {
 
     const fetchData = async () => {
         try {
-            const [plansRes, statusRes] = await Promise.all([
+            const [plansRes, statusRes, paymentsRes] = await Promise.all([
                 api.get('/subscription/plans'),
                 api.get('/subscription/status'),
+                api.get('/subscription/payments?limit=10')
             ]);
-            setPlans(plansRes.data);
+            // Handle new API format: { plans, featureLabels }
+            const plansData = plansRes.data.plans || plansRes.data;
+            const dynamicLabels = plansRes.data.featureLabels || {};
+            setPlans(plansData);
+            setFeatureLabels({ ...defaultFeatureLabels, ...dynamicLabels });
             setStatus(statusRes.data);
+            setPayments(paymentsRes.data.payments);
         } catch (error) {
             console.error('Failed to fetch subscription data:', error);
         } finally {
@@ -106,24 +131,87 @@ const Subscription: React.FC = () => {
         }
     };
 
-    const handleUpgrade = async (planId: string) => {
-        if (!window.confirm('Are you sure you want to upgrade? You will receive payment instructions.')) {
-            return;
-        }
+    const handleCancel = async () => {
+        if (!window.confirm('Are you sure you want to cancel? You will keep access until the end of the billing period.')) return;
 
-        setUpgrading(true);
         try {
-            const response = await api.post('/subscription/upgrade', {
-                planId,
+            await api.post('/subscription/cancel');
+            alert('Subscription cancelled.');
+            fetchData();
+        } catch (error) {
+            alert('Failed to cancel subscription');
+        }
+    };
+
+
+
+    const viewInvoice = async (paymentId: string) => {
+        try {
+            const res = await api.get(`/subscription/payments/${paymentId}/invoice`, { responseType: 'text' });
+            const newWindow = window.open();
+            if (newWindow) {
+                newWindow.document.write(res.data);
+                newWindow.document.close();
+            }
+        } catch (e) { alert('Failed to load invoice'); }
+    };
+
+    const openPaymentModal = (plan: Plan) => {
+        setSelectedPlan(plan);
+        setMomoPhone('');
+        setMomoOperator('mtn');
+        setIsMomoModalOpen(true);
+    };
+
+    const handleMobileMoneyPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPlan) return;
+
+        setProcessingMomo(true);
+        try {
+            const response = await api.post('/subscription/pay-mobile-money', {
+                planId: selectedPlan.id,
                 billingCycle: billingCycle === 'yearly' ? 'ANNUAL' : 'MONTHLY',
+                operator: momoOperator,
+                phoneNumber: momoPhone,
             });
 
-            alert(`Upgrade initiated!\n\nAmount: K${response.data.amount.toLocaleString()}\n\nPayment Instructions:\n- MTN MoMo: ${response.data.paymentInstructions.mobileMoney.mtn}\n- Airtel Money: ${response.data.paymentInstructions.mobileMoney.airtel}\n\nReference: ${response.data.paymentId}`);
+            alert(`Payment initiated!\n\nAmount: K${response.data.amount.toLocaleString()}\nPlan: ${response.data.plan.name}\n\nPlease check your phone to authorize the transaction.`);
+            setIsMomoModalOpen(false);
+            fetchData();
         } catch (error: any) {
-            alert(error.response?.data?.message || 'Failed to initiate upgrade');
+            const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Payment failed';
+            alert(`Payment failed: ${errorMsg}`);
         } finally {
-            setUpgrading(false);
+            setProcessingMomo(false);
         }
+    };
+
+    const handleSubmitProof = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPayment) return;
+
+        setSubmittingProof(true);
+        try {
+            await api.post(`/subscription/payments/${selectedPayment.id}/submit-proof`, {
+                transactionReference: proofRef,
+                notes: proofNotes
+            });
+            alert('Payment proof submitted successfully!');
+            setIsProofModalOpen(false);
+            fetchData(); // Refresh list
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to submit proof');
+        } finally {
+            setSubmittingProof(false);
+        }
+    };
+
+    const openProofModal = (payment: any) => {
+        setSelectedPayment(payment);
+        setProofRef('');
+        setProofNotes('');
+        setIsProofModalOpen(true);
     };
 
     const getUsageColor = (percentage: number) => {
@@ -148,14 +236,21 @@ const Subscription: React.FC = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Subscription & Billing</h1>
                     <p className="text-gray-600">Manage your subscription plan and view usage</p>
                 </div>
-                {status?.subscription.tier !== 'FREE' && (
-                    <div className={`px-4 py-2 rounded-lg border ${tierColors[status?.subscription.tier || 'FREE']}`}>
-                        <div className="flex items-center gap-2">
-                            <Crown className="w-5 h-5" />
-                            <span className="font-semibold">{status?.subscription.plan?.name || status?.subscription.tier} Plan</span>
+                <div className="flex items-center gap-3">
+                    {status?.subscription.tier !== 'FREE' && status?.subscription.status !== 'CANCELLED' && (
+                        <button onClick={handleCancel} className="text-red-600 font-medium text-sm hover:underline">
+                            Cancel Subscription
+                        </button>
+                    )}
+                    {status?.subscription.tier !== 'FREE' && (
+                        <div className={`px-4 py-2 rounded-lg border ${tierColors[status?.subscription.tier || 'FREE']}`}>
+                            <div className="flex items-center gap-2">
+                                <Crown className="w-5 h-5" />
+                                <span className="font-semibold">{status?.subscription.plan?.name || status?.subscription.tier} Plan</span>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Subscription Status Alert */}
@@ -280,116 +375,247 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Pricing Plans */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {plans.map((plan) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-4">
+                {plans.map((plan, index) => {
                     const isCurrentPlan = status?.subscription.tier === plan.tier;
                     const price = Number(billingCycle === 'yearly' ? plan.yearlyPriceZMW : plan.monthlyPriceZMW);
                     const priceUSD = Number(billingCycle === 'yearly' ? plan.yearlyPriceUSD : plan.monthlyPriceUSD);
 
+                    // Tier-specific styling
+                    const tierStyles: Record<string, { gradient: string; iconBg: string; iconColor: string; accent: string; ring: string }> = {
+                        FREE: {
+                            gradient: 'from-slate-50 to-gray-100',
+                            iconBg: 'bg-gradient-to-br from-gray-100 to-gray-200',
+                            iconColor: 'text-gray-500',
+                            accent: 'gray',
+                            ring: 'ring-gray-200'
+                        },
+                        STARTER: {
+                            gradient: 'from-blue-50 via-indigo-50 to-blue-100',
+                            iconBg: 'bg-gradient-to-br from-blue-400 to-indigo-500',
+                            iconColor: 'text-white',
+                            accent: 'blue',
+                            ring: 'ring-blue-200'
+                        },
+                        PROFESSIONAL: {
+                            gradient: 'from-purple-50 via-violet-50 to-purple-100',
+                            iconBg: 'bg-gradient-to-br from-purple-500 to-pink-500',
+                            iconColor: 'text-white',
+                            accent: 'purple',
+                            ring: 'ring-purple-200'
+                        },
+                        ENTERPRISE: {
+                            gradient: 'from-amber-50 via-orange-50 to-amber-100',
+                            iconBg: 'bg-gradient-to-br from-amber-400 to-orange-500',
+                            iconColor: 'text-white',
+                            accent: 'amber',
+                            ring: 'ring-amber-200'
+                        }
+                    };
+
+                    const style = tierStyles[plan.tier] || tierStyles.FREE;
+
                     return (
                         <div
                             key={plan.id}
-                            className={`relative bg-white rounded-xl border-2 p-6 transition-all ${plan.isPopular
-                                ? 'border-purple-500 shadow-lg scale-105'
-                                : isCurrentPlan
-                                    ? 'border-blue-500'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
+                            className={`
+                                relative group
+                                bg-gradient-to-br ${style.gradient}
+                                rounded-2xl overflow-hidden
+                                border transition-all duration-500 ease-out
+                                hover:shadow-2xl hover:-translate-y-2
+                                ${plan.isPopular
+                                    ? 'border-purple-300 shadow-xl shadow-purple-100 lg:scale-105 z-10'
+                                    : isCurrentPlan
+                                        ? 'border-blue-300 shadow-lg shadow-blue-50'
+                                        : 'border-white/60 shadow-lg hover:border-gray-200'
+                                }
+                            `}
+                            style={{
+                                animationDelay: `${index * 100}ms`,
+                                backdropFilter: 'blur(10px)'
+                            }}
                         >
-                            {plan.isPopular && (
-                                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                    <span className="bg-purple-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                                        Most Popular
-                                    </span>
-                                </div>
-                            )}
-
-                            {isCurrentPlan && (
-                                <div className="absolute -top-3 right-4">
-                                    <span className="bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                                        Current Plan
-                                    </span>
-                                </div>
-                            )}
-
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                                <p className="text-sm text-gray-500 mt-1">{plan.description}</p>
+                            {/* Decorative background elements */}
+                            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                <div className={`absolute -top-24 -right-24 w-48 h-48 bg-${style.accent}-200/30 rounded-full blur-3xl transition-transform duration-700 group-hover:scale-150`} />
+                                <div className={`absolute -bottom-24 -left-24 w-48 h-48 bg-${style.accent}-100/40 rounded-full blur-3xl transition-transform duration-700 group-hover:scale-125`} />
                             </div>
 
-                            <div className="text-center mb-6">
-                                <div className="flex items-baseline justify-center gap-1">
-                                    <span className="text-3xl font-bold text-gray-900">
-                                        {price === 0 ? 'Free' : `K${price.toLocaleString()}`}
-                                    </span>
-                                    {price > 0 && (
-                                        <span className="text-gray-500 text-sm">
-                                            /{billingCycle === 'yearly' ? 'year' : 'month'}
+                            {/* Card Content */}
+                            <div className="relative p-6">
+                                {/* Badges */}
+                                <div className="flex justify-center gap-2 mb-5 min-h-[28px]">
+                                    {plan.isPopular && (
+                                        <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-purple-200 animate-pulse">
+                                            <span className="text-sm">✨</span> Most Popular
+                                        </span>
+                                    )}
+                                    {isCurrentPlan && (
+                                        <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-emerald-200">
+                                            <Check className="w-3.5 h-3.5" /> Your Plan
                                         </span>
                                     )}
                                 </div>
-                                {price > 0 && (
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        ~${priceUSD.toFixed(2)} USD
-                                    </p>
-                                )}
-                            </div>
 
-                            <div className="space-y-3 mb-6">
-                                <div className="flex items-center gap-2 text-sm">
-                                    <GraduationCap className="w-4 h-4 text-gray-400" />
-                                    <span>
-                                        {plan.maxStudents === 0 ? 'Unlimited' : plan.includedStudents} students
-                                    </span>
+                                {/* Plan Header */}
+                                <div className="text-center mb-6">
+                                    <div className={`
+                                        inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4
+                                        ${style.iconBg}
+                                        shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3
+                                    `}>
+                                        <Crown className={`w-8 h-8 ${style.iconColor} drop-shadow-sm`} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 tracking-tight">{plan.name}</h3>
+                                    <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{plan.description}</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                    <Users className="w-4 h-4 text-gray-400" />
-                                    <span>
-                                        {plan.maxTeachers === 0 ? 'Unlimited' : plan.maxTeachers} teachers
-                                    </span>
-                                </div>
-                            </div>
 
-                            <div className="border-t border-gray-100 pt-4 mb-6">
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Features</p>
-                                <ul className="space-y-2">
-                                    {plan.features.slice(0, 5).map((feature) => (
-                                        <li key={feature} className="flex items-center gap-2 text-sm">
-                                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                            <span className="text-gray-600">{featureLabels[feature] || feature}</span>
-                                        </li>
-                                    ))}
-                                    {plan.features.length > 5 && (
-                                        <li className="text-xs text-gray-400">
-                                            +{plan.features.length - 5} more features
-                                        </li>
+                                {/* Pricing */}
+                                <div className="text-center mb-6 py-4 border-y border-gray-200/50">
+                                    <div className="flex items-baseline justify-center gap-1">
+                                        {price === 0 ? (
+                                            <span className="text-4xl font-extrabold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                                                Free
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <span className="text-lg font-medium text-gray-400">K</span>
+                                                <span className={`text-4xl font-extrabold bg-gradient-to-r from-${style.accent}-600 to-${style.accent}-800 bg-clip-text text-transparent`}>
+                                                    {price.toLocaleString()}
+                                                </span>
+                                            </>
+                                        )}
+                                        {price > 0 && (
+                                            <span className="text-gray-400 text-sm font-medium ml-1">
+                                                /{billingCycle === 'yearly' ? 'year' : 'mo'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {price > 0 && (
+                                        <p className="text-xs text-gray-400 mt-2 font-medium">
+                                            ≈ ${priceUSD.toFixed(0)} USD
+                                        </p>
                                     )}
-                                </ul>
+                                    {price > 0 && billingCycle === 'yearly' && (
+                                        <p className="text-xs text-emerald-600 mt-1 font-semibold">
+                                            Save 17% with annual billing
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Resources */}
+                                <div className="space-y-3 mb-6">
+                                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
+                                        <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
+                                            <GraduationCap className={`w-5 h-5 text-${style.accent}-600`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                {plan.maxStudents === 0 ? 'Unlimited' : plan.maxStudents.toLocaleString()}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Students</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
+                                        <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
+                                            <Users className={`w-5 h-5 text-${style.accent}-600`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                {plan.maxTeachers === 0 ? 'Unlimited' : plan.maxTeachers}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Teachers</p>
+                                        </div>
+                                    </div>
+
+                                    {/* API Limits */}
+                                    {(plan.features.includes('api_access') || (plan.monthlyApiCallLimit !== undefined && plan.monthlyApiCallLimit > 0)) && (
+                                        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
+                                            <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
+                                                <Server className={`w-5 h-5 text-${style.accent}-600`} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    {!plan.monthlyApiCallLimit || plan.monthlyApiCallLimit === 0
+                                                        ? 'Unlimited'
+                                                        : plan.monthlyApiCallLimit.toLocaleString()}
+                                                </p>
+                                                <p className="text-xs text-gray-500">API Calls/mo</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Features */}
+                                <div className="mb-6">
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">What's included</p>
+                                    <ul className="space-y-2.5">
+                                        {plan.features.slice(0, 4).map((feature) => (
+                                            <li key={feature} className="flex items-center gap-2.5 text-sm group/item">
+                                                <div className={`w-5 h-5 rounded-full bg-${style.accent}-100 flex items-center justify-center flex-shrink-0 transition-colors group-hover/item:bg-${style.accent}-200`}>
+                                                    <Check className={`w-3 h-3 text-${style.accent}-600`} />
+                                                </div>
+                                                <span className="text-gray-700 font-medium">{featureLabels[feature] || feature}</span>
+                                            </li>
+                                        ))}
+                                        {plan.features.length > 4 && (
+                                            <li className="text-xs text-gray-400 pl-7 font-medium">
+                                                + {plan.features.length - 4} more features
+                                            </li>
+                                        )}
+                                    </ul>
+                                </div>
+
+                                {/* CTA Button */}
+                                <button
+                                    onClick={() => openPaymentModal(plan)}
+                                    disabled={isCurrentPlan || plan.tier === 'FREE' || processingMomo}
+                                    className={`
+                                        w-full py-3.5 px-4 rounded-xl font-semibold text-sm
+                                        transition-all duration-300 ease-out
+                                        flex items-center justify-center gap-2
+                                        disabled:cursor-not-allowed
+                                        ${isCurrentPlan
+                                            ? 'bg-gray-100 text-gray-400 border border-gray-200'
+                                            : plan.tier === 'FREE'
+                                                ? 'bg-gray-50 text-gray-500 border border-gray-200'
+                                                : plan.isPopular
+                                                    ? 'bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 hover:scale-[1.02] active:scale-[0.98]'
+                                                    : `bg-${style.accent}-600 text-white hover:bg-${style.accent}-700 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`
+                                        }
+                                    `}
+                                >
+                                    {isCurrentPlan ? (
+                                        <>
+                                            <Check className="w-4 h-4" />
+                                            Current Plan
+                                        </>
+                                    ) : plan.tier === 'FREE' ? (
+                                        'Free Forever'
+                                    ) : (
+                                        <>
+                                            {processingMomo ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    Processing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Get Started
+                                                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                                                </>
+                                            )}
+                                        </>
+                                    )}
+                                </button>
                             </div>
 
-                            <button
-                                onClick={() => handleUpgrade(plan.id)}
-                                disabled={isCurrentPlan || plan.tier === 'FREE' || upgrading}
-                                className={`w-full py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${isCurrentPlan
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : plan.tier === 'FREE'
-                                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                                        : plan.isPopular
-                                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                            >
-                                {isCurrentPlan ? (
-                                    'Current Plan'
-                                ) : plan.tier === 'FREE' ? (
-                                    'Free Forever'
-                                ) : (
-                                    <>
-                                        {upgrading ? 'Processing...' : 'Upgrade Now'}
-                                        <ChevronRight className="w-4 h-4" />
-                                    </>
-                                )}
-                            </button>
+                            {/* Shine effect on hover */}
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                            </div>
                         </div>
                     );
                 })}
@@ -446,6 +672,239 @@ const Subscription: React.FC = () => {
                             })}
                         </span>
                     </p>
+                </div>
+            )}
+            {/* Payment History */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Payment History
+                </h2>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-700 font-medium">
+                            <tr>
+                                <th className="px-4 py-2">Date</th>
+                                <th className="px-4 py-2">Plan</th>
+                                <th className="px-4 py-2">Amount</th>
+                                <th className="px-4 py-2">Status</th>
+                                <th className="px-4 py-2">Reference</th>
+                                <th className="px-4 py-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {payments.map(payment => (
+                                <tr key={payment.id}>
+                                    <td className="px-4 py-2 text-gray-600">{new Date(payment.createdAt).toLocaleDateString()}</td>
+                                    <td className="px-4 py-2 font-medium">{payment.plan?.name}</td>
+                                    <td className="px-4 py-2 text-gray-900 font-semibold">{payment.currency} {Number(payment.totalAmount).toLocaleString()}</td>
+                                    <td className="px-4 py-2">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold
+                                            ${payment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                payment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                                    payment.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-gray-100 text-gray-700'}`}>
+                                            {payment.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-gray-500 font-mono text-xs">{payment.externalRef || '-'}</td>
+                                    <td className="px-4 py-2">
+                                        {payment.status === 'PENDING' && (
+                                            <button
+                                                onClick={() => openProofModal(payment)}
+                                                className="text-blue-600 hover:text-blue-800 text-xs font-medium border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"
+                                            >
+                                                Verify Payment
+                                            </button>
+                                        )}
+                                        {payment.status === 'COMPLETED' && (
+                                            <button
+                                                className="text-gray-500 hover:text-gray-700 text-xs flex items-center gap-1"
+                                                onClick={() => viewInvoice(payment.id)}
+                                            >
+                                                Invoice
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {payments.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">No payment history found</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Proof Submission Modal */}
+            {isProofModalOpen && selectedPayment && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Verify Payment</h3>
+                            <button onClick={() => setIsProofModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Please enter the transaction reference from your Mobile Money or Bank transfer for
+                            <span className="font-semibold text-gray-800"> {selectedPayment.currency} {Number(selectedPayment.totalAmount).toLocaleString()}</span>.
+                        </p>
+                        <form onSubmit={handleSubmitProof} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Reference / ID</label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={proofRef}
+                                    onChange={e => setProofRef(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="e.g. 182739482 or TR-999"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                                <textarea
+                                    value={proofNotes}
+                                    onChange={e => setProofNotes(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                    rows={3}
+                                    placeholder="Any additional details..."
+                                />
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsProofModalOpen(false)}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={submittingProof}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {submittingProof ? 'Submitting...' : 'Submit Proof'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Money Payment Modal */}
+            {isMomoModalOpen && selectedPlan && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Complete Payment</h3>
+                            <button onClick={() => setIsMomoModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Plan Summary */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                                    <Crown className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-gray-900">{selectedPlan.name} Plan</p>
+                                    <p className="text-sm text-gray-600">{billingCycle === 'yearly' ? 'Annual' : 'Monthly'} billing</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-blue-100">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600">Amount</span>
+                                    <span className="text-2xl font-bold text-gray-900">
+                                        K{Number(billingCycle === 'yearly' ? selectedPlan.yearlyPriceZMW : selectedPlan.monthlyPriceZMW).toLocaleString()}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">+ 2.5% processing fee</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleMobileMoneyPayment} className="space-y-4">
+                            {/* Operator Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Select Mobile Money Provider</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMomoOperator('mtn')}
+                                        className={`p-4 rounded-xl border-2 transition-all ${momoOperator === 'mtn'
+                                            ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-200'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                            <span className="font-bold text-white text-sm">MTN</span>
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900">MTN MoMo</p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMomoOperator('airtel')}
+                                        className={`p-4 rounded-xl border-2 transition-all ${momoOperator === 'airtel'
+                                            ? 'border-red-400 bg-red-50 ring-2 ring-red-200'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                            <span className="font-bold text-white text-xs">Airtel</span>
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900">Airtel Money</p>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Phone Number */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <Smartphone className="w-4 h-4 inline mr-1" />
+                                    Phone Number
+                                </label>
+                                <input
+                                    required
+                                    type="tel"
+                                    value={momoPhone}
+                                    onChange={e => setMomoPhone(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="260 9XX XXX XXX"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Enter the number registered with {momoOperator === 'mtn' ? 'MTN MoMo' : 'Airtel Money'}</p>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMomoModalOpen(false)}
+                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processingMomo || !momoPhone}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+                                >
+                                    {processingMomo ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CreditCard className="w-4 h-4" />
+                                            Pay Now
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell
@@ -71,7 +71,7 @@ const FinanceReports = () => {
                                     tickFormatter={(value) => `K${(value / 1000).toFixed(0)}k`}
                                 />
                                 <Tooltip
-                                    formatter={(value: number) => [`ZMW ${value.toLocaleString()}`, 'Revenue']}
+                                    formatter={(value: number | undefined) => [`ZMW ${(value ?? 0).toLocaleString()}`, 'Revenue']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
                                 <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -100,11 +100,11 @@ const FinanceReports = () => {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {methodData.map((entry, index) => (
+                                    {methodData.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value: number) => [`ZMW ${value.toLocaleString()}`, 'Amount']} />
+                                <Tooltip formatter={(value: number | undefined) => [`ZMW ${(value ?? 0).toLocaleString()}`, 'Amount']} />
                                 <Legend layout="vertical" verticalAlign="middle" align="right" />
                             </PieChart>
                         </ResponsiveContainer>
@@ -130,7 +130,7 @@ const FinanceReports = () => {
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${cls.percentage >= 80 ? 'bg-emerald-500' :
-                                            cls.percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                                        cls.percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'
                                         }`}
                                     style={{ width: `${cls.percentage}%` }}
                                 />

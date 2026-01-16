@@ -8,7 +8,8 @@ import {
   getMyChildren,
   bulkCreateStudents,
   bulkDeleteStudents,
-  getStudentProfile
+  getStudentProfile,
+  getStudentStats
 } from '../controllers/studentController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 import { tenantHandler } from '../utils/routeTypes';
@@ -24,6 +25,7 @@ router.get('/my-children', authorizeRole(['PARENT']), tenantHandler(getMyChildre
 router.get('/', tenantHandler(getStudents));
 router.post('/bulk', authorizeRole(['SUPER_ADMIN', 'SECRETARY']), requireStudentLimit, tenantHandler(bulkCreateStudents));
 router.post('/bulk-delete', authorizeRole(['SUPER_ADMIN']), tenantHandler(bulkDeleteStudents));
+router.get('/stats', tenantHandler(getStudentStats));
 router.get('/:id', tenantHandler(getStudentById));
 router.post('/', authorizeRole(['SUPER_ADMIN', 'SECRETARY']), requireStudentLimit, tenantHandler(createStudent));
 router.put('/:id', authorizeRole(['SUPER_ADMIN', 'SECRETARY']), tenantHandler(updateStudent));

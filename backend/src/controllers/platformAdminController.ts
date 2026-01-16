@@ -68,6 +68,91 @@ export const platformLogin = async (req: Request, res: Response) => {
 };
 
 // ==========================================
+// ANNOUNCEMENTS
+// ==========================================
+
+export const createAnnouncement = async (req: Request, res: Response) => {
+    try {
+        const { title, message, type, expiresAt } = req.body;
+        const announcement = await prisma.platformAnnouncement.create({
+            data: {
+                title,
+                message,
+                type: type || 'INFO',
+                isActive: true,
+                expiresAt: expiresAt ? new Date(expiresAt) : null
+            }
+        });
+        res.json(announcement);
+    } catch (error) {
+        console.error('Create announcement error:', error);
+        res.status(500).json({ error: 'Failed to create announcement' });
+    }
+};
+
+export const getAllAnnouncements = async (req: Request, res: Response) => {
+    try {
+        const announcements = await prisma.platformAnnouncement.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(announcements);
+    } catch (error) {
+        console.error('Get announcements error:', error);
+        res.status(500).json({ error: 'Failed to fetch announcements' });
+    }
+};
+
+export const deleteAnnouncement = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        await prisma.platformAnnouncement.delete({ where: { id } });
+        res.json({ message: 'Deleted successfully' });
+    } catch (error) {
+        console.error('Delete announcement error:', error);
+        res.status(500).json({ error: 'Failed to delete announcement' });
+    }
+};
+
+export const toggleAnnouncementStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const announcement = await prisma.platformAnnouncement.findUnique({ where: { id } });
+        if (!announcement) return res.status(404).json({ error: 'Not found' });
+
+        await prisma.platformAnnouncement.update({
+            where: { id },
+            data: { isActive: !announcement.isActive }
+        });
+        res.json({ message: 'Status updated' });
+    } catch (error) {
+        console.error('Toggle status error:', error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+};
+
+/**
+ * Get current platform user profile
+ */
+export const getPlatformProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).platformUser?.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const user = await prisma.platformUser.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, fullName: true, role: true }
+        });
+
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        res.json(user);
+    } catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+// ==========================================
 // DASHBOARD & ANALYTICS
 // ==========================================
 
@@ -261,6 +346,132 @@ export const getAllTenants = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Get all tenants error:', error);
         res.status(500).json({ error: 'Failed to fetch tenants' });
+    }
+};
+
+// Validation schema for creating a tenant
+const createTenantSchema = z.object({
+    name: z.string().min(2, 'School name must be at least 2 characters'),
+    slug: z.string().min(2).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
+    email: z.string().email('Valid email required'),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().default('ZM'),
+    tier: z.string().default('FREE'),
+    // Admin user details
+    adminEmail: z.string().email('Valid admin email required'),
+    adminPassword: z.string().min(6, 'Password must be at least 6 characters'),
+    adminFullName: z.string().min(2, 'Admin name must be at least 2 characters'),
+});
+
+/**
+ * Create a new tenant (school) - PLATFORM_SUPERADMIN only
+ * Creates tenant with initial admin user
+ */
+export const createTenant = async (req: Request, res: Response) => {
+    try {
+        const validatedData = createTenantSchema.parse(req.body);
+
+        // Check if slug is already taken
+        const existingSlug = await prisma.tenant.findUnique({
+            where: { slug: validatedData.slug },
+        });
+        if (existingSlug) {
+            return res.status(400).json({ error: 'School slug already exists. Please choose another.' });
+        }
+
+        // Check if tenant email is already used
+        const existingEmail = await prisma.tenant.findFirst({
+            where: { email: validatedData.email },
+        });
+        if (existingEmail) {
+            return res.status(400).json({ error: 'School email already in use.' });
+        }
+
+        // Get plan limits based on tier
+        const plan = await prisma.subscriptionPlan.findFirst({
+            where: { tier: validatedData.tier as any },
+        });
+
+        const defaultLimits = {
+            maxStudents: plan?.maxStudents || 50,
+            maxTeachers: plan?.maxTeachers || 5,
+            maxUsers: plan?.maxUsers || 10,
+            maxClasses: plan?.maxClasses || 5,
+        };
+
+        // Calculate trial end date (14 days from now)
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+        // Hash admin password
+        const adminPasswordHash = await bcrypt.hash(validatedData.adminPassword, 10);
+
+        // Create tenant and admin user in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // Create tenant
+            const tenant = await tx.tenant.create({
+                data: {
+                    name: validatedData.name,
+                    slug: validatedData.slug,
+                    email: validatedData.email,
+                    phone: validatedData.phone,
+                    address: validatedData.address,
+                    city: validatedData.city,
+                    country: validatedData.country,
+                    tier: validatedData.tier as any,
+                    status: 'TRIAL',
+                    trialEndsAt,
+                    ...defaultLimits,
+                },
+            });
+
+            // Create initial admin user for the tenant
+            const adminUser = await tx.user.create({
+                data: {
+                    email: validatedData.adminEmail,
+                    passwordHash: adminPasswordHash,
+                    fullName: validatedData.adminFullName,
+                    role: 'SUPER_ADMIN',
+                    tenantId: tenant.id,
+                    isActive: true,
+                },
+            });
+
+            // Update tenant user count
+            await tx.tenant.update({
+                where: { id: tenant.id },
+                data: { currentUserCount: 1 },
+            });
+
+            return { tenant, adminUser };
+        });
+
+        res.status(201).json({
+            message: 'School created successfully',
+            tenant: {
+                id: result.tenant.id,
+                name: result.tenant.name,
+                slug: result.tenant.slug,
+                email: result.tenant.email,
+                tier: result.tenant.tier,
+                status: result.tenant.status,
+                trialEndsAt: result.tenant.trialEndsAt,
+            },
+            adminUser: {
+                id: result.adminUser.id,
+                email: result.adminUser.email,
+                fullName: result.adminUser.fullName,
+                role: result.adminUser.role,
+            },
+        });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ errors: error.errors });
+        }
+        console.error('Create tenant error:', error);
+        res.status(500).json({ error: 'Failed to create school' });
     }
 };
 
@@ -722,6 +933,11 @@ export const updatePlatformSettings = async (req: Request, res: Response) => {
         if (allowTenantCustomSms !== undefined) updateData.allowTenantCustomSms = allowTenantCustomSms;
         if (allowTenantCustomEmail !== undefined) updateData.allowTenantCustomEmail = allowTenantCustomEmail;
 
+        // Dynamic configuration (features and tiers)
+        const { availableFeatures, availableTiers } = req.body;
+        if (availableFeatures !== undefined) updateData.availableFeatures = availableFeatures;
+        if (availableTiers !== undefined) updateData.availableTiers = availableTiers;
+
         const settings = await prisma.platformSettings.upsert({
             where: { id: 'default' },
             update: updateData,
@@ -853,5 +1069,121 @@ export const addSmsCredits = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Add SMS credits error:', error);
         res.status(500).json({ error: 'Failed to add SMS credits' });
+    }
+};
+
+// ==========================================
+// SUBSCRIPTION PLAN MANAGEMENT
+// ==========================================
+
+/**
+ * Get all subscription plans (Admin)
+ */
+export const getAllPlans = async (req: Request, res: Response) => {
+    try {
+        const plans = await prisma.subscriptionPlan.findMany({
+            orderBy: { sortOrder: 'asc' },
+            include: {
+                _count: {
+                    select: { subscriptionPayments: true }
+                }
+            }
+        });
+        res.json(plans);
+    } catch (error) {
+        console.error('Get all plans error:', error);
+        res.status(500).json({ error: 'Failed to fetch plans' });
+    }
+};
+
+/**
+ * Create a new subscription plan
+ */
+export const createPlan = async (req: Request, res: Response) => {
+    try {
+        const data = req.body;
+
+        // Ensure tier is unique
+        const existing = await prisma.subscriptionPlan.findUnique({
+            where: { tier: data.tier }
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: 'Plan with this tier already exists' });
+        }
+
+        const plan = await prisma.subscriptionPlan.create({
+            data: {
+                name: data.name,
+                tier: data.tier,
+                description: data.description || '',
+                // Pricing
+                monthlyPriceZMW: data.monthlyPriceZMW || 0,
+                yearlyPriceZMW: data.yearlyPriceZMW || 0,
+                monthlyPriceUSD: data.monthlyPriceUSD || 0,
+                yearlyPriceUSD: data.yearlyPriceUSD || 0,
+                // Limits
+                includedStudents: data.includedStudents || data.maxStudents || 50,
+                maxStudents: data.maxStudents || 50,
+                maxTeachers: data.maxTeachers || 5,
+                maxUsers: data.maxUsers || 10,
+                maxClasses: data.maxClasses || 5,
+                maxStorageGB: data.maxStorageGB || 1,
+                monthlyApiCallLimit: data.monthlyApiCallLimit || 0,
+                // Features
+                features: data.features || [],
+                isActive: data.isActive !== undefined ? data.isActive : true,
+                isPopular: data.isPopular || false,
+                sortOrder: data.sortOrder || 0,
+            }
+        });
+
+        res.status(201).json({ message: 'Plan created successfully', plan });
+    } catch (error) {
+        console.error('Create plan error:', error);
+        res.status(500).json({ error: 'Failed to create plan' });
+    }
+};
+
+/**
+ * Update an existing subscription plan
+ */
+export const updatePlan = async (req: Request, res: Response) => {
+    try {
+        const { planId } = req.params;
+        const data = req.body;
+
+        // Remove fields that shouldn't be updated directly
+        const { id, createdAt, updatedAt, _count, subscriptionPayments, ...updateData } = data;
+
+        const plan = await prisma.subscriptionPlan.update({
+            where: { id: planId },
+            data: updateData
+        });
+
+        res.json({ message: 'Plan updated successfully', plan });
+    } catch (error) {
+        console.error('Update plan error:', error);
+        res.status(500).json({ error: 'Failed to update plan' });
+    }
+};
+
+/**
+ * Toggle plan status (Active/Inactive)
+ */
+export const togglePlanStatus = async (req: Request, res: Response) => {
+    try {
+        const { planId } = req.params;
+        const { isActive } = req.body;
+
+        const plan = await prisma.subscriptionPlan.update({
+            where: { id: planId },
+            data: { isActive }
+        });
+
+        res.json({ message: `Plan marked as ${isActive ? 'active' : 'inactive'}`, plan });
+    } catch (error) {
+        console.error('Toggle plan status error:', error);
+        res.status(500).json({ error: 'Failed to update plan status' });
     }
 };

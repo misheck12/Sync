@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { z } from 'zod';
-import { sendEmail } from '../services/emailService';
+import { sendEmailForTenant } from '../services/emailService';
 import { broadcastNotification, createNotification } from '../services/notificationService';
 import { TenantRequest, getTenantId } from '../utils/tenantContext';
 
@@ -36,7 +36,6 @@ export const sendAnnouncement = async (req: TenantRequest, res: Response) => {
     }
 
     const userIds = users.map(u => u.id);
-    const emails = users.map(u => u.email);
 
     // 2. Send Notifications
     if (sendNotification) {
@@ -45,10 +44,10 @@ export const sendAnnouncement = async (req: TenantRequest, res: Response) => {
 
     // 3. Send Emails (Async to not block response)
     if (shouldSendEmail) {
-      // Send individually or use BCC? For now, let's loop (simple but slow for large lists)
+      // Send individually using tenant-aware email function
       // In production, use a queue (BullMQ)
       Promise.all(users.map(user =>
-        sendEmail(user.email, subject, `<p>Dear ${user.fullName},</p><p>${message}</p>`)
+        sendEmailForTenant(tenantId, user.email, subject, `<p>Dear ${user.fullName},</p><p>${message}</p>`)
       )).catch(err => console.error('Background email sending failed', err));
     }
 

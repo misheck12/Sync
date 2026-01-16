@@ -68,12 +68,7 @@ enum TopicStatus {
 // MULTI-TENANT ENUMS
 // ==========================================
 
-enum SubscriptionTier {
-  FREE
-  STARTER
-  PROFESSIONAL
-  ENTERPRISE
-}
+
 
 enum SubscriptionStatus {
   TRIAL
@@ -114,7 +109,7 @@ model Tenant {
   website         String?
   
   // Subscription & Billing
-  tier            SubscriptionTier @default(FREE)
+  tier            String @default("FREE")
   status          SubscriptionStatus @default(TRIAL)
   trialEndsAt     DateTime?
   subscriptionStartedAt DateTime?
@@ -142,6 +137,7 @@ model Tenant {
   syllabusEnabled         Boolean @default(false)
   
   // SMTP Settings (per-tenant email configuration)
+  emailProvider   String?  @default("smtp") // "smtp", "ses", "sendgrid"
   smtpHost        String?
   smtpPort        Int?
   smtpSecure      Boolean  @default(true)
@@ -187,6 +183,7 @@ model Tenant {
   notifications   Notification[]
   conversations   Conversation[]
   subscriptionPayments SubscriptionPayment[]
+  notificationTemplates NotificationTemplate[]
   auditLogs       AuditLog[]
   usageMetrics    UsageMetric[]
   
@@ -251,6 +248,10 @@ model PlatformSettings {
   // Feature Toggles
   allowTenantCustomSms Boolean @default(false) // Allow tenants to use their own SMS credentials
   allowTenantCustomEmail Boolean @default(false)
+  
+  // Dynamic Configuration (Manage from Ops Dashboard)
+  availableFeatures Json @default("[]") // [{key: 'api_access', label: 'API Access'}, ...]
+  availableTiers    Json @default("[]") // [{key: 'PREMIUM', label: 'Premium', sortOrder: 5}, ...]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -337,7 +338,7 @@ model Lead {
   source          LeadSource @default(WEBSITE)
   estimatedStudents Int?     // Estimated student count
   estimatedValue  Decimal?   @db.Decimal(12, 2) // Potential deal value
-  interestedTier  SubscriptionTier?
+  interestedTier  String?
   
   // Assignment
   assignedToId    String?
@@ -384,7 +385,7 @@ model Deal {
   lead            Lead     @relation(fields: [leadId], references: [id])
   
   // Plan Info
-  proposedTier    SubscriptionTier
+  proposedTier    String
   proposedBillingCycle String @default("ANNUAL") // MONTHLY, ANNUAL
   
   // Dates
@@ -483,10 +484,23 @@ model Task {
 // SUBSCRIPTION PLANS
 // ==========================================
 
+//// Replaced Enum with Table for dynamic management
+model SubscriptionTier {
+  id        String   @id @default(uuid())
+  name      String   // Display Name: "Professional"
+  value     String   @unique // Code Value: "PROFESSIONAL"
+  sortOrder Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscription_tiers")
+}
+
 model SubscriptionPlan {
   id              String   @id @default(uuid())
   name            String   // "Starter", "Professional"
-  tier            SubscriptionTier
+  tier            String   @unique // Changed from Enum SubscriptionTier to String to allow dynamic tiers "GOLD" etc.
   description     String?
   
   // Pricing (ZMW is anchor currency)
@@ -507,9 +521,15 @@ model SubscriptionPlan {
   maxClasses       Int
   maxStorageGB     Int
   
-  // SMS/Email limits per month
-  includedSmsPerMonth   Int @default(0)
+  // SMS/Email/API limits per month
+  includedSmsPerMonth    Int @default(0)
   includedEmailsPerMonth Int @default(100)
+  monthlyApiCallLimit    Int @default(0) // 0 = Included in 'api_access' feature check (or no access), but typically we want a limit. 
+                                         // Let's treat 0 as "No API Access" and -1 as "Unlimited"? 
+                                         // Or stick to 0 = Unlimited like others?
+                                         // Be consistent: 0 = Unlimited. 
+                                         // But for "No Access", we use the 'features' array (missing 'api_access').
+
   
   // Features included (JSON array of feature keys)
   features        String[] // ["sms", "parent_portal", "api_access", "online_assessments"]
@@ -628,7 +648,8 @@ model User {
 
   // Relations
   classesManaged Class[]
-  paymentsRecorded Payment[]
+  paymentsRecorded Payment[] @relation("RecordedPayments")
+  voidedPayments   Payment[] @relation("VoidedPayments")
   attendanceRecorded Attendance[]
   classMovementsRecorded ClassMovementLog[]
   children Student[] @relation("ParentChildren")
@@ -758,6 +779,9 @@ model Subject {
   
   name      String
   code      String   
+  description String?
+  department  String?
+  isOptional  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -897,8 +921,13 @@ model Payment {
   method          PaymentMethod
   transactionId   String?       @unique  // Auto-generated TXN-XXXXXXXX
   notes           String?                // Optional payment notes
+  status          PaymentStatus @default(COMPLETED)
+  voidReason      String?
+  voidedAt        DateTime?
+  voidedByUserId  String?
+  voidedBy        User?         @relation("VoidedPayments", fields: [voidedByUserId], references: [id])
   recordedByUserId String
-  recordedBy      User          @relation(fields: [recordedByUserId], references: [id])
+  recordedBy      User          @relation("RecordedPayments", fields: [recordedByUserId], references: [id])
   createdAt       DateTime      @default(now())
 
   @@index([tenantId])
@@ -906,6 +935,7 @@ model Payment {
   @@index([tenantId, studentId])          // Student payment history
   @@index([tenantId, method, paymentDate]) // Payment method analytics
   @@index([transactionId])                // Transaction lookup
+  @@index([status])                       // Filter by status
   @@map("payments")
 }
 
@@ -1301,6 +1331,26 @@ model Scholarship {
   @@map("scholarships")
 }
 
+model NotificationTemplate {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name      String   // e.g. "PAYMENT_RECEIPT"
+  type      String   // "EMAIL", "SMS"
+  subject   String?  // For Email
+  content   String   @db.Text
+  variables String[] // JSON array of available vars ["studentName", "amount"]
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name, type])
+  @@index([tenantId])
+  @@map("notification_templates")
+}
+
 // ==========================================
 // AUDIT LOGGING - Track all important actions
 // ==========================================
@@ -1365,3 +1415,18 @@ model UsageMetric {
   @@map("usage_metrics")
 }
 
+
+
+
+model PlatformAnnouncement {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  type        String   // INFO, WARNING, SUCCESS, ERROR
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt // Added for consistency
+
+  @@map("platform_announcements")
+}

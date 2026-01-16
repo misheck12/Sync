@@ -1,4 +1,4 @@
-import { PrismaClient, SubscriptionStatus, SubscriptionTier } from '@prisma/client';
+import { PrismaClient, SubscriptionStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -37,7 +37,7 @@ export interface SubscriptionCheckResult {
     reason?: string;
     currentCount?: number;
     maxAllowed?: number;
-    tier?: SubscriptionTier;
+    tier?: string;
     status?: SubscriptionStatus;
     upgradeRequired?: boolean;
     daysUntilExpiry?: number;
@@ -269,7 +269,7 @@ export async function checkFeatureAccess(
     }
 
     let isEnabled = false;
-    let requiredTier: SubscriptionTier = 'STARTER';
+    let requiredTier: string = 'STARTER';
 
     switch (feature) {
         case FEATURES.ATTENDANCE:

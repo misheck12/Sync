@@ -18,6 +18,9 @@ import {
     CreditCard,
     Settings,
     Eye,
+    Trash2,
+
+
     EyeOff,
     Briefcase,
     Target,
@@ -164,11 +167,44 @@ interface PipelineStats {
     byStage: Record<string, number>;
 }
 
+interface Plan {
+    id: string;
+    name: string;
+    tier: string;
+    monthlyPriceZMW: number;
+    yearlyPriceZMW: number;
+    monthlyPriceUSD: number;
+    yearlyPriceUSD: number;
+    includedStudents: number;
+    maxStudents: number;
+    maxTeachers: number;
+    maxUsers: number;
+    maxClasses: number;
+    maxStorageGB: number;
+    features: string[];
+    isPopular: boolean;
+    isActive: boolean;
+    description: string;
+    _count?: {
+        subscriptionPayments: number;
+    };
+}
+
+interface Announcement {
+    id: string;
+    title: string;
+    message: string;
+    type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR';
+    isActive: boolean;
+    expiresAt: string | null;
+    createdAt: string;
+}
+
 const API_URL = 'http://localhost:3000';
 
 const PlatformAdmin = () => {
     const [token, setToken] = useState<string | null>(localStorage.getItem('platform_token'));
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm' | 'plans' | 'announcements'>('dashboard');
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);
@@ -194,17 +230,45 @@ const PlatformAdmin = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [loginError, setLoginError] = useState('');
+    // Plans State
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [newPlan, setNewPlan] = useState<Partial<Plan>>({
+        name: '',
+        tier: 'STARTER',
+        monthlyPriceZMW: 0,
+        yearlyPriceZMW: 0,
+        monthlyPriceUSD: 0,
+        yearlyPriceUSD: 0,
+        includedStudents: 50,
+        maxStudents: 50,
+        maxTeachers: 5,
+        maxUsers: 10,
+        maxClasses: 5,
+        maxStorageGB: 1,
+        features: [],
+        isActive: true,
+        isPopular: false,
+        description: ''
+    });
+    // Announcements State
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [newAnnouncement, setNewAnnouncement] = useState({ title: '', message: '', type: 'INFO', expiresAt: '' });
+    const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
     const [editingSenderId, setEditingSenderId] = useState<string | null>(null);
     const [senderIdInput, setSenderIdInput] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
     const [showApiSecret, setShowApiSecret] = useState(false);
-    const [settingsForm, setSettingsForm] = useState({
+    const [settingsForm, setSettingsForm] = useState<any>({
         smsProvider: 'africastalking',
         smsApiUrl: '',
         smsApiKey: '',
         smsApiSecret: '',
         smsDefaultSenderId: 'SYNC',
         smsCostPerUnit: 0.15,
+        availableFeatures: [],
+        availableTiers: [],
     });
 
     // Login handler
@@ -297,6 +361,139 @@ const PlatformAdmin = () => {
             console.error('Failed to fetch payments:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPlans = async () => {
+        try {
+            const token = localStorage.getItem('platform_token');
+            const res = await fetch(`${API_URL}/api/platform/plans`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPlans(data);
+            }
+        } catch (error) {
+            console.error('Fetch plans error:', error);
+        }
+    };
+
+    const fetchAnnouncements = async () => {
+        try {
+            const token = localStorage.getItem('platform_token');
+            const res = await fetch(`${API_URL}/api/platform/announcements`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setAnnouncements(await res.json());
+            }
+        } catch (error) {
+            console.error('Fetch announcements error:', error);
+        }
+    };
+
+    const saveAnnouncement = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('platform_token');
+            const res = await fetch(`${API_URL}/api/platform/announcements`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(newAnnouncement)
+            });
+            if (res.ok) {
+                alert('Announcement broadcasted!');
+                setIsAnnouncementModalOpen(false);
+                setNewAnnouncement({ title: '', message: '', type: 'INFO', expiresAt: '' });
+                fetchAnnouncements();
+            }
+        } catch (error) {
+            console.error('Save announcement error:', error);
+        }
+    };
+
+    const deleteAnnouncement = async (id: string) => {
+        if (!confirm('Delete this announcement?')) return;
+        try {
+            const token = localStorage.getItem('platform_token');
+            await fetch(`${API_URL}/api/platform/announcements/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchAnnouncements();
+        } catch (error) {
+            console.error('Delete announcement error:', error);
+        }
+    };
+
+    const savePlan = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('platform_token');
+            const url = editingPlan
+                ? `${API_URL}/api/platform/plans/${editingPlan.id}`
+                : `${API_URL}/api/platform/plans`;
+
+            const method = editingPlan ? 'PUT' : 'POST';
+
+            const payload = editingPlan ? { ...newPlan, id: undefined } : newPlan;
+
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Plan saved successfully');
+                fetchPlans();
+                setIsPlanModalOpen(false);
+                setEditingPlan(null);
+                setNewPlan({
+                    name: '',
+                    tier: 'STARTER',
+                    monthlyPriceZMW: 0,
+                    yearlyPriceZMW: 0,
+                    includedStudents: 50,
+                    maxStudents: 50,
+                    maxTeachers: 5,
+                    maxUsers: 10,
+                    isActive: true
+                });
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.error}`);
+            }
+        } catch (error) {
+            console.error('Save plan error:', error);
+            alert('Failed to save plan');
+        }
+    };
+
+    const togglePlanStatus = async (plan: Plan) => {
+        try {
+            const token = localStorage.getItem('platform_token');
+            const res = await fetch(`${API_URL}/api/platform/plans/${plan.id}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ isActive: !plan.isActive })
+            });
+
+            if (res.ok) {
+                fetchPlans();
+            }
+        } catch (error) {
+            console.error('Toggle plan error:', error);
         }
     };
 
@@ -592,12 +789,48 @@ const PlatformAdmin = () => {
 
     useEffect(() => {
         if (token) {
-            fetchDashboard();
-            fetchTenants();
-            fetchPayments();
-            fetchSmsConfig();
-            fetchPlatformSettings();
-            fetchCrmData();
+            const init = async () => {
+                try {
+                    // Verify session first with strict role check
+                    const res = await fetch(`${API_URL}/api/platform/auth/me`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (res.status === 401 || res.status === 403) {
+                        handleLogout();
+                        return;
+                    }
+
+                    if (res.ok) {
+                        const userData = await res.json();
+                        // Check strict platform role
+                        if (!userData.role || !userData.role.startsWith('PLATFORM_')) {
+                            handleLogout();
+                            return;
+                        }
+                    }
+
+                    // Fetch Dashboard Stats
+                    const dashRes = await fetch(`${API_URL}/api/platform/dashboard`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (dashRes.ok) {
+                        setStats(await dashRes.json());
+                    }
+
+                    // Fetch other data if verified
+                    fetchPlans();
+                    fetchAnnouncements();
+                    fetchTenants();
+                    fetchPayments();
+                    fetchSmsConfig();
+                    fetchPlatformSettings();
+                    fetchCrmData();
+                } catch (error) {
+                    console.error('Init error:', error);
+                }
+            };
+            init();
         }
     }, [token]);
 
@@ -683,7 +916,7 @@ const PlatformAdmin = () => {
 
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => { fetchDashboard(); fetchTenants(); fetchPayments(); }}
+                            onClick={() => { fetchDashboard(); fetchPlans(); fetchTenants(); fetchPayments(); }}
                             className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
                             title="Refresh"
                         >
@@ -711,6 +944,8 @@ const PlatformAdmin = () => {
                             { id: 'sms', label: 'SMS Config', icon: MessageSquare },
                             { id: 'crm', label: 'Sales CRM', icon: Briefcase },
                             { id: 'settings', label: 'Settings', icon: Settings },
+                            { id: 'plans', label: 'Plans', icon: DollarSign },
+                            { id: 'announcements', label: 'Announcements', icon: MessageSquare },
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -1573,6 +1808,347 @@ const PlatformAdmin = () => {
                     </div>
                 )}
 
+                {/* Plans Tab */}
+                {activeTab === 'plans' && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-800">Subscription Plans</h2>
+                            <button
+                                onClick={() => {
+                                    setEditingPlan(null);
+                                    setNewPlan({
+                                        name: '',
+                                        tier: 'STARTER',
+                                        monthlyPriceZMW: 0,
+                                        yearlyPriceZMW: 0,
+                                        includedStudents: 50,
+                                        maxStudents: 50,
+                                        maxTeachers: 5,
+                                        maxUsers: 10,
+                                        maxClasses: 5,
+                                        maxStorageGB: 1,
+                                        features: [],
+                                        isActive: true,
+                                        isPopular: false,
+                                        description: ''
+                                    });
+                                    setIsPlanModalOpen(true);
+                                }}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Create Plan
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-xl border overflow-hidden">
+                            <table className="w-full">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Tier</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Price (ZMW)</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Limits (Students)</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Active</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {plans.map((plan) => (
+                                        <tr key={plan.id} className="hover:bg-slate-50">
+                                            <td className="px-4 py-3 font-medium text-slate-900">{plan.name}</td>
+                                            <td className="px-4 py-3">
+                                                <span className="px-2 py-1 bg-slate-100 rounded text-xs">
+                                                    {plan.tier}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                K{plan.monthlyPriceZMW} / mo
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600">
+                                                {plan.maxStudents === 0 ? 'Unlimited' : plan.maxStudents}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => togglePlanStatus(plan)}
+                                                    className={`px-2 py-1 rounded text-xs font-medium ${plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                        }`}
+                                                >
+                                                    {plan.isActive ? 'Active' : 'Inactive'}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingPlan(plan);
+                                                        setNewPlan(plan);
+                                                        setIsPlanModalOpen(true);
+                                                    }}
+                                                    className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Plan Modal */}
+                {isPlanModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+                            <h3 className="text-xl font-bold mb-4">{editingPlan ? 'Edit Plan' : 'Create Plan'}</h3>
+                            <form onSubmit={savePlan} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Name</label>
+                                        <input
+                                            type="text"
+                                            value={newPlan.name}
+                                            onChange={e => setNewPlan({ ...newPlan, name: e.target.value })}
+                                            className="w-full border rounded px-3 py-2"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Tier</label>
+                                        <select
+                                            value={newPlan.tier}
+                                            onChange={e => setNewPlan({ ...newPlan, tier: e.target.value })}
+                                            className="w-full border rounded px-3 py-2"
+                                            disabled={!!editingPlan}
+                                        >
+                                            {(settingsForm.availableTiers?.length > 0 ? settingsForm.availableTiers : [
+                                                { key: 'FREE', label: 'Free' },
+                                                { key: 'STARTER', label: 'Starter' },
+                                                { key: 'PROFESSIONAL', label: 'Professional' },
+                                                { key: 'ENTERPRISE', label: 'Enterprise' },
+                                            ]).map((tier: any) => (
+                                                <option key={tier.key} value={tier.key}>{tier.label.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Price (ZMW)</label>
+                                        <input
+                                            type="number"
+                                            value={newPlan.monthlyPriceZMW}
+                                            onChange={e => setNewPlan({ ...newPlan, monthlyPriceZMW: Number(e.target.value) })}
+                                            className="w-full border rounded px-3 py-2"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Yearly (ZMW)</label>
+                                        <input
+                                            type="number"
+                                            value={newPlan.yearlyPriceZMW}
+                                            onChange={e => setNewPlan({ ...newPlan, yearlyPriceZMW: Number(e.target.value) })}
+                                            className="w-full border rounded px-3 py-2"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Max Students</label>
+                                        <input
+                                            type="number"
+                                            value={newPlan.maxStudents}
+                                            onChange={e => setNewPlan({ ...newPlan, maxStudents: Number(e.target.value) })}
+                                            className="w-full border rounded px-3 py-2"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Max Teachers</label>
+                                        <input
+                                            type="number"
+                                            value={newPlan.maxTeachers}
+                                            onChange={e => setNewPlan({ ...newPlan, maxTeachers: Number(e.target.value) })}
+                                            className="w-full border rounded px-3 py-2"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Features Section */}
+                                <div className="border-t pt-4">
+                                    <label className="block text-sm font-medium text-slate-700 mb-3">Included Features</label>
+                                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                                        {(settingsForm.availableFeatures?.length > 0 ? settingsForm.availableFeatures : [
+                                            { key: 'attendance', label: 'Attendance Tracking' },
+                                            { key: 'fee_management', label: 'Fee Management' },
+                                            { key: 'report_cards', label: 'Report Cards' },
+                                            { key: 'parent_portal', label: 'Parent Portal' },
+                                            { key: 'email_notifications', label: 'Email Notifications' },
+                                            { key: 'sms_notifications', label: 'SMS Notifications' },
+                                            { key: 'online_assessments', label: 'Online Assessments' },
+                                            { key: 'timetable', label: 'Timetable Management' },
+                                            { key: 'syllabus_tracking', label: 'Syllabus Tracking' },
+                                            { key: 'advanced_reports', label: 'Advanced Reports' },
+                                            { key: 'api_access', label: 'API Access' },
+                                            { key: 'white_label', label: 'White Label Branding' },
+                                            { key: 'data_export', label: 'Data Export' },
+                                            { key: 'basic_reports', label: 'Basic Reports' },
+                                            { key: 'dedicated_support', label: 'Dedicated Support' },
+                                            { key: 'custom_integrations', label: 'Custom Integrations' },
+                                            { key: 'priority_support', label: 'Priority Support' },
+                                        ]).map((feat: any) => (
+                                            <label key={feat.key} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newPlan.features?.includes(feat.key) || false}
+                                                    onChange={(e) => {
+                                                        const features = newPlan.features || [];
+                                                        if (e.target.checked) {
+                                                            setNewPlan({ ...newPlan, features: [...features, feat.key] });
+                                                        } else {
+                                                            setNewPlan({ ...newPlan, features: features.filter(f => f !== feat.key) });
+                                                        }
+                                                    }}
+                                                    className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                                                />
+                                                {feat.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Popular & Description */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Description</label>
+                                        <input
+                                            type="text"
+                                            value={newPlan.description || ''}
+                                            onChange={e => setNewPlan({ ...newPlan, description: e.target.value })}
+                                            className="w-full border rounded px-3 py-2"
+                                            placeholder="Best for small schools"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-6">
+                                        <input
+                                            type="checkbox"
+                                            id="isPopular"
+                                            checked={newPlan.isPopular || false}
+                                            onChange={e => setNewPlan({ ...newPlan, isPopular: e.target.checked })}
+                                            className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                                        />
+                                        <label htmlFor="isPopular" className="text-sm font-medium text-slate-700">Mark as Popular</label>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPlanModalOpen(false)}
+                                        className="px-4 py-2 text-slate-600 hover:text-slate-800"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                                    >
+                                        Save Plan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Announcements Tab */}
+                {activeTab === 'announcements' && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-800">System Broadcasts</h2>
+                            <button
+                                onClick={() => setIsAnnouncementModalOpen(true)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                New Broadcast
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {announcements.map(ann => (
+                                <div key={ann.id} className={`p-4 rounded-xl border flex justify-between items-start ${ann.type === 'WARNING' ? 'bg-orange-50 border-orange-100' :
+                                    ann.type === 'ERROR' ? 'bg-red-50 border-red-100' :
+                                        'bg-blue-50 border-blue-100'
+                                    }`}>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${ann.type === 'WARNING' ? 'bg-orange-200 text-orange-800' :
+                                                ann.type === 'ERROR' ? 'bg-red-200 text-red-800' :
+                                                    'bg-blue-200 text-blue-800'
+                                                }`}>{ann.type}</span>
+                                            <h3 className="font-bold text-slate-900">{ann.title}</h3>
+                                        </div>
+                                        <p className="mt-1 text-slate-700">{ann.message}</p>
+                                        <p className="mt-2 text-xs text-slate-500">Posted: {new Date(ann.createdAt).toLocaleString()}</p>
+                                    </div>
+                                    <button onClick={() => deleteAnnouncement(ann.id)} className="text-slate-400 hover:text-red-600">
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Announcement Modal */}
+                {isAnnouncementModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+                            <h3 className="text-xl font-bold mb-4">New Broadcast</h3>
+                            <form onSubmit={saveAnnouncement} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Title</label>
+                                    <input
+                                        type="text"
+                                        value={newAnnouncement.title}
+                                        onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                                        className="w-full border rounded px-3 py-2"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Type</label>
+                                    <select
+                                        value={newAnnouncement.type}
+                                        onChange={e => setNewAnnouncement({ ...newAnnouncement, type: e.target.value })}
+                                        className="w-full border rounded px-3 py-2"
+                                    >
+                                        <option value="INFO">Info</option>
+                                        <option value="WARNING">Warning</option>
+                                        <option value="ERROR">Alert (Red)</option>
+                                        <option value="SUCCESS">Success (Green)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">Message</label>
+                                    <textarea
+                                        value={newAnnouncement.message}
+                                        onChange={e => setNewAnnouncement({ ...newAnnouncement, message: e.target.value })}
+                                        className="w-full border rounded px-3 py-2 h-24"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <button type="button" onClick={() => setIsAnnouncementModalOpen(false)} className="text-slate-600">Cancel</button>
+                                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Broadcast</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
                 {/* Settings Tab */}
                 {activeTab === 'settings' && (
                     <div className="space-y-6">
@@ -1708,6 +2284,172 @@ const PlatformAdmin = () => {
                                     >
                                         <Save className="w-4 h-4" />
                                         {loading ? 'Saving...' : 'Save Settings'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Feature & Tier Management */}
+                        <div className="bg-white rounded-xl border overflow-hidden">
+                            <div className="px-6 py-4 border-b bg-slate-50">
+                                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                    <Settings className="w-5 h-5" />
+                                    Feature & Tier Configuration
+                                </h3>
+                                <p className="text-sm text-slate-500 mt-1">Manage available features and subscription tiers</p>
+                            </div>
+                            <div className="p-6 space-y-6">
+                                {/* Available Features */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-3">Available Features</label>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                                        {(settingsForm.availableFeatures || [
+                                            { key: 'attendance', label: 'Attendance Tracking' },
+                                            { key: 'fee_management', label: 'Fee Management' },
+                                            { key: 'report_cards', label: 'Report Cards' },
+                                            { key: 'parent_portal', label: 'Parent Portal' },
+                                            { key: 'email_notifications', label: 'Email Notifications' },
+                                            { key: 'sms_notifications', label: 'SMS Notifications' },
+                                            { key: 'online_assessments', label: 'Online Assessments' },
+                                            { key: 'timetable', label: 'Timetable Management' },
+                                            { key: 'syllabus_tracking', label: 'Syllabus Tracking' },
+                                            { key: 'advanced_reports', label: 'Advanced Reports' },
+                                            { key: 'api_access', label: 'API Access' },
+                                            { key: 'white_label', label: 'White Label Branding' },
+                                            { key: 'data_export', label: 'Data Export' },
+                                            { key: 'basic_reports', label: 'Basic Reports' },
+                                            { key: 'dedicated_support', label: 'Dedicated Support' },
+                                            { key: 'custom_integrations', label: 'Custom Integrations' },
+                                            { key: 'priority_support', label: 'Priority Support' },
+                                        ]).map((feat: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg">
+                                                <span className="text-sm text-slate-700 flex-1">{feat.label}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const features = settingsForm.availableFeatures || [];
+                                                        setSettingsForm({
+                                                            ...settingsForm,
+                                                            availableFeatures: features.filter((_: any, i: number) => i !== idx)
+                                                        });
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 text-xs"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            id="newFeatureKey"
+                                            placeholder="feature_key"
+                                            className="px-3 py-2 border rounded-lg text-sm"
+                                        />
+                                        <input
+                                            type="text"
+                                            id="newFeatureLabel"
+                                            placeholder="Feature Label"
+                                            className="px-3 py-2 border rounded-lg text-sm flex-1"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const keyEl = document.getElementById('newFeatureKey') as HTMLInputElement;
+                                                const labelEl = document.getElementById('newFeatureLabel') as HTMLInputElement;
+                                                if (keyEl.value && labelEl.value) {
+                                                    const features = settingsForm.availableFeatures || [];
+                                                    setSettingsForm({
+                                                        ...settingsForm,
+                                                        availableFeatures: [...features, { key: keyEl.value, label: labelEl.value }]
+                                                    });
+                                                    keyEl.value = '';
+                                                    labelEl.value = '';
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
+                                        >
+                                            Add Feature
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Available Tiers */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-3">Available Tiers</label>
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {(settingsForm.availableTiers || [
+                                            { key: 'FREE', label: 'Free' },
+                                            { key: 'STARTER', label: 'Starter' },
+                                            { key: 'PROFESSIONAL', label: 'Professional' },
+                                            { key: 'ENTERPRISE', label: 'Enterprise' },
+                                        ]).map((tier: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200">
+                                                <span className="text-sm font-medium text-purple-800">{tier.label}</span>
+                                                <span className="text-xs text-purple-600">({tier.key})</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const tiers = settingsForm.availableTiers || [];
+                                                        setSettingsForm({
+                                                            ...settingsForm,
+                                                            availableTiers: tiers.filter((_: any, i: number) => i !== idx)
+                                                        });
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 text-xs ml-1"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            id="newTierKey"
+                                            placeholder="TIER_KEY"
+                                            className="px-3 py-2 border rounded-lg text-sm uppercase"
+                                        />
+                                        <input
+                                            type="text"
+                                            id="newTierLabel"
+                                            placeholder="Tier Label"
+                                            className="px-3 py-2 border rounded-lg text-sm flex-1"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const keyEl = document.getElementById('newTierKey') as HTMLInputElement;
+                                                const labelEl = document.getElementById('newTierLabel') as HTMLInputElement;
+                                                if (keyEl.value && labelEl.value) {
+                                                    const tiers = settingsForm.availableTiers || [];
+                                                    setSettingsForm({
+                                                        ...settingsForm,
+                                                        availableTiers: [...tiers, { key: keyEl.value.toUpperCase(), label: labelEl.value }]
+                                                    });
+                                                    keyEl.value = '';
+                                                    labelEl.value = '';
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
+                                        >
+                                            Add Tier
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-2">
+                                        Note: Adding new tiers here allows you to use them when creating plans.
+                                        Make sure to create a corresponding plan for each tier.
+                                    </p>
+                                </div>
+
+                                <div className="pt-4 border-t">
+                                    <button
+                                        onClick={savePlatformSettings}
+                                        disabled={loading}
+                                        className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {loading ? 'Saving...' : 'Save Configuration'}
                                     </button>
                                 </div>
                             </div>

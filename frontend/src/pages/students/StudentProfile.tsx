@@ -24,7 +24,10 @@ interface Payment {
   amount: string;
   paymentDate: string;
   method: string;
-  referenceNumber: string;
+  transactionId: string;
+  notes?: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  voidReason?: string;
 }
 
 interface ClassMovement {
@@ -85,8 +88,12 @@ const StudentProfile = () => {
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     method: 'CASH',
-    referenceNumber: ''
+    transactionId: '',
+    notes: ''
   });
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'financial' | 'academic'>('overview');
+  const [academicResults, setAcademicResults] = useState<any[]>([]);
 
   const fetchStudent = async () => {
     try {
@@ -108,10 +115,21 @@ const StudentProfile = () => {
     }
   };
 
+  const fetchAcademicData = async () => {
+    if (!id) return;
+    try {
+      const response = await api.get(`/assessments/student/${id}`);
+      setAcademicResults(response.data);
+    } catch (error) {
+      console.error('Failed to fetch academic results', error);
+    }
+  };
+
   useEffect(() => {
     if (id) {
       fetchStudent();
       fetchScholarships();
+      fetchAcademicData();
     }
   }, [id]);
 
@@ -136,11 +154,12 @@ const StudentProfile = () => {
         studentId: student.id,
         amount: Number(paymentForm.amount),
         method: paymentForm.method,
-        referenceNumber: paymentForm.referenceNumber
+        transactionId: paymentForm.transactionId,
+        notes: paymentForm.notes
       });
 
       setShowPaymentModal(false);
-      setPaymentForm({ amount: '', method: 'CASH', referenceNumber: '' });
+      setPaymentForm({ amount: '', method: 'CASH', transactionId: '', notes: '' });
       fetchStudent(); // Refresh data
     } catch (error) {
       console.error('Failed to record payment', error);
@@ -157,6 +176,20 @@ const StudentProfile = () => {
     } catch (error) {
       console.error('Failed to update status', error);
       alert('Failed to update status');
+    }
+  };
+
+  const handleVoidPayment = async (paymentId: string) => {
+    const reason = prompt("Enter reason for voiding this payment:");
+    if (!reason) return;
+
+    try {
+      await api.put(`/payments/${paymentId}/void`, { reason });
+      fetchStudent(); // Refresh
+      alert("Payment voided successfully");
+    } catch (error: any) {
+      console.error('Failed to void payment', error);
+      alert(error.response?.data?.message || 'Failed to void payment');
     }
   };
 
@@ -298,7 +331,7 @@ const StudentProfile = () => {
 
   // Calculate Financials
   const totalBilled = student.feeStructures.reduce((sum, fee) => sum + Number(fee.amountDue), 0);
-  const totalPaid = student.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totalPaid = student.payments.reduce((sum, payment) => payment.status === 'CANCELLED' ? sum : sum + Number(payment.amount), 0);
   const balance = totalBilled - totalPaid;
   const isCredit = balance < 0;
 
@@ -360,371 +393,494 @@ const StudentProfile = () => {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Personal Info */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <User size={20} className="text-gray-400" />
-              Personal Details
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Guardian</label>
-                <p className="text-gray-900 font-medium">{student.guardianName}</p>
-                {student.guardianEmail && (
-                  <p className="text-sm text-gray-500">{student.guardianEmail}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Contact</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Phone size={16} className="text-gray-400" />
-                  <p className="text-gray-900">{student.guardianPhone}</p>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Address</label>
-                <div className="flex items-start gap-2 mt-1">
-                  <MapPin size={16} className="text-gray-400 mt-0.5" />
-                  <p className="text-gray-900">{student.address || 'No address recorded'}</p>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Date of Birth</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar size={16} className="text-gray-400" />
-                  <p className="text-gray-900">{new Date(student.dateOfBirth).toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-medium text-gray-500 uppercase">Scholarship</label>
-                  <button
-                    onClick={() => setShowScholarshipModal(true)}
-                    className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                  >
-                    {student.scholarship ? 'Change' : 'Add'}
-                  </button>
-                </div>
-                {student.scholarship ? (
-                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-purple-700 font-medium mb-1">
-                      <GraduationCap size={16} />
-                      {student.scholarship.name}
-                    </div>
-                    <p className="text-sm text-purple-600">{student.scholarship.percentage}% Discount</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 italic">No scholarship assigned</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Financials & History */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Financial Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <FileText size={18} />
-                <span className="text-sm font-medium">Total Billed</span>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">ZMW {totalBilled.toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 text-green-600 mb-2">
-                <DollarSign size={18} />
-                <span className="text-sm font-medium">Total Paid</span>
-              </div>
-              <p className="text-2xl font-bold text-green-700">ZMW {totalPaid.toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className={`flex items-center gap-2 ${isCredit ? 'text-green-600' : 'text-red-600'} mb-2`}>
-                <Clock size={18} />
-                <span className="text-sm font-medium">{isCredit ? 'Credit Balance' : 'Balance Due'}</span>
-              </div>
-              <p className={`text-2xl font-bold ${isCredit ? 'text-green-700' : 'text-red-700'}`}>
-                ZMW {Math.abs(balance).toLocaleString()}
-              </p>
-            </div>
-          </div>
-
-          {/* Fee Breakdown */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-2">
-              <FileText size={20} className="text-gray-400" />
-              <h2 className="text-lg font-bold text-gray-900">Fee Breakdown</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Fee Name</th>
-                    <th className="px-6 py-3 font-medium text-right">Amount Due</th>
-                    <th className="px-6 py-3 font-medium text-right">Amount Paid</th>
-                    <th className="px-6 py-3 font-medium text-right">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {student.feeStructures.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No fees assigned</td>
-                    </tr>
-                  ) : (
-                    student.feeStructures.map((fee) => (
-                      <tr key={fee.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900 font-medium">
-                          {fee.feeTemplate.name}
-                        </td>
-                        <td className="px-6 py-4 text-right text-gray-900">
-                          ZMW {Number(fee.amountDue).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-right text-green-600">
-                          ZMW {Number(fee.amountPaid).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-gray-900">
-                          ZMW {(Number(fee.amountDue) - Number(fee.amountPaid)).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Payment History */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Payment History</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Method</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {student.payments.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No payments recorded</td>
-                    </tr>
-                  ) : (
-                    student.payments.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900">
-                          {new Date(payment.paymentDate).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600 capitalize">
-                          {payment.method.replace('_', ' ').toLowerCase()}
-                        </td>
-                        <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                          {payment.referenceNumber || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-right font-medium text-gray-900">
-                          ZMW {Number(payment.amount).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Class History */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-2">
-              <History size={20} className="text-gray-400" />
-              <h2 className="text-lg font-bold text-gray-900">Class History</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">From</th>
-                    <th className="px-6 py-3 font-medium">To</th>
-                    <th className="px-6 py-3 font-medium">Reason</th>
-                    <th className="px-6 py-3 font-medium">Changed By</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {student.classMovements?.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No class movements recorded</td>
-                    </tr>
-                  ) : (
-                    student.classMovements?.map((movement) => (
-                      <tr key={movement.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900">
-                          {new Date(movement.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {movement.fromClass?.name || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-gray-900 font-medium">
-                          {movement.toClass.name}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {movement.reason || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500 text-xs">
-                          {movement.changedBy?.fullName || 'System'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div className="flex gap-6 border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`pb-3 px-2 font-medium transition-colors border-b-2 ${activeTab === 'overview'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('academic')}
+          className={`pb-3 px-2 font-medium transition-colors border-b-2 ${activeTab === 'academic'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          Academic Performance
+        </button>
       </div>
 
-      {showStatusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
-            <h2 className="text-xl font-bold mb-4">Update Status</h2>
-            <div className="space-y-2">
-              {['ACTIVE', 'TRANSFERRED', 'GRADUATED', 'DROPPED_OUT'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleStatusUpdate(status)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.status === status
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                    }`}
-                >
-                  <div className="font-medium">{status}</div>
-                </button>
-              ))}
+      {activeTab === 'academic' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 min-h-[400px]">
+          <h2 className="text-xl font-bold mb-6 text-gray-800">Academic Performance History</h2>
+
+          {academicResults.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="bg-gray-50 inline-flex p-4 rounded-full mb-4">
+                <FileText size={24} className="text-gray-400" />
+              </div>
+              <p>No academic records found for this student.</p>
             </div>
-            <button
-              onClick={() => setShowStatusModal(false)}
-              className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
-              Cancel
-            </button>
-          </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Subject</th>
+                    <th className="px-4 py-3">Assessment</th>
+                    <th className="px-4 py-3 text-right">Score</th>
+                    <th className="px-4 py-3 text-center">Grade</th>
+                    <th className="px-4 py-3">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm">
+                  {academicResults.map((res: any) => {
+                    const percentage = (res.score / res.assessment.totalMarks);
+                    return (
+                      <tr key={res.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-500">{new Date(res.assessment.date).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{res.assessment.subject?.name}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-800">{res.assessment.title}</div>
+                          <div className="text-xs text-gray-400 capitalize">{res.assessment.type.toLowerCase()}</div>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold">
+                          {res.score} / {res.assessment.totalMarks}
+                          <span className="ml-2 text-xs text-gray-400 font-normal">
+                            ({(percentage * 100).toFixed(0)}%)
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${percentage >= 0.7 ? 'bg-green-100 text-green-700' :
+                            percentage >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                            {percentage >= 0.8 ? 'A' :
+                              percentage >= 0.7 ? 'B' :
+                                percentage >= 0.5 ? 'C' : 'F'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 italic truncate max-w-[200px]">{res.remarks || '-'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {showScholarshipModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
-            <h2 className="text-xl font-bold mb-4">Assign Scholarship</h2>
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              <button
-                onClick={() => handleScholarshipUpdate(null)}
-                className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${!student.scholarshipId
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                  }`}
-              >
-                <div className="font-medium">None</div>
-                <div className="text-xs opacity-75">Remove scholarship</div>
-              </button>
 
-              {scholarships.map((scholarship) => (
-                <button
-                  key={scholarship.id}
-                  onClick={() => handleScholarshipUpdate(scholarship.id)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.scholarshipId === scholarship.id
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                    }`}
-                >
-                  <div className="font-medium">{scholarship.name}</div>
-                  <div className="text-xs opacity-75">{scholarship.percentage}% Discount</div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowScholarshipModal(false)}
-              className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Record Payment</h2>
-            <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">ZMW</span>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="0.00"
-                  />
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Personal Info */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <User size={20} className="text-gray-400" />
+                Personal Details
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Guardian</label>
+                  <p className="text-gray-900 font-medium">{student.guardianName}</p>
+                  {student.guardianEmail && (
+                    <p className="text-sm text-gray-500">{student.guardianEmail}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Contact</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Phone size={16} className="text-gray-400" />
+                    <p className="text-gray-900">{student.guardianPhone}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Address</label>
+                  <div className="flex items-start gap-2 mt-1">
+                    <MapPin size={16} className="text-gray-400 mt-0.5" />
+                    <p className="text-gray-900">{student.address || 'No address recorded'}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Date of Birth</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Calendar size={16} className="text-gray-400" />
+                    <p className="text-gray-900">{new Date(student.dateOfBirth).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-medium text-gray-500 uppercase">Scholarship</label>
+                    <button
+                      onClick={() => setShowScholarshipModal(true)}
+                      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                    >
+                      {student.scholarship ? 'Change' : 'Add'}
+                    </button>
+                  </div>
+                  {student.scholarship ? (
+                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-purple-700 font-medium mb-1">
+                        <GraduationCap size={16} />
+                        {student.scholarship.name}
+                      </div>
+                      <p className="text-sm text-purple-600">{student.scholarship.percentage}% Discount</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No scholarship assigned</p>
+                  )}
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                <select
-                  value={paymentForm.method}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="MOBILE_MONEY">Mobile Money</option>
-                  <option value="BANK_DEPOSIT">Bank Deposit</option>
-                </select>
+          {/* Right Column: Financials & History */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Financial Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2 text-gray-500 mb-2">
+                  <FileText size={18} />
+                  <span className="text-sm font-medium">Total Billed</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">ZMW {totalBilled.toLocaleString()}</p>
               </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                  <DollarSign size={18} />
+                  <span className="text-sm font-medium">Total Paid</span>
+                </div>
+                <p className="text-2xl font-bold text-green-700">ZMW {totalPaid.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className={`flex items-center gap-2 ${isCredit ? 'text-green-600' : 'text-red-600'} mb-2`}>
+                  <Clock size={18} />
+                  <span className="text-sm font-medium">{isCredit ? 'Credit Balance' : 'Balance Due'}</span>
+                </div>
+                <p className={`text-2xl font-bold ${isCredit ? 'text-green-700' : 'text-red-700'}`}>
+                  ZMW {Math.abs(balance).toLocaleString()}
+                </p>
+              </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
-                <input
-                  type="text"
-                  value={paymentForm.referenceNumber}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Optional"
-                />
+            {/* Fee Breakdown */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex items-center gap-2">
+                <FileText size={20} className="text-gray-400" />
+                <h2 className="text-lg font-bold text-gray-900">Fee Breakdown</h2>
               </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Fee Name</th>
+                      <th className="px-6 py-3 font-medium text-right">Amount Due</th>
+                      <th className="px-6 py-3 font-medium text-right">Amount Paid</th>
+                      <th className="px-6 py-3 font-medium text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {student.feeStructures.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No fees assigned</td>
+                      </tr>
+                    ) : (
+                      student.feeStructures.map((fee) => (
+                        <tr key={fee.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-900 font-medium">
+                            {fee.feeTemplate.name}
+                          </td>
+                          <td className="px-6 py-4 text-right text-gray-900">
+                            ZMW {Number(fee.amountDue).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right text-green-600">
+                            ZMW {Number(fee.amountPaid).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right font-bold text-gray-900">
+                            ZMW {(Number(fee.amountDue) - Number(fee.amountPaid)).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Save Payment
-                </button>
+            {/* Payment History */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900">Payment History</h2>
               </div>
-            </form>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Date</th>
+                      <th className="px-6 py-3 font-medium">Txn ID</th>
+                      <th className="px-6 py-3 font-medium">Method</th>
+                      <th className="px-6 py-3 font-medium">Status</th>
+                      <th className="px-6 py-3 font-medium text-right">Amount</th>
+                      <th className="px-6 py-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {student.payments.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No payments recorded</td>
+                      </tr>
+                    ) : (
+                      student.payments.map((payment) => (
+                        <tr key={payment.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-900">
+                            {new Date(payment.paymentDate).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs text-gray-500">
+                            {payment.transactionId || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600 capitalize">
+                            {payment.method.replace('_', ' ').toLowerCase()}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${payment.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                              payment.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                              {payment.status || 'COMPLETED'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-gray-900">
+                            ZMW {Number(payment.amount).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {payment.status !== 'CANCELLED' && (
+                              <button
+                                onClick={() => handleVoidPayment(payment.id)}
+                                className="text-red-600 hover:text-red-800 text-xs font-medium hover:underline"
+                              >
+                                Void
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Class History */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex items-center gap-2">
+                <History size={20} className="text-gray-400" />
+                <h2 className="text-lg font-bold text-gray-900">Class History</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Date</th>
+                      <th className="px-6 py-3 font-medium">From</th>
+                      <th className="px-6 py-3 font-medium">To</th>
+                      <th className="px-6 py-3 font-medium">Reason</th>
+                      <th className="px-6 py-3 font-medium">Changed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {student.classMovements?.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No class movements recorded</td>
+                      </tr>
+                    ) : (
+                      student.classMovements?.map((movement) => (
+                        <tr key={movement.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-900">
+                            {new Date(movement.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {movement.fromClass?.name || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-gray-900 font-medium">
+                            {movement.toClass.name}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {movement.reason || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500 text-xs">
+                            {movement.changedBy?.fullName || 'System'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+
+      {
+        showStatusModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+              <h2 className="text-xl font-bold mb-4">Update Status</h2>
+              <div className="space-y-2">
+                {['ACTIVE', 'TRANSFERRED', 'GRADUATED', 'DROPPED_OUT'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusUpdate(status)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.status === status
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                      }`}
+                  >
+                    <div className="font-medium">{status}</div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        showScholarshipModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+              <h2 className="text-xl font-bold mb-4">Assign Scholarship</h2>
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                <button
+                  onClick={() => handleScholarshipUpdate(null)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${!student.scholarshipId
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
+                >
+                  <div className="font-medium">None</div>
+                  <div className="text-xs opacity-75">Remove scholarship</div>
+                </button>
+
+                {scholarships.map((scholarship) => (
+                  <button
+                    key={scholarship.id}
+                    onClick={() => handleScholarshipUpdate(scholarship.id)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${student.scholarshipId === scholarship.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                      }`}
+                  >
+                    <div className="font-medium">{scholarship.name}</div>
+                    <div className="text-xs opacity-75">{scholarship.percentage}% Discount</div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowScholarshipModal(false)}
+                className="mt-4 w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        showPaymentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">Record Payment</h2>
+              <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">ZMW</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                      className="w-full pl-14 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                  <select
+                    value={paymentForm.method}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="MOBILE_MONEY">Mobile Money</option>
+                    <option value="BANK_DEPOSIT">Bank Deposit</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID</label>
+                    <input
+                      type="text"
+                      value={paymentForm.transactionId}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, transactionId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                      placeholder="e.g. TXN-123456 (Optional)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea
+                      value={paymentForm.notes}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none h-20"
+                      placeholder="Optional notes..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Save Payment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 

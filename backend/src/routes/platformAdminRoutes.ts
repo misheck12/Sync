@@ -5,6 +5,7 @@ import {
     getDashboardStats,
     getAllTenants,
     getTenantDetails,
+    createTenant,
     updateTenantSubscription,
     suspendTenant,
     activateTenant,
@@ -18,6 +19,15 @@ import {
     updateTenantSmsConfig,
     getAllTenantsSmsConfig,
     addSmsCredits,
+    getAllPlans,
+    createPlan,
+    updatePlan,
+    togglePlanStatus,
+    getPlatformProfile,
+    createAnnouncement,
+    getAllAnnouncements,
+    deleteAnnouncement,
+    toggleAnnouncementStatus,
 } from '../controllers/platformAdminController';
 
 const router = Router();
@@ -28,11 +38,15 @@ router.post('/auth/login', platformLogin);
 // All routes below require platform authentication
 router.use(authenticatePlatformUser);
 
+// Profile
+router.get('/auth/me', getPlatformProfile);
+
 // Dashboard
 router.get('/dashboard', getDashboardStats);
 
 // Tenant management
 router.get('/tenants', getAllTenants);
+router.post('/tenants', authorizePlatformRole(['PLATFORM_SUPERADMIN']), createTenant);  // SUPERADMIN ONLY - Create new schools
 router.get('/tenants/:tenantId', getTenantDetails);
 router.put('/tenants/:tenantId/subscription', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SALES']), updateTenantSubscription);
 router.post('/tenants/:tenantId/suspend', authorizePlatformRole(['PLATFORM_SUPERADMIN']), suspendTenant);
@@ -55,6 +69,18 @@ router.put('/settings', authorizePlatformRole(['PLATFORM_SUPERADMIN']), updatePl
 router.get('/sms/tenants', getAllTenantsSmsConfig);
 router.put('/sms/tenants/:tenantId', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SALES']), updateTenantSmsConfig);
 router.post('/sms/credits', authorizePlatformRole(['PLATFORM_SUPERADMIN']), addSmsCredits);
+
+// Subscription Plan Management
+router.get('/plans', getAllPlans);
+router.post('/plans', authorizePlatformRole(['PLATFORM_SUPERADMIN']), createPlan);
+router.put('/plans/:planId', authorizePlatformRole(['PLATFORM_SUPERADMIN']), updatePlan);
+router.patch('/plans/:planId/status', authorizePlatformRole(['PLATFORM_SUPERADMIN']), togglePlanStatus);
+
+// Announcements
+router.get('/announcements', getAllAnnouncements);
+router.post('/announcements', authorizePlatformRole(['PLATFORM_SUPERADMIN']), createAnnouncement);
+router.delete('/announcements/:id', authorizePlatformRole(['PLATFORM_SUPERADMIN']), deleteAnnouncement);
+router.patch('/announcements/:id/status', authorizePlatformRole(['PLATFORM_SUPERADMIN']), toggleAnnouncementStatus);
 
 export default router;
 

@@ -6,6 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting multi-tenant database seeding...');
 
+
+
+
+
   const tenantsData = [
     {
       name: 'Lyangend Early Learning Centre',
@@ -141,7 +145,43 @@ async function main() {
         const admNum = `${tenantData.slug.substring(0, 3).toUpperCase()}${cls.gradeLevel}00${i}`;
         let student = await prisma.student.findFirst({ where: { admissionNumber: admNum, tenantId: tenant.id } as any });
 
+        // Ensure Parent Exists for this student slot
+        const parentEmail = `parent.${admNum.toLowerCase()}@${tenantData.slug}.com`;
+        let parentId;
+        const existingParent = await prisma.user.findFirst({ where: { email: parentEmail } });
+
+        if (!existingParent) {
+          const parentUser = await prisma.user.create({
+            data: {
+              email: parentEmail,
+              passwordHash: await bcrypt.hash('password123', 10),
+              fullName: `Parent of ${admNum}`,
+              role: 'PARENT',
+              tenantId: tenant.id,
+              isActive: true
+            } as any
+          });
+          parentId = parentUser.id;
+          console.log(`     created Parent: ${parentEmail}`);
+        } else {
+          parentId = existingParent.id;
+        }
+
+        if (student) {
+          // Update existing student with parent link if missing
+          if (!student.parentId) {
+            await prisma.student.update({
+              where: { id: student.id },
+              data: { parentId, guardianEmail: parentEmail }
+            });
+            console.log(`     Updated existing student ${admNum} with parent link`);
+          }
+        }
+
         if (!student) {
+          // Parent ID is now available from above code block
+
+
           student = await prisma.student.create({
             data: {
               firstName: `Student${i}`,
@@ -152,8 +192,10 @@ async function main() {
               status: 'ACTIVE',
               dateOfBirth: new Date('2015-01-01'),
               gender: 'MALE' as any,
-              guardianName: 'Parent',
+              guardianName: `Parent of ${admNum}`,
               guardianPhone: '097000000',
+              guardianEmail: parentEmail,
+              parentId: parentId
             } as any
           });
 

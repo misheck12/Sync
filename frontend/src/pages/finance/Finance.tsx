@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import FinanceReports from './FinanceReports';
-
 import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 import Scholarships from './Scholarships';
@@ -9,48 +8,11 @@ import ExportDropdown from '../../components/ExportDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
+import { Payment, FeeTemplate, AcademicTerm, Class } from '../../types';
+import SendReceiptModal from '../../components/finance/SendReceiptModal';
+import TransactionDetailsModal from '../../components/finance/TransactionDetailsModal';
 
-interface Payment {
-  id: string;
-  studentId: string;
-  amount: number;
-  paymentDate: string;
-  method: 'CASH' | 'MOBILE_MONEY' | 'BANK_DEPOSIT';
-  referenceNumber?: string;
-  student: {
-    firstName: string;
-    lastName: string;
-    admissionNumber: string;
-    class?: {
-      id: string;
-      name: string;
-    };
-  };
-  recordedBy: {
-    fullName: string;
-  };
-}
 
-interface FeeTemplate {
-  id: string;
-  name: string;
-  amount: number;
-  academicTermId: string;
-  applicableGrade: number;
-  academicTerm: {
-    name: string;
-  };
-}
-
-interface AcademicTerm {
-  id: string;
-  name: string;
-}
-
-interface Class {
-  id: string;
-  name: string;
-}
 
 const getGradeLabel = (grade: number) => {
   if (grade === 0) return 'Nursery';
@@ -63,14 +25,14 @@ const Finance = () => {
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string }[]>([]);
+  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string; class?: { id: string; name: string } }[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateFeeModal, setShowCreateFeeModal] = useState(false);
   const [showAssignFeeModal, setShowAssignFeeModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
   const [classFilter, setClassFilter] = useState<string>('ALL');
@@ -81,19 +43,27 @@ const Finance = () => {
     overdueStudentsCount: 0
   });
 
+  const [viewMode, setViewMode] = useState<'VALID' | 'VOIDED'>('VALID');
+
   // Form states
   const [newFee, setNewFee] = useState({ name: '', amount: '', academicTermId: '', applicableGrade: '' });
   const [editingTemplate, setEditingTemplate] = useState<FeeTemplate | null>(null);
   const [assignClassId, setAssignClassId] = useState('');
   const [assignDueDate, setAssignDueDate] = useState('');
+  const [studentSearch, setStudentSearch] = useState('');
+  const [searchTab, setSearchTab] = useState<'SEARCH' | 'ADMISSION' | 'CLASS'>('SEARCH');
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [paymentForm, setPaymentForm] = useState({
     studentId: '',
     amount: '',
     method: 'CASH',
-    referenceNumber: ''
+    transactionId: '',
+    notes: ''
   });
+  const [selectedTransaction, setSelectedTransaction] = useState<Payment | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showSendReceiptModal, setShowSendReceiptModal] = useState(false);
 
   // Fee Reminders state
   const [debtors, setDebtors] = useState<any[]>([]);
@@ -101,8 +71,24 @@ const Finance = () => {
   const [selectedDebtors, setSelectedDebtors] = useState<string[]>([]);
   const [sendingReminders, setSendingReminders] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [totalPayments, setTotalPayments] = useState(0);
+
+  // Fetch payments with debounce
   useEffect(() => {
-    fetchPayments();
+    if (activeTab === 'payments') {
+      const timer = setTimeout(() => {
+        fetchPayments();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, searchQuery, activeTab]);
+
+  useEffect(() => {
+    // fetchPayments handled by separate effect
     fetchFeeTemplates();
     fetchAcademicTerms();
     fetchClasses();
@@ -121,8 +107,17 @@ const Finance = () => {
 
   const fetchPayments = async () => {
     try {
-      const response = await api.get('/payments');
-      setPayments(response.data);
+      setLoading(true);
+      const response = await api.get('/payments', {
+        params: {
+          page: currentPage,
+          limit: 20,
+          search: searchQuery
+        }
+      });
+      setPayments(response.data.data);
+      setTotalPages(response.data.meta.totalPages);
+      setTotalPayments(response.data.meta.total);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
@@ -227,7 +222,6 @@ const Finance = () => {
       setAssignDueDate('');
       setSelectedTemplateId(null);
 
-      // Show detailed success message
       const data = response.data;
       let message = `Successfully assigned fee to ${data.assigned} student(s)`;
       if (data.alreadyAssigned > 0) {
@@ -252,21 +246,34 @@ const Finance = () => {
         amount: Number(paymentForm.amount)
       });
       setShowAddModal(false);
-      setPaymentForm({ studentId: '', amount: '', method: 'CASH', referenceNumber: '' });
+      setPaymentForm({ studentId: '', amount: '', method: 'CASH', transactionId: '', notes: '' });
+      setStudentSearch('');
       fetchPayments();
+      fetchStats();
     } catch (error) {
       console.error('Error recording payment:', error);
       alert('Failed to record payment');
     }
   };
 
-  const filteredPayments = payments.filter(payment => {
-    const matchesSearch =
-      payment.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.student.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.referenceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleVoidPayment = async (id: string) => {
+    const reason = window.prompt("Enter reason for voiding this payment:");
+    if (reason === null) return;
 
+    if (!window.confirm("Are you sure you want to void this payment? This action cannot be undone.")) return;
+
+    try {
+      await api.put(`/payments/${id}/void`, { reason });
+      fetchPayments();
+      fetchStats();
+      alert("Payment voided successfully");
+    } catch (error) {
+      console.error('Error voiding payment:', error);
+      alert('Failed to void payment');
+    }
+  };
+
+  const filteredPayments = payments.filter(payment => {
     const matchesMethod = methodFilter === 'ALL' || payment.method === methodFilter;
     const matchesClass = classFilter === 'ALL' || payment.student.class?.id === classFilter;
 
@@ -275,10 +282,13 @@ const Finance = () => {
       (!dateRange.start || paymentDate >= new Date(dateRange.start)) &&
       (!dateRange.end || paymentDate <= new Date(dateRange.end));
 
-    return matchesSearch && matchesMethod && matchesClass && matchesDate;
+    const matchesStatus = viewMode === 'VALID'
+      ? (payment.status !== 'CANCELLED')
+      : (payment.status === 'CANCELLED');
+
+    return matchesMethod && matchesClass && matchesDate && matchesStatus;
   });
 
-  // Fetch students with outstanding fees
   const fetchDebtors = async () => {
     setLoadingDebtors(true);
     try {
@@ -291,7 +301,6 @@ const Finance = () => {
     }
   };
 
-  // Send fee reminders
   const sendFeeReminders = async (studentIds?: string[], isOverdue = false) => {
     setSendingReminders(true);
     try {
@@ -309,7 +318,10 @@ const Finance = () => {
     }
   };
 
-  // Generate payment receipt PDF
+  const openSendReceiptModal = () => {
+    setShowSendReceiptModal(true);
+  };
+
   const generatePaymentReceipt = async (payment: Payment) => {
     try {
       const settingsRes = await api.get('/settings');
@@ -322,7 +334,6 @@ const Finance = () => {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      // --- QR Code Generation ---
       const qrData = JSON.stringify({
         id: payment.id,
         student: `${payment.student.firstName} ${payment.student.lastName}`,
@@ -338,27 +349,20 @@ const Finance = () => {
         color: { dark: '#1e293b', light: '#ffffff' }
       });
 
-      // --- Color Palette ---
-      const primaryColor: [number, number, number] = [30, 58, 138]; // Deep Navy Blue
-      const accentColor: [number, number, number] = [241, 245, 249]; // Slate-100 (Backgrounds)
-      const textColor: [number, number, number] = [30, 41, 59]; // Slate-800
-      const mutedColor: [number, number, number] = [100, 116, 139]; // Slate-500
+      const primaryColor: [number, number, number] = [30, 58, 138];
+      const accentColor: [number, number, number] = [241, 245, 249];
+      const textColor: [number, number, number] = [30, 41, 59];
+      const mutedColor: [number, number, number] = [100, 116, 139];
 
-      // --- Header ---
-      // Top Strip
       doc.setFillColor(...primaryColor);
       doc.rect(0, 0, pageWidth, 5, 'F');
-
-      // School Info (Left - Full Width Safe)
       doc.setTextColor(...primaryColor);
       doc.setFontSize(18);
       doc.setFont('times', 'bold');
       doc.text(schoolName.toUpperCase(), 14, 20);
-
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(...mutedColor);
-
       let yPos = 26;
       if (schoolAddress) {
         doc.text(schoolAddress, 14, yPos);
@@ -367,94 +371,70 @@ const Finance = () => {
       if (schoolPhone || schoolEmail) {
         doc.text([schoolPhone, schoolEmail].filter(Boolean).join(' | '), 14, yPos);
       }
-
-      // Horizontal Line Divider
       const headerBottom = 40;
       doc.setDrawColor(226, 232, 240);
       doc.line(14, headerBottom, pageWidth - 14, headerBottom);
-
-      // --- Receipt Meta Section (Below Header) ---
       const metaY = headerBottom + 15;
-
-      // Left: Receipt Title & Number
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(...mutedColor);
       doc.text('OFFICIAL RECEIPT', 14, metaY);
-
       doc.setFontSize(16);
       doc.setTextColor(0, 0, 0);
       doc.text(`#${payment.id.substring(0, 8).toUpperCase()}`, 14, metaY + 8);
-
-      // Right: Date & Badge
       doc.setFontSize(10);
       doc.setTextColor(...mutedColor);
       doc.text('Date Issued:', pageWidth - 50, metaY, { align: 'right' });
-
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...textColor);
       doc.text(new Date(payment.paymentDate).toLocaleDateString('en-GB', {
         day: '2-digit', month: 'short', year: 'numeric'
       }), pageWidth - 14, metaY, { align: 'right' });
-
-      // Verified Badge
-      doc.setFillColor(220, 252, 231); // Green-100
-      doc.setTextColor(22, 163, 74);   // Green-600
+      doc.setFillColor(220, 252, 231);
+      doc.setTextColor(22, 163, 74);
       doc.roundedRect(pageWidth - 44, metaY + 3, 30, 8, 4, 4, 'F');
       doc.setFontSize(7);
       doc.text('VERIFIED', pageWidth - 29, metaY + 8, { align: 'center' });
-
-      // --- Information Section (Grid Layout) ---
-      const startY = 80; // Pushed down
+      const startY = 80;
       const colWidth = (pageWidth - 34) / 2;
-
-      // Student Section
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(...primaryColor);
       doc.text('STUDENT INFORMATION', 14, startY);
-
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...mutedColor);
       doc.text('Name:', 14, startY + 10);
       doc.text('Admission No:', 14, startY + 17);
       doc.text('Class:', 14, startY + 24);
-
       doc.setTextColor(...textColor);
       doc.setFont('helvetica', 'bold');
       doc.text(`${payment.student.firstName} ${payment.student.lastName}`, 50, startY + 10);
       doc.text(payment.student.admissionNumber, 50, startY + 17);
       doc.text(payment.student.class?.name || 'N/A', 50, startY + 24);
-
-      // Payment Details Section
       const col2X = 14 + colWidth + 6;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(...primaryColor);
       doc.text('PAYMENT DETAILS', col2X, startY);
-
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...mutedColor);
       doc.text('Payment Method:', col2X, startY + 10);
-      doc.text('Reference No:', col2X, startY + 17);
+      doc.text('Transaction ID:', col2X, startY + 17);
       doc.text('Received By:', col2X, startY + 24);
-
       doc.setTextColor(...textColor);
       doc.setFont('helvetica', 'bold');
       doc.text(payment.method.replace('_', ' '), col2X + 40, startY + 10);
-      doc.text(payment.referenceNumber || 'N/A', col2X + 40, startY + 17);
+      doc.text(payment.transactionId || 'N/A', col2X + 40, startY + 17);
       doc.text(payment.recordedBy.fullName, col2X + 40, startY + 24);
-
-      // --- Table Section ---
       autoTable(doc, {
         startY: startY + 40,
         head: [['DESCRIPTION', 'AMOUNT (ZMW)']],
         body: [
           ['School Fees Payment', Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })]
         ],
-        theme: 'plain', // Minimalist theme
+        theme: 'plain',
         headStyles: {
           fillColor: [248, 250, 252],
           textColor: [71, 85, 105],
@@ -478,51 +458,32 @@ const Finance = () => {
         },
         margin: { left: 14, right: 14 }
       });
-
-      // --- Total & Verification Footer ---
       const finalY = (doc as any).lastAutoTable.finalY + 10;
-
-      // Total Box (Right Aligned, Elegant)
       doc.setFillColor(...accentColor);
       doc.roundedRect(pageWidth - 70, finalY, 56, 20, 1, 1, 'F');
-
       doc.setFontSize(9);
       doc.setTextColor(...mutedColor);
       doc.text('Total Amount', pageWidth - 65, finalY + 7);
-
       doc.setFontSize(14);
       doc.setTextColor(...primaryColor);
       doc.setFont('helvetica', 'bold');
       doc.text(`ZMW ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 65, finalY + 15);
-
-      // Verification Logic (Bottom)
       const footerY = pageHeight - 50;
-
-      // Separator
       doc.setDrawColor(226, 232, 240);
       doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
-
-      // QR Code
       doc.addImage(qrCodeDataUrl, 'PNG', 14, footerY + 5, 25, 25);
-
-      // Verification Text
       doc.setFontSize(10);
       doc.setTextColor(...primaryColor);
       doc.setFont('helvetica', 'bold');
       doc.text('VERIFIED DOCUMENT', 45, footerY + 12);
-
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...mutedColor);
       doc.text('This receipt is system-generated and includes a secure QR code.', 45, footerY + 18);
       doc.text('No signature is required. Scan the QR code to verify authenticity.', 45, footerY + 23);
-
-      // Bottom Watermark/Text
       doc.setFontSize(8);
-      doc.setTextColor(203, 213, 225); // Very light
+      doc.setTextColor(203, 213, 225);
       doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
-
-      // Download
       doc.save(`receipt_${payment.student.lastName}_${payment.id.substring(0, 8)}.pdf`);
     } catch (error) {
       console.error('Error generating receipt:', error);
@@ -530,14 +491,12 @@ const Finance = () => {
     }
   };
 
-  // Toggle debtor selection
   const toggleDebtorSelection = (id: string) => {
     setSelectedDebtors(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
 
-  // Toggle all debtors
   const toggleAllDebtors = () => {
     if (selectedDebtors.length === debtors.length) {
       setSelectedDebtors([]);
@@ -647,9 +606,7 @@ const Finance = () => {
       ) : activeTab === 'scholarships' ? (
         <Scholarships />
       ) : activeTab === 'reminders' ? (
-        /* Fee Reminders Tab */
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold text-slate-800">Fee Reminders</h2>
@@ -677,7 +634,6 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Debtors Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -771,7 +727,6 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Summary */}
           {debtors.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -795,7 +750,6 @@ const Finance = () => {
         </div>
       ) : activeTab === 'payments' ? (
         <>
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between mb-4">
@@ -831,7 +785,27 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Search and Action Bar */}
+          <div className="flex space-x-2 mb-4">
+            <button
+              onClick={() => setViewMode('VALID')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'VALID'
+                ? 'bg-slate-800 text-white shadow-md'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+            >
+              Valid Payments
+            </button>
+            <button
+              onClick={() => setViewMode('VOIDED')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'VOIDED'
+                ? 'bg-slate-800 text-white shadow-md'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+            >
+              Voided Transactions
+            </button>
+          </div>
+
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
             <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
               <div className="flex-1 relative">
@@ -840,8 +814,8 @@ const Finance = () => {
                   type="text"
                   placeholder="Search by student name, ID, or reference..."
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
@@ -869,7 +843,7 @@ const Finance = () => {
                     className: p.student.class?.name || 'No Class',
                     amount: Number(p.amount).toFixed(2),
                     method: p.method.replace('_', ' '),
-                    reference: p.referenceNumber || '-',
+                    transactionId: p.transactionId || '-',
                     recordedBy: p.recordedBy.fullName
                   }))}
                   columns={[
@@ -879,7 +853,7 @@ const Finance = () => {
                     { key: 'className', header: 'Class' },
                     { key: 'amount', header: 'Amount (ZMW)' },
                     { key: 'method', header: 'Method' },
-                    { key: 'reference', header: 'Reference' },
+                    { key: 'transactionId', header: 'Txn ID' },
                     { key: 'recordedBy', header: 'Recorded By' }
                   ]}
                   filename={`payments_export_${new Date().toISOString().split('T')[0]}`}
@@ -888,7 +862,6 @@ const Finance = () => {
             </div>
           </div>
 
-          {/* Payments Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -899,7 +872,8 @@ const Finance = () => {
                     <th className="px-6 py-4 font-semibold text-slate-600">Class</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Amount (ZMW)</th>
                     <th className="px-6 py-4 font-semibold text-slate-600">Method</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600">Reference</th>
+
+                    {viewMode === 'VOIDED' && <th className="px-6 py-4 font-semibold text-slate-600">Void Reason</th>}
                     <th className="px-6 py-4 font-semibold text-slate-600">Recorded By</th>
                     <th className="px-6 py-4 font-semibold text-slate-600 text-right">Actions</th>
                   </tr>
@@ -907,15 +881,21 @@ const Finance = () => {
                 <tbody className="divide-y divide-slate-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
+                      <td colSpan={viewMode === 'VOIDED' ? 9 : 8} className="px-6 py-8 text-center text-slate-500">Loading payments...</td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-slate-500">No payments found</td>
+                      <td colSpan={viewMode === 'VOIDED' ? 9 : 8} className="px-6 py-8 text-center text-slate-500">
+                        {viewMode === 'VALID' ? 'No valid payments found' : 'No voided transactions found'}
+                      </td>
                     </tr>
                   ) : (
                     filteredPayments.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
+                      <tr
+                        key={payment.id}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedTransaction(payment)}
+                      >
                         <td className="px-6 py-4 text-slate-600">
                           {new Date(payment.paymentDate).toLocaleDateString()}
                         </td>
@@ -941,27 +921,64 @@ const Finance = () => {
                             {payment.method.replace('_', ' ')}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-600 font-mono text-sm">
-                          {payment.referenceNumber || '-'}
-                        </td>
+                        {viewMode === 'VOIDED' && (
+                          <td className="px-6 py-4 text-red-600 text-sm italic">
+                            {payment.voidReason || 'No reason'}
+                          </td>
+                        )}
                         <td className="px-6 py-4 text-slate-600">
                           {payment.recordedBy.fullName}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
                           <button
-                            onClick={() => generatePaymentReceipt(payment)}
+                            onClick={(e) => { e.stopPropagation(); generatePaymentReceipt(payment); }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
                             title="Download Receipt"
                           >
                             <FileText size={14} />
                             Receipt
                           </button>
+                          {viewMode === 'VALID' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleVoidPayment(payment.id); }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors border border-red-200"
+                              title="Void Payment"
+                            >
+                              <X size={14} />
+                              Void
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mt-6">
+            <div className="text-sm text-slate-500">
+              Showing {payments.length === 0 ? 0 : (currentPage - 1) * 20 + 1} to {Math.min(currentPage * 20, totalPayments)} of {totalPayments} entries
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 disabled:opacity-50 hover:bg-slate-50"
+              >
+                Previous
+              </button>
+              <span className="flex items-center px-4 py-2 text-slate-600 bg-slate-50 rounded-lg text-sm font-medium">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 disabled:opacity-50 hover:bg-slate-50"
+              >
+                Next
+              </button>
             </div>
           </div>
         </>
@@ -1020,307 +1037,430 @@ const Finance = () => {
             </div>
           )}
         </div>
-      )
-      }
-      {/* Filter Modal */}
-      {
-        showFilterModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Filter Payments</h2>
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <X size={20} className="text-slate-500" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={classFilter}
-                    onChange={(e) => setClassFilter(e.target.value)}
-                  >
-                    <option value="ALL">All Classes</option>
-                    {classes.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={methodFilter}
-                    onChange={(e) => setMethodFilter(e.target.value)}
-                  >
-                    <option value="ALL">All Methods</option>
-                    <option value="CASH">Cash</option>
-                    <option value="MOBILE_MONEY">Mobile Money</option>
-                    <option value="BANK_DEPOSIT">Bank Deposit</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date Range</label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="date"
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={dateRange.start}
-                      onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                    />
-                    <span className="text-slate-400">to</span>
-                    <input
-                      type="date"
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={dateRange.end}
-                      onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-between mt-6">
-                <button
-                  onClick={() => {
-                    setClassFilter('ALL');
-                    setMethodFilter('ALL');
-                    setDateRange({ start: '', end: '' });
-                  }}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Clear All
-                </button>
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      )}
 
-      {/* Add Payment Modal */}
-      {
-        showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">Record New Payment</h2>
-              <form onSubmit={handleRecordPayment} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Student</label>
-                  <select
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={paymentForm.studentId}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, studentId: e.target.value })}
-                  >
-                    <option value="">Select Student</option>
-                    {students.map(student => (
-                      <option key={student.id} value={student.id}>
-                        {student.firstName} {student.lastName} ({student.admissionNumber})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={paymentForm.method}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="MOBILE_MONEY">Mobile Money</option>
-                    <option value="BANK_DEPOSIT">Bank Deposit</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Reference Number</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Optional"
-                    value={paymentForm.referenceNumber}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
-                  />
-                </div>
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Save Payment
-                  </button>
-                </div>
-              </form>
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Filter Payments</h2>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
             </div>
-          </div>
-        )
-      }
-
-      {/* Create Fee Template Modal */}
-      {
-        showCreateFeeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">{editingTemplate ? 'Edit Fee Template' : 'Create Fee Template'}</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Fee Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. Term 1 Tuition"
-                    value={newFee.name}
-                    onChange={(e) => setNewFee({ ...newFee, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                    value={newFee.amount}
-                    onChange={(e) => setNewFee({ ...newFee, amount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Academic Term</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newFee.academicTermId}
-                    onChange={(e) => setNewFee({ ...newFee, academicTermId: e.target.value })}
-                  >
-                    <option value="">Select Term</option>
-                    {academicTerms.map(term => (
-                      <option key={term.id} value={term.id}>{term.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Applicable Grade</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newFee.applicableGrade}
-                    onChange={(e) => setNewFee({ ...newFee, applicableGrade: e.target.value })}
-                  >
-                    <option value="">Select Grade</option>
-                    <option value="0">Nursery</option>
-                    {[...Array(12)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>Grade {i + 1}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowCreateFeeModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveFee}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingTemplate ? 'Update Template' : 'Create Template'}
-                </button>
+                  <option value="ALL">All Classes</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
               </div>
-            </div>
-          </div>
-        )
-      }
-
-      {/* Assign Fee Modal */}
-      {
-        showAssignFeeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">Assign Fee to Class</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                This will assign the selected fee to all active students in the selected class.
-                Scholarship discounts will be applied automatically.
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Select Class</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={assignClassId}
-                    onChange={(e) => setAssignClassId(e.target.value)}
-                  >
-                    <option value="">Select Class</option>
-                    {classes.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    <div className="flex items-center space-x-2">
-                      <Calendar size={16} />
-                      <span>Payment Due Date (Optional)</span>
-                    </div>
-                  </label>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={methodFilter}
+                  onChange={(e) => setMethodFilter(e.target.value)}
+                >
+                  <option value="ALL">All Methods</option>
+                  <option value="CASH">Cash</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="BANK_DEPOSIT">Bank Deposit</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date Range</label>
+                <div className="flex items-center space-x-2">
                   <input
                     type="date"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={assignDueDate}
-                    onChange={(e) => setAssignDueDate(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
                   />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Set a deadline for this fee payment
-                  </p>
+                  <span className="text-slate-400">to</span>
+                  <input
+                    type="date"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  />
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+            </div>
+            <div className="flex justify-between mt-6">
+              <button
+                onClick={() => {
+                  setClassFilter('ALL');
+                  setMethodFilter('ALL');
+                  setDateRange({ start: '', end: '' });
+                }}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-slate-800">Record New Payment</h2>
+
+            <form onSubmit={handleRecordPayment} className="space-y-4">
+              {/* Student Search Section */}
+              {/* Student Search Section */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Find Student</label>
+
+                {/* Search Tabs */}
+                <div className="flex bg-slate-100 p-1 rounded-lg mb-2">
+                  <button
+                    type="button"
+                    onClick={() => { setSearchTab('SEARCH'); setPaymentForm({ ...paymentForm, studentId: '' }); setStudentSearch(''); }}
+                    className={`flex-1 flex items-center justify-center space-x-2 py-1.5 rounded-md text-sm font-medium transition-all ${searchTab === 'SEARCH' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    <Search size={14} />
+                    <span>Search</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSearchTab('ADMISSION'); setPaymentForm({ ...paymentForm, studentId: '' }); setStudentSearch(''); }}
+                    className={`flex-1 flex items-center justify-center space-x-2 py-1.5 rounded-md text-sm font-medium transition-all ${searchTab === 'ADMISSION' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    <span className="font-mono text-xs">#</span>
+                    <span>Admission #</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSearchTab('CLASS'); setPaymentForm({ ...paymentForm, studentId: '' }); setSelectedClassId(''); }}
+                    className={`flex-1 flex items-center justify-center space-x-2 py-1.5 rounded-md text-sm font-medium transition-all ${searchTab === 'CLASS' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    <Users size={14} />
+                    <span>By Class</span>
+                  </button>
+                </div>
+
+                {searchTab === 'CLASS' ? (
+                  <div className="space-y-3">
+                    <select
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={selectedClassId}
+                      onChange={(e) => {
+                        setSelectedClassId(e.target.value);
+                        setPaymentForm({ ...paymentForm, studentId: '' });
+                      }}
+                    >
+                      <option value="">Select a Class</option>
+                      {classes.map(cls => (
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
+                      value={paymentForm.studentId}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, studentId: e.target.value })}
+                      disabled={!selectedClassId}
+                    >
+                      <option value="">Select Student</option>
+                      {students
+                        .filter(s => s.class?.id === selectedClassId)
+                        .map(student => (
+                          <option key={student.id} value={student.id}>
+                            {student.firstName} {student.lastName} ({student.admissionNumber})
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={searchTab === 'ADMISSION' ? "Type admission number..." : "Type student name or admission number..."}
+                      value={studentSearch}
+                      onChange={(e) => {
+                        setStudentSearch(e.target.value);
+                        if (e.target.value === '') {
+                          setPaymentForm({ ...paymentForm, studentId: '' });
+                        }
+                      }}
+                    />
+                    {/* Search Results Dropdown */}
+                    {studentSearch && !paymentForm.studentId && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {students.filter(s => {
+                          const query = studentSearch.toLowerCase();
+                          if (searchTab === 'ADMISSION') {
+                            return s.admissionNumber.toLowerCase().includes(query);
+                          }
+                          return s.firstName.toLowerCase().includes(query) ||
+                            s.lastName.toLowerCase().includes(query) ||
+                            s.admissionNumber.toLowerCase().includes(query);
+                        }).map(student => (
+                          <div
+                            key={student.id}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                            onClick={() => {
+                              setPaymentForm({ ...paymentForm, studentId: student.id });
+                              setStudentSearch(`${student.firstName} ${student.lastName}`);
+                            }}
+                          >
+                            <div>
+                              <div className="font-medium text-slate-800">{student.firstName} {student.lastName}</div>
+                              <div className="text-xs text-slate-500">{student.class?.name || 'No Class'} • {student.admissionNumber}</div>
+                            </div>
+                            {paymentForm.studentId === student.id && <div className="text-blue-600">Selected</div>}
+                          </div>
+                        ))}
+                        {students.filter(s => {
+                          const query = studentSearch.toLowerCase();
+                          if (searchTab === 'ADMISSION') {
+                            return s.admissionNumber.toLowerCase().includes(query);
+                          }
+                          return s.firstName.toLowerCase().includes(query) ||
+                            s.lastName.toLowerCase().includes(query) ||
+                            s.admissionNumber.toLowerCase().includes(query);
+                        }).length === 0 && (
+                            <div className="px-4 py-2 text-sm text-slate-500 text-center">No students found</div>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={paymentForm.method}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="BANK_DEPOSIT">Bank Deposit</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Transaction ID</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  placeholder="e.g. TXN-123456 (Optional)"
+                  value={paymentForm.transactionId}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, transactionId: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-24"
+                  placeholder="Optional notes about this payment"
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6 pt-2">
                 <button
-                  onClick={() => {
-                    setShowAssignFeeModal(false);
-                    setAssignDueDate('');
-                  }}
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleAssignFee}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  type="submit"
+                  disabled={!paymentForm.studentId || !paymentForm.amount}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Assign Fee
+                  Save Payment
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <TransactionDetailsModal
+        payment={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+        onDownloadReceipt={generatePaymentReceipt}
+        onVoid={(id) => {
+          handleVoidPayment(id);
+          setSelectedTransaction(null);
+        }}
+        onEmailReceipt={openSendReceiptModal}
+      />
+
+      {showCreateFeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">{editingTemplate ? 'Edit Fee Template' : 'Create Fee Template'}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fee Name</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Term 1 Tuition"
+                  value={newFee.name}
+                  onChange={(e) => setNewFee({ ...newFee, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount (ZMW)</label>
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  value={newFee.amount}
+                  onChange={(e) => setNewFee({ ...newFee, amount: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Academic Term</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={newFee.academicTermId}
+                  onChange={(e) => setNewFee({ ...newFee, academicTermId: e.target.value })}
+                >
+                  <option value="">Select Term</option>
+                  {academicTerms.map(term => (
+                    <option key={term.id} value={term.id}>{term.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Applicable Grade</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={newFee.applicableGrade}
+                  onChange={(e) => setNewFee({ ...newFee, applicableGrade: e.target.value })}
+                >
+                  <option value="">Select Grade</option>
+                  <option value="0">Nursery</option>
+                  {[...Array(12)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>Grade {i + 1}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowCreateFeeModal(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveFee}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                {editingTemplate ? 'Update Template' : 'Create Template'}
+              </button>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
+
+      {showAssignFeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Assign Fee to Class</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              This will assign the selected fee to all active students in the selected class.
+              Scholarship discounts will be applied automatically.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Select Class</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={assignClassId}
+                  onChange={(e) => setAssignClassId(e.target.value)}
+                >
+                  <option value="">Select Class</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="flex items-center space-x-2">
+                    <Calendar size={16} />
+                    <span>Payment Due Date (Optional)</span>
+                  </div>
+                </label>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={assignDueDate}
+                  onChange={(e) => setAssignDueDate(e.target.value)}
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Set a deadline for this fee payment
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAssignFeeModal(false);
+                  setAssignDueDate('');
+                }}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignFee}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Assign Fee
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BulkImportModal
         isOpen={showImportModal}
@@ -1337,7 +1477,12 @@ const Finance = () => {
           'Academic term will be set to the current active term automatically.',
         ]}
       />
-    </div >
+      <SendReceiptModal
+        isOpen={showSendReceiptModal}
+        onClose={() => setShowSendReceiptModal(false)}
+        payment={selectedTransaction}
+      />
+    </div>
   );
 };
 

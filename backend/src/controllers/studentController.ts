@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { sendEmail } from '../services/emailService';
+import { sendEmailForTenant } from '../services/emailService';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { TenantRequest, getTenantId } from '../utils/tenantContext';
 
@@ -44,6 +44,11 @@ export const getStudents = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Tenant context required' });
     }
 
+    const { page = '1', limit = '25', search = '', classId = '', status = '', gender = '' } = req.query;
+    const p = parseInt(page as string);
+    const l = parseInt(limit as string);
+    const skip = (p - 1) * l;
+
     // Base filter: always filter by tenant
     let whereClause: any = { tenantId };
 
@@ -56,22 +61,58 @@ export const getStudents = async (req: AuthRequest, res: Response) => {
 
       const classIds = myClasses.map(c => c.id);
 
-      whereClause = {
-        tenantId,
-        classId: { in: classIds }
-      };
+      // Merge with existing classId filter if present, or stricter intersection?
+      // For simplicity, strict teacher scope
+      if (classId && !classIds.includes(classId as string)) {
+        // Teacher requested class they don't own -> Return empty?
+        whereClause.classId = '00000000-0000-0000-0000-000000000000'; // Impossible ID
+      } else if (classId) {
+        whereClause.classId = classId;
+      } else {
+        whereClause.classId = { in: classIds };
+      }
+    } else {
+      // Admin usage
+      if (classId) whereClause.classId = classId;
     }
 
-    const students = await prisma.student.findMany({
-      where: whereClause,
-      include: {
-        class: true,
-      },
-      orderBy: {
-        lastName: 'asc',
-      },
+    // Apply Filters
+    if (search) {
+      const s = search as string;
+      whereClause.OR = [
+        { firstName: { contains: s, mode: 'insensitive' } },
+        { lastName: { contains: s, mode: 'insensitive' } },
+        { admissionNumber: { contains: s, mode: 'insensitive' } },
+        { guardianName: { contains: s, mode: 'insensitive' } }
+      ];
+    }
+    if (status) whereClause.status = status;
+    if (gender) whereClause.gender = gender;
+
+    const [students, total] = await prisma.$transaction([
+      prisma.student.findMany({
+        where: whereClause,
+        include: {
+          class: true,
+        },
+        orderBy: {
+          lastName: 'asc',
+        },
+        skip,
+        take: l
+      }),
+      prisma.student.count({ where: whereClause })
+    ]);
+
+    res.json({
+      data: students,
+      meta: {
+        total,
+        page: p,
+        limit: l,
+        totalPages: Math.ceil(total / l)
+      }
     });
-    res.json(students);
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ error: 'Failed to fetch students' });
@@ -183,7 +224,7 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
           `;
 
           // Don't await this to avoid blocking the response if email fails
-          sendEmail(data.guardianEmail, emailSubject, emailBody).catch(err =>
+          sendEmailForTenant(tenantId, data.guardianEmail, emailSubject, emailBody).catch((err: any) =>
             console.error('Failed to send parent welcome email:', err)
           );
         } catch (createError: any) {
@@ -739,5 +780,26 @@ export const getStudentProfile = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get student profile error:', error);
     res.status(500).json({ error: 'Failed to fetch student profile' });
+  }
+};
+
+export const getStudentStats = async (req: TenantRequest, res: Response) => {
+  try {
+    const tenantId = getTenantId(req);
+
+    // For simplicity, system-wide stats for the tenant
+    const [total, active, male, female, graduated, transferred] = await prisma.$transaction([
+      prisma.student.count({ where: { tenantId } }),
+      prisma.student.count({ where: { tenantId, status: 'ACTIVE' } }),
+      prisma.student.count({ where: { tenantId, gender: 'MALE' } }),
+      prisma.student.count({ where: { tenantId, gender: 'FEMALE' } }),
+      prisma.student.count({ where: { tenantId, status: 'GRADUATED' } }),
+      prisma.student.count({ where: { tenantId, status: 'TRANSFERRED' } })
+    ]);
+
+    res.json({ total, active, male, female, graduated, transferred });
+  } catch (error) {
+    console.error('Error fetching student stats:', error);
+    res.status(500).json({ error: 'Failed to fetch student stats' });
   }
 };

@@ -43,7 +43,7 @@ export const sendPaymentReceipt = async (req: TenantRequest, res: Response) => {
             Number(payment.amount),
             payment.paymentDate,
             payment.method,
-            payment.referenceNumber || payment.id.substring(0, 8).toUpperCase(),
+            payment.transactionId || payment.id.substring(0, 8).toUpperCase(),
             schoolName
         );
 

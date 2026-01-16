@@ -32,6 +32,7 @@ const updateSettingsSchema = z.object({
   parentPortalEnabled: z.boolean().optional(),
 
   // SMTP
+  emailProvider: z.string().optional().or(z.literal('')),
   smtpHost: z.string().optional().or(z.literal('')),
   smtpPort: z.number().optional().nullable(),
   smtpSecure: z.boolean().optional(),
@@ -98,6 +99,7 @@ export const getSettings = async (req: TenantRequest, res: Response) => {
       syllabusEnabled: tenant.syllabusEnabled,
 
       // SMTP (masked for security)
+      emailProvider: tenant.emailProvider,
       smtpHost: tenant.smtpHost,
       smtpPort: tenant.smtpPort,
       smtpSecure: tenant.smtpSecure,
@@ -135,7 +137,14 @@ export const getSettings = async (req: TenantRequest, res: Response) => {
 export const updateSettings = async (req: TenantRequest, res: Response) => {
   try {
     const tenantId = getTenantId(req);
+    console.log('DEBUG: Received update settings request:', JSON.stringify(req.body, null, 2));
+
+    // Explicitly validate what we are about to parse
+    console.log('DEBUG: Parsing body with schema...');
+
     const data = updateSettingsSchema.parse(req.body);
+
+    console.log('DEBUG: Schema parsing successful. Data:', JSON.stringify(data, null, 2));
 
     // Map from frontend format to tenant model (handle both formats)
     const updateData: any = {};
@@ -167,6 +176,7 @@ export const updateSettings = async (req: TenantRequest, res: Response) => {
     if (data.accentColor !== undefined) updateData.accentColor = data.accentColor;
 
     // SMTP settings - only update if provided and not masked
+    if (data.emailProvider !== undefined) updateData.emailProvider = data.emailProvider || 'smtp';
     if (data.smtpHost !== undefined) updateData.smtpHost = data.smtpHost || null;
     if (data.smtpPort !== undefined) updateData.smtpPort = data.smtpPort;
     if (data.smtpSecure !== undefined) updateData.smtpSecure = data.smtpSecure;
@@ -198,7 +208,9 @@ export const updateSettings = async (req: TenantRequest, res: Response) => {
       message: 'Settings updated successfully'
     });
   } catch (error) {
+    console.error('DEBUG: Error in updateSettings:', error);
     if (error instanceof z.ZodError) {
+      console.error('DEBUG: Zod Validation Errors:', JSON.stringify(error.errors, null, 2));
       return res.status(400).json({ errors: error.errors });
     }
     handleControllerError(res, error, 'updateSettings');

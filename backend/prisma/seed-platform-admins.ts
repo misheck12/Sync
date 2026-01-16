@@ -1,5 +1,6 @@
+import 'dotenv/config';
 import { PrismaClient, PlatformRole } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -7,24 +8,39 @@ async function seedPlatformAdmin() {
     console.log('🔧 Seeding platform admin users...\n');
 
     const defaultPassword = 'Admin@123'; // Change this in production!
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    console.log('   Note: Using default password Admin@123');
 
-    // Create default platform superadmin
-    const superadmin = await prisma.platformUser.upsert({
-        where: { email: 'admin@sync.com' },
-        update: {},
-        create: {
-            email: 'admin@sync.com',
-            passwordHash: hashedPassword,
-            fullName: 'Platform Administrator',
-            role: 'PLATFORM_SUPERADMIN' as PlatformRole,
-            isActive: true,
-        },
-    });
+    let hashedPassword;
+    try {
+        console.log('   Encryping password...');
+        hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        console.log('   Password encrypted.');
+    } catch (err) {
+        console.error('   ❌ Error hashing password:', err);
+        throw err;
+    }
 
-    console.log(`   ✅ Created platform superadmin: ${superadmin.email}`);
-    console.log(`      Password: ${defaultPassword}`);
-    console.log('');
+    try {
+        console.log('   Upserting superadmin...');
+        // Create default platform superadmin
+        const superadmin = await prisma.platformUser.upsert({
+            where: { email: 'admin@sync.com' },
+            update: {},
+            create: {
+                email: 'admin@sync.com',
+                passwordHash: hashedPassword,
+                fullName: 'Platform Administrator',
+                role: 'PLATFORM_SUPERADMIN' as PlatformRole,
+                isActive: true,
+            },
+        });
+        console.log(`   ✅ Created platform superadmin: ${superadmin.email}`);
+    } catch (err) {
+        console.error('   ❌ Error upserting superadmin:', err);
+        throw err;
+    }
+
+
     console.log('⚠️  IMPORTANT: Change the password immediately in production!');
     console.log('');
 

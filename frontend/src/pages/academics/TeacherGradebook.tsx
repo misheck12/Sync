@@ -228,26 +228,35 @@ const TeacherGradebook = () => {
                                         </th>
                                     ))}
 
-                                    <th className="px-4 py-3 border-b border-gray-200 text-center font-semibold text-xs text-gray-500 uppercase tracking-wider min-w-[100px] bg-blue-50/50">Average</th>
+                                    <th className="px-4 py-3 border-b border-gray-200 text-center font-semibold text-xs text-gray-500 uppercase tracking-wider min-w-[100px] bg-blue-50/50">
+                                        Total
+                                        <div className="text-[10px] text-gray-400 font-normal">
+                                            Sum: {data.assessments.reduce((acc, curr) => acc + curr.weight, 0)}%
+                                        </div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {data.students.map((student, idx) => {
-                                    // Calculate quick average based on available results + edits
-                                    // This is 'simple' client side calc for display
-                                    let totalObtained = 0;
-                                    let totalMax = 0;
+                                    // Calculate weighted average
+                                    let totalWeightedScore = 0;
+                                    let totalWeightSoFar = 0;
 
                                     data.assessments.forEach(ass => {
                                         const s = getScore(student.id, ass.id);
-                                        if (s !== '' && s !== 0) {
-                                            totalObtained += (Number(s) / ass.totalMarks) * 100 * (ass.weight / 100);
-                                            // Simple weighted average logic is tricky without full backend logic.
-                                            // Let's just sum Percentage * Weight if defined.
-                                            // If weight is not perfectly distributed, this might be off.
-                                            // For visual aid only.
+                                        // Only count if a score is entered (not empty)
+                                        if (s !== '' && s !== null && s !== undefined) {
+                                            const score = Number(s);
+                                            const percentage = (score / ass.totalMarks) * 100;
+                                            totalWeightedScore += (percentage * (ass.weight / 100));
+                                            totalWeightSoFar += ass.weight;
                                         }
                                     });
+
+                                    // Display: if total weight > 0, show score. 
+                                    const displayScore = totalWeightSoFar > 0
+                                        ? totalWeightedScore.toFixed(1) + '%'
+                                        : '-';
 
                                     return (
                                         <tr key={student.id} className="hover:bg-gray-50/80 transition-colors group">
@@ -273,8 +282,7 @@ const TeacherGradebook = () => {
                                             ))}
 
                                             <td className="px-4 py-3 text-center text-sm font-bold text-gray-700 bg-blue-50/30">
-                                                {/* Placeholder for calculated Total */}
-                                                -
+                                                {displayScore}
                                             </td>
                                         </tr>
                                     );

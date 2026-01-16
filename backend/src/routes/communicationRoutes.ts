@@ -10,6 +10,7 @@ import {
   searchUsers,
   subscribeToPush
 } from '../controllers/communicationController';
+import { getTemplates, upsertTemplate } from '../controllers/notificationTemplateController';
 import { authenticateToken, authorizeRole } from '../middleware/authMiddleware';
 import { tenantHandler } from '../utils/routeTypes';
 
@@ -35,5 +36,9 @@ router.get('/users/search', authorizeRole(chatRoles), tenantHandler(searchUsers)
 // Announcement routes
 const announcementRoles = ['SUPER_ADMIN', 'BURSAR', 'SECRETARY', 'TEACHER'];
 router.post('/announcements', authorizeRole(announcementRoles), tenantHandler(sendAnnouncement));
+
+// Template Routes (Admin)
+router.get('/templates', authorizeRole(['SUPER_ADMIN']), tenantHandler(getTemplates));
+router.post('/templates', authorizeRole(['SUPER_ADMIN']), tenantHandler(upsertTemplate));
 
 export default router;

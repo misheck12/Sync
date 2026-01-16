@@ -27,6 +27,9 @@ import feeReminderRoutes from './routes/feeReminderRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import platformAdminRoutes from './routes/platformAdminRoutes';
 import crmRoutes from './routes/crmRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+import auditRoutes from './routes/auditRoutes';
+import webhookRoutes from './routes/webhookRoutes';
 import path from 'path';
 
 const app: Application = express();
@@ -71,10 +74,13 @@ app.use('/api/v1/communication', communicationRoutes);
 app.use('/api/v1/scholarships', scholarshipRoutes);
 app.use('/api/v1/fee-reminders', feeReminderRoutes);
 app.use('/api/v1/subscription', subscriptionRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/audit-logs', auditRoutes);
 
 // Platform Admin Routes (separate admin portal)
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/platform/crm', crmRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
