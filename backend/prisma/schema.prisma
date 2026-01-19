@@ -1853,3 +1853,4 @@ model MissingPaymentAlert {
   @@index([severity, resolved])
   @@map("missing_payment_alerts")
 }
+
