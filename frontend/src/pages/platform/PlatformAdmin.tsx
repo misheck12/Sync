@@ -204,7 +204,7 @@ const API_URL = 'http://localhost:3000';
 
 const PlatformAdmin = () => {
     const [token, setToken] = useState<string | null>(localStorage.getItem('platform_token'));
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm' | 'plans' | 'announcements'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm' | 'plans' | 'announcements' | 'audit'>('dashboard');
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);
@@ -269,7 +269,31 @@ const PlatformAdmin = () => {
         smsCostPerUnit: 0.15,
         availableFeatures: [],
         availableTiers: [],
+        // Payment Gateway Settings
+        lencoEnabled: false,
+        lencoApiUrl: 'https://api.lenco.co/access/v2',
+        lencoApiToken: '',
+        lencoWebhookSecret: '',
+        mtnMomoEnabled: false,
+        mtnMomoApiUrl: '',
+        mtnMomoApiUserId: '',
+        mtnMomoApiKey: '',
+        mtnMomoSubscriptionKey: '',
+        airtelMoneyEnabled: false,
+        airtelMoneyApiUrl: '',
+        airtelMoneyClientId: '',
+        airtelMoneyClientSecret: '',
+        bankTransferEnabled: true,
+        bankName: '',
+        bankAccountName: '',
+        bankAccountNumber: '',
+        bankBranchCode: '',
+        bankSwiftCode: '',
+        paymentCurrency: 'ZMW',
+        paymentWebhookUrl: '',
+        autoConfirmThreshold: 0,
     });
+    const [logs, setLogs] = useState<any[]>([]);
 
     // Login handler
     const handleLogin = async (e: React.FormEvent) => {
