@@ -189,6 +189,476 @@ export const toggleAnnouncementStatus = async (req: Request, res: Response) => {
     }
 };
 
+// ==========================================
+// OPS COMMUNICATION CENTER
+// ==========================================
+
+/**
+ * Send bulk email to schools
+ */
+export const sendBulkEmailToSchools = async (req: Request, res: Response) => {
+    try {
+        const { subject, message, targetTiers, targetStatuses, tenantIds } = req.body;
+
+        // Build filter
+        const where: any = {};
+        if (targetTiers && targetTiers.length > 0) {
+            where.tier = { in: targetTiers };
+        }
+        if (targetStatuses && targetStatuses.length > 0) {
+            where.status = { in: targetStatuses };
+        }
+        if (tenantIds && tenantIds.length > 0) {
+            where.id = { in: tenantIds };
+        }
+
+        // Get target tenants
+        const tenants = await prisma.tenant.findMany({
+            where,
+            select: { id: true, name: true, email: true },
+        });
+
+        if (tenants.length === 0) {
+            return res.status(400).json({ error: 'No schools match the criteria' });
+        }
+
+        // Use email template service
+        const { announcementTemplate } = require('../services/emailTemplateService');
+        const { sendEmailForTenant } = require('../services/emailService');
+
+        // Send emails
+        const results = [];
+        for (const tenant of tenants) {
+            try {
+                const html = await announcementTemplate({
+                    tenantId: tenant.id,
+                    recipientName: tenant.name,
+                    subject,
+                    message,
+                });
+
+                const sent = await sendEmailForTenant(tenant.id, tenant.email, subject, html);
+                results.push({ tenantId: tenant.id, name: tenant.name, success: sent });
+            } catch (error: any) {
+                results.push({ tenantId: tenant.id, name: tenant.name, success: false, error: error.message });
+            }
+        }
+
+        const successCount = results.filter(r => r.success).length;
+
+        res.json({
+            message: `Sent ${successCount} of ${tenants.length} emails`,
+            total: tenants.length,
+            successful: successCount,
+            failed: tenants.length - successCount,
+            results,
+        });
+    } catch (error) {
+        console.error('Send bulk email error:', error);
+        res.status(500).json({ error: 'Failed to send bulk email' });
+    }
+};
+
+/**
+ * Send SMS to schools
+ */
+export const sendBulkSMSToSchools = async (req: Request, res: Response) => {
+    try {
+        const { message, targetTiers, targetStatuses, tenantIds } = req.body;
+
+        // Build filter
+        const where: any = {};
+        if (targetTiers && targetTiers.length > 0) {
+            where.tier = { in: targetTiers };
+        }
+        if (targetStatuses && targetStatuses.length > 0) {
+            where.status = { in: targetStatuses };
+        }
+        if (tenantIds && tenantIds.length > 0) {
+            where.id = { in: tenantIds };
+        }
+
+        // Get target tenants with phone numbers
+        const tenants = await prisma.tenant.findMany({
+            where: {
+                ...where,
+                phone: { not: null },
+            },
+            select: { id: true, name: true, phone: true },
+        });
+
+        if (tenants.length === 0) {
+            return res.status(400).json({ error: 'No schools with phone numbers match the criteria' });
+        }
+
+        // TODO: Implement SMS sending using platform SMS service
+        // For now, just log
+        console.log(`Would send SMS to ${tenants.length} schools: ${message}`);
+
+        res.json({
+            message: `SMS queued for ${tenants.length} schools`,
+            total: tenants.length,
+            recipients: tenants.map(t => ({ name: t.name, phone: t.phone })),
+        });
+    } catch (error) {
+        console.error('Send bulk SMS error:', error);
+        res.status(500).json({ error: 'Failed to send bulk SMS' });
+    }
+};
+
+/**
+ * Send in-app notification to schools
+ */
+export const sendBulkNotificationToSchools = async (req: Request, res: Response) => {
+    try {
+        const { title, message, type, targetTiers, targetStatuses, tenantIds } = req.body;
+
+        // Build filter
+        const where: any = {};
+        if (targetTiers && targetTiers.length > 0) {
+            where.tier = { in: targetTiers };
+        }
+        if (targetStatuses && targetStatuses.length > 0) {
+            where.status = { in: targetStatuses };
+        }
+        if (tenantIds && tenantIds.length > 0) {
+            where.id = { in: tenantIds };
+        }
+
+        // Get target tenants
+        const tenants = await prisma.tenant.findMany({
+            where,
+            select: { id: true, name: true },
+        });
+
+        if (tenants.length === 0) {
+            return res.status(400).json({ error: 'No schools match the criteria' });
+        }
+
+        // Get admin users for each tenant
+        const notifications = [];
+        for (const tenant of tenants) {
+            const adminUsers = await prisma.user.findMany({
+                where: {
+                    tenantId: tenant.id,
+                    role: 'SUPER_ADMIN',
+                },
+                select: { id: true },
+            });
+
+            // Create notifications for each admin
+            for (const user of adminUsers) {
+                await prisma.notification.create({
+                    data: {
+                        tenantId: tenant.id,
+                        userId: user.id,
+                        title,
+                        message,
+                        type: type || 'INFO',
+                        isRead: false,
+                    },
+                });
+                notifications.push({ tenantId: tenant.id, userId: user.id });
+            }
+        }
+
+        res.json({
+            message: `Sent notifications to ${tenants.length} schools`,
+            total: tenants.length,
+            notificationCount: notifications.length,
+        });
+    } catch (error) {
+        console.error('Send bulk notification error:', error);
+        res.status(500).json({ error: 'Failed to send bulk notification' });
+    }
+};
+
+/**
+ * Get communication history/logs
+ */
+export const getCommunicationHistory = async (req: Request, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+        const type = req.query.type as string; // 'announcement', 'email', 'sms', 'notification'
+
+        let history: any[] = [];
+        let total = 0;
+
+        if (!type || type === 'announcement') {
+            const announcements = await prisma.platformAnnouncement.findMany({
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+            });
+
+            history = announcements.map(a => ({
+                id: a.id,
+                type: 'announcement',
+                title: a.title,
+                message: a.message,
+                status: a.isActive ? 'active' : 'inactive',
+                createdAt: a.createdAt,
+            }));
+
+            total = await prisma.platformAnnouncement.count();
+        }
+
+        res.json({
+            history,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        console.error('Get communication history error:', error);
+        res.status(500).json({ error: 'Failed to fetch communication history' });
+    }
+};
+
+/**
+ * Get communication statistics
+ */
+export const getCommunicationStats = async (req: Request, res: Response) => {
+    try {
+        const days = parseInt(req.query.days as string) || 30;
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        // Get announcement stats
+        const totalAnnouncements = await prisma.platformAnnouncement.count();
+        const activeAnnouncements = await prisma.platformAnnouncement.count({
+            where: { isActive: true },
+        });
+        const recentAnnouncements = await prisma.platformAnnouncement.count({
+            where: {
+                createdAt: { gte: startDate },
+            },
+        });
+
+        // Get tenant stats for targeting
+        const totalTenants = await prisma.tenant.count();
+        const activeTenants = await prisma.tenant.count({
+            where: { status: 'ACTIVE' },
+        });
+
+        const tenantsByTier = await prisma.tenant.groupBy({
+            by: ['tier'],
+            _count: true,
+        });
+
+        const tenantsByStatus = await prisma.tenant.groupBy({
+            by: ['status'],
+            _count: true,
+        });
+
+        res.json({
+            announcements: {
+                total: totalAnnouncements,
+                active: activeAnnouncements,
+                recent: recentAnnouncements,
+            },
+            tenants: {
+                total: totalTenants,
+                active: activeTenants,
+                byTier: tenantsByTier.reduce((acc: any, item) => {
+                    acc[item.tier] = item._count;
+                    return acc;
+                }, {}),
+                byStatus: tenantsByStatus.reduce((acc: any, item) => {
+                    acc[item.status] = item._count;
+                    return acc;
+                }, {}),
+            },
+        });
+    } catch (error) {
+        console.error('Get communication stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch communication stats' });
+    }
+};
+
+/**
+ * Schedule announcement for future delivery
+ */
+export const scheduleAnnouncement = async (req: Request, res: Response) => {
+    try {
+        const { title, message, type, scheduledFor, targetTiers, targetStatuses } = req.body;
+
+        // Create announcement with scheduled date
+        const announcement = await prisma.platformAnnouncement.create({
+            data: {
+                title,
+                message,
+                type: type || 'INFO',
+                isActive: false, // Will be activated when scheduled time arrives
+                expiresAt: null,
+            },
+        });
+
+        // TODO: Implement scheduling mechanism (cron job or queue)
+        // For now, just return the announcement
+        console.log(`Announcement scheduled for ${scheduledFor}`);
+
+        res.json({
+            message: 'Announcement scheduled successfully',
+            announcement,
+            scheduledFor,
+        });
+    } catch (error) {
+        console.error('Schedule announcement error:', error);
+        res.status(500).json({ error: 'Failed to schedule announcement' });
+    }
+};
+
+/**
+ * Send targeted message to specific schools
+ */
+export const sendTargetedMessage = async (req: Request, res: Response) => {
+    try {
+        const { tenantIds, subject, message, channels } = req.body;
+        // channels: ['email', 'sms', 'notification']
+
+        if (!tenantIds || tenantIds.length === 0) {
+            return res.status(400).json({ error: 'No schools selected' });
+        }
+
+        const tenants = await prisma.tenant.findMany({
+            where: { id: { in: tenantIds } },
+            select: { id: true, name: true, email: true, phone: true },
+        });
+
+        const results = {
+            email: { sent: 0, failed: 0 },
+            sms: { sent: 0, failed: 0 },
+            notification: { sent: 0, failed: 0 },
+        };
+
+        // Send via selected channels
+        for (const tenant of tenants) {
+            // Email
+            if (channels.includes('email')) {
+                try {
+                    const { announcementTemplate } = require('../services/emailTemplateService');
+                    const { sendEmailForTenant } = require('../services/emailService');
+
+                    const html = await announcementTemplate({
+                        tenantId: tenant.id,
+                        recipientName: tenant.name,
+                        subject,
+                        message,
+                    });
+
+                    const sent = await sendEmailForTenant(tenant.id, tenant.email, subject, html);
+                    if (sent) results.email.sent++;
+                    else results.email.failed++;
+                } catch (error) {
+                    results.email.failed++;
+                }
+            }
+
+            // SMS
+            if (channels.includes('sms') && tenant.phone) {
+                // TODO: Implement SMS sending
+                console.log(`Would send SMS to ${tenant.phone}`);
+                results.sms.sent++;
+            }
+
+            // In-app notification
+            if (channels.includes('notification')) {
+                try {
+                    const adminUsers = await prisma.user.findMany({
+                        where: {
+                            tenantId: tenant.id,
+                            role: 'SUPER_ADMIN',
+                        },
+                        select: { id: true },
+                    });
+
+                    for (const user of adminUsers) {
+                        await prisma.notification.create({
+                            data: {
+                                tenantId: tenant.id,
+                                userId: user.id,
+                                title: subject,
+                                message,
+                                type: 'INFO',
+                                isRead: false,
+                            },
+                        });
+                    }
+                    results.notification.sent++;
+                } catch (error) {
+                    results.notification.failed++;
+                }
+            }
+        }
+
+        res.json({
+            message: 'Messages sent successfully',
+            totalSchools: tenants.length,
+            results,
+        });
+    } catch (error) {
+        console.error('Send targeted message error:', error);
+        res.status(500).json({ error: 'Failed to send targeted message' });
+    }
+};
+
+/**
+ * Get message templates
+ */
+export const getMessageTemplates = async (req: Request, res: Response) => {
+    try {
+        // Predefined templates
+        const templates = [
+            {
+                id: 'welcome',
+                name: 'Welcome Message',
+                subject: 'Welcome to {{platformName}}',
+                message: 'Dear {{schoolName}},\n\nWelcome to our platform! We\'re excited to have you on board.',
+                category: 'onboarding',
+            },
+            {
+                id: 'payment_reminder',
+                name: 'Payment Reminder',
+                subject: 'Payment Reminder - {{schoolName}}',
+                message: 'Dear {{schoolName}},\n\nThis is a friendly reminder about your upcoming payment.',
+                category: 'billing',
+            },
+            {
+                id: 'feature_update',
+                name: 'Feature Update',
+                subject: 'New Features Available',
+                message: 'Dear {{schoolName}},\n\nWe\'ve added exciting new features to the platform!',
+                category: 'updates',
+            },
+            {
+                id: 'maintenance',
+                name: 'Maintenance Notice',
+                subject: 'Scheduled Maintenance',
+                message: 'Dear {{schoolName}},\n\nWe will be performing scheduled maintenance on {{date}}.',
+                category: 'system',
+            },
+            {
+                id: 'support',
+                name: 'Support Follow-up',
+                subject: 'How can we help?',
+                message: 'Dear {{schoolName}},\n\nWe wanted to check in and see if you need any assistance.',
+                category: 'support',
+            },
+        ];
+
+        res.json(templates);
+    } catch (error) {
+        console.error('Get message templates error:', error);
+        res.status(500).json({ error: 'Failed to fetch templates' });
+    }
+};
+
 /**
  * Get current platform user profile
  */

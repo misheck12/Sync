@@ -32,7 +32,7 @@ import auditRoutes from './routes/auditRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import securityRoutes from './routes/securityRoutes';
 import invoiceRoutes from './routes/invoiceRoutes';
-import enhancedCrmRoutes from './routes/enhancedCrmRoutes';
+
 import path from 'path';
 
 const app: Application = express();
@@ -83,7 +83,7 @@ app.use('/api/v1/audit-logs', auditRoutes);
 // Platform Admin Routes (separate admin portal)
 app.use('/api/platform', platformAdminRoutes);
 app.use('/api/platform/crm', crmRoutes);
-app.use('/api/platform/crm/enhanced', enhancedCrmRoutes);
+
 app.use('/api/platform/security', securityRoutes);
 app.use('/api/platform/finance', invoiceRoutes);
 app.use('/api/webhooks', webhookRoutes);

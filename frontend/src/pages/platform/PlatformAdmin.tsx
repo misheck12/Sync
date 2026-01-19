@@ -38,6 +38,7 @@ import {
     Database,
     ChevronDown,
     ChevronRight,
+    FileText,
 } from 'lucide-react';
 import SecurityDashboard from '../../components/SecurityDashboard';
 import DataManagement from '../../components/DataManagement';
@@ -250,9 +251,153 @@ interface Announcement {
 
 const API_URL = 'http://localhost:3000';
 
+// Message Templates
+const MESSAGE_TEMPLATES = [
+    {
+        id: 'welcome',
+        name: 'Welcome Message',
+        description: 'Onboarding new schools',
+        category: 'Onboarding',
+        categoryColor: 'blue',
+        subject: '🎉 Welcome to Sync! Let\'s Transform Your School Together',
+        message: `Dear {{schoolName}},
+
+Welcome to Sync - your comprehensive school management platform! We're thrilled to have you on board.
+
+Sync is designed to streamline your school operations, from student enrollment to fee management, attendance tracking, and parent communication. Everything you need, perfectly in sync.
+
+Here's what you can do to get started:
+1. Complete your school profile
+2. Add your staff members
+3. Import or add students
+4. Configure your academic calendar
+5. Set up fee structures
+
+Our Sync support team is here to help you every step of the way. If you have any questions, please don't hesitate to reach out.
+
+Best regards,
+The Sync Team`,
+    },
+    {
+        id: 'payment_reminder',
+        name: 'Payment Reminder',
+        description: 'Billing reminders',
+        category: 'Billing',
+        categoryColor: 'green',
+        subject: '💳 Payment Reminder - Keep Your Sync Active',
+        message: `Dear {{schoolName}},
+
+This is a friendly reminder about your upcoming Sync subscription payment.
+
+Subscription Details:
+- Plan: {{planName}}
+- Amount: {{amount}}
+- Due Date: {{dueDate}}
+
+To ensure uninterrupted service and keep your school in sync, please make your payment before the due date.
+
+Payment Methods:
+- Mobile Money
+- Bank Transfer
+- Online Payment
+
+If you've already made the payment, please disregard this message.
+
+Thank you for your continued partnership with Sync!
+
+Best regards,
+The Sync Billing Team`,
+    },
+    {
+        id: 'feature_update',
+        name: 'Feature Update',
+        description: 'New feature announcements',
+        category: 'Updates',
+        categoryColor: 'purple',
+        subject: '✨ Exciting New Sync Features Available!',
+        message: `Dear {{schoolName}},
+
+We're excited to announce new features that will enhance your Sync experience!
+
+What's New in Sync:
+✨ Enhanced reporting dashboard with real-time analytics
+✨ Bulk SMS messaging for parent communication
+✨ Automated fee reminders
+✨ Mobile app improvements
+✨ Advanced attendance tracking
+
+These features are now available in your Sync account. Log in to explore and start using them today!
+
+We're constantly working to improve Sync based on your feedback. If you have suggestions, we'd love to hear from you.
+
+Best regards,
+The Sync Product Team`,
+    },
+    {
+        id: 'maintenance',
+        name: 'Maintenance Notice',
+        description: 'System maintenance alerts',
+        category: 'System',
+        categoryColor: 'orange',
+        subject: '🔧 Scheduled Sync Maintenance - {{date}}',
+        message: `Dear {{schoolName}},
+
+We will be performing scheduled maintenance to improve Sync's performance and security.
+
+Maintenance Window:
+- Date: {{date}}
+- Time: {{time}}
+- Duration: Approximately {{duration}}
+
+During this time, Sync may be temporarily unavailable. We apologize for any inconvenience this may cause.
+
+What to expect:
+- Brief service interruption
+- Improved performance after maintenance
+- Enhanced security features
+
+We recommend saving your work before the maintenance window. All your data will be safe and secure.
+
+Thank you for your patience and understanding!
+
+Best regards,
+The Sync Operations Team`,
+    },
+    {
+        id: 'support',
+        name: 'Support Follow-up',
+        description: 'Customer support check-ins',
+        category: 'Support',
+        categoryColor: 'indigo',
+        subject: '💬 How Can Sync Help You Today?',
+        message: `Dear {{schoolName}},
+
+We hope you're enjoying Sync and finding it helpful for your school management needs!
+
+We wanted to check in and see if you need any assistance or have questions about using Sync.
+
+Our Sync support team is here to help with:
+- Platform setup and configuration
+- Training for your staff
+- Technical issues
+- Feature requests
+- Best practices
+
+You can reach us:
+- Email: support@sync.com
+- Phone: +260 XXX XXX XXX
+- Live Chat: Available in your Sync dashboard
+
+We're committed to your success and want to ensure you're getting the most out of Sync.
+
+Best regards,
+The Sync Support Team`,
+    },
+];
+
 const PlatformAdmin = () => {
     const [token, setToken] = useState<string | null>(localStorage.getItem('platform_token'));
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm' | 'plans' | 'announcements' | 'audit' | 'security' | 'data' | 'invoices' | 'reconciliation'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'payments' | 'sms' | 'settings' | 'crm' | 'plans' | 'announcements' | 'audit' | 'security' | 'data' | 'invoices' | 'reconciliation' | 'communication'>('dashboard');
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     
@@ -261,7 +406,7 @@ const PlatformAdmin = () => {
         operations: true,
         finance: false,
         security: false,
-        sales: false,
+        sales: true,
         system: false,
     });
 
@@ -372,6 +517,28 @@ const PlatformAdmin = () => {
         targetTiers: [] as string[],
         targetStatuses: [] as string[],
     });
+
+    // Bulk SMS State
+    const [showBulkSMSModal, setShowBulkSMSModal] = useState(false);
+    const [bulkSMSForm, setBulkSMSForm] = useState({
+        message: '',
+        targetTiers: [] as string[],
+        targetStatuses: [] as string[],
+    });
+
+    // Bulk Notification State
+    const [showBulkNotificationModal, setShowBulkNotificationModal] = useState(false);
+    const [bulkNotificationForm, setBulkNotificationForm] = useState({
+        title: '',
+        message: '',
+        type: 'INFO' as 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR',
+        targetTiers: [] as string[],
+        targetStatuses: [] as string[],
+    });
+
+    // Template Preview State
+    const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
 
     // Tenant Form State
     const [showTenantModal, setShowTenantModal] = useState(false);
@@ -1173,6 +1340,114 @@ const PlatformAdmin = () => {
         }
     };
 
+    // Template Preview Handlers
+    const handleTemplatePreview = (template: any) => {
+        setSelectedTemplate(template);
+        setShowTemplatePreview(true);
+    };
+
+    const handleUseTemplate = (template: any) => {
+        setBulkEmailForm({
+            ...bulkEmailForm,
+            subject: template.subject,
+            message: template.message,
+        });
+        setShowTemplatePreview(false);
+        setShowBulkEmailModal(true);
+    };
+
+    // Bulk SMS Function
+    const sendBulkSMS = async () => {
+        if (!token) return;
+        if (!bulkSMSForm.message) {
+            alert('Please enter SMS message');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/api/platform/communication/bulk-sms`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: bulkSMSForm.message,
+                    targetTiers: bulkSMSForm.targetTiers,
+                    targetStatuses: bulkSMSForm.targetStatuses,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`SMS queued for ${data.total} schools`);
+                setShowBulkSMSModal(false);
+                setBulkSMSForm({
+                    message: '',
+                    targetTiers: [],
+                    targetStatuses: [],
+                });
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Failed to send bulk SMS');
+            }
+        } catch (error) {
+            console.error('Bulk SMS error:', error);
+            alert('Failed to send bulk SMS');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Bulk Notification Function
+    const sendBulkNotification = async () => {
+        if (!token) return;
+        if (!bulkNotificationForm.title || !bulkNotificationForm.message) {
+            alert('Please fill in title and message');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/api/platform/communication/bulk-notification`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: bulkNotificationForm.title,
+                    message: bulkNotificationForm.message,
+                    type: bulkNotificationForm.type,
+                    targetTiers: bulkNotificationForm.targetTiers,
+                    targetStatuses: bulkNotificationForm.targetStatuses,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Notifications sent to ${data.total} schools`);
+                setShowBulkNotificationModal(false);
+                setBulkNotificationForm({
+                    title: '',
+                    message: '',
+                    type: 'INFO',
+                    targetTiers: [],
+                    targetStatuses: [],
+                });
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Failed to send bulk notification');
+            }
+        } catch (error) {
+            console.error('Bulk notification error:', error);
+            alert('Failed to send bulk notification');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (token) {
             const init = async () => {
@@ -1510,6 +1785,17 @@ const PlatformAdmin = () => {
                                 >
                                     <Briefcase className="w-4 h-4" />
                                     <span>CRM</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('communication')}
+                                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                                        activeTab === 'communication'
+                                            ? 'bg-purple-600 text-white'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                    }`}
+                                >
+                                    <Send className="w-4 h-4" />
+                                    <span>Communication Center</span>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('announcements')}
@@ -3038,7 +3324,10 @@ const PlatformAdmin = () => {
                     {activeTab === 'plans' && (
                         <div className="space-y-6">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-slate-800">Subscription Plans</h2>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-900">Subscription Plans</h2>
+                                    <p className="text-slate-600 mt-1">Manage pricing tiers and features for schools</p>
+                                </div>
                                 <button
                                     onClick={() => {
                                         setEditingPlan(null);
@@ -3067,59 +3356,176 @@ const PlatformAdmin = () => {
                                 </button>
                             </div>
 
-                            <div className="bg-white rounded-xl border overflow-hidden">
-                                <table className="w-full">
-                                    <thead className="bg-slate-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Tier</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Price (ZMW)</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Limits (Students)</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Active</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {plans.map((plan) => (
-                                            <tr key={plan.id} className="hover:bg-slate-50">
-                                                <td className="px-4 py-3 font-medium text-slate-900">{plan.name}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className="px-2 py-1 bg-slate-100 rounded text-xs">
+                            {/* Plans Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {plans.map((plan) => (
+                                    <div 
+                                        key={plan.id} 
+                                        className={`bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
+                                            plan.isPopular 
+                                                ? 'border-purple-500 shadow-md' 
+                                                : plan.isActive 
+                                                    ? 'border-slate-200' 
+                                                    : 'border-slate-100 opacity-60'
+                                        }`}
+                                    >
+                                        {/* Header */}
+                                        <div className={`px-6 py-4 ${
+                                            plan.isPopular 
+                                                ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
+                                                : 'bg-slate-50'
+                                        }`}>
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <h3 className={`text-xl font-bold ${
+                                                        plan.isPopular ? 'text-white' : 'text-slate-900'
+                                                    }`}>
+                                                        {plan.name}
+                                                    </h3>
+                                                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
+                                                        plan.isPopular 
+                                                            ? 'bg-white/20 text-white' 
+                                                            : 'bg-slate-200 text-slate-700'
+                                                    }`}>
                                                         {plan.tier}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-600">
-                                                    K{plan.monthlyPriceZMW} / mo
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-600">
+                                                </div>
+                                                {plan.isPopular && (
+                                                    <span className="px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">
+                                                        POPULAR
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Pricing */}
+                                        <div className="px-6 py-4 border-b">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-3xl font-bold text-slate-900">
+                                                    K{plan.monthlyPriceZMW}
+                                                </span>
+                                                <span className="text-slate-600">/month</span>
+                                            </div>
+                                            {plan.yearlyPriceZMW > 0 && (
+                                                <p className="text-sm text-slate-600 mt-1">
+                                                    or K{plan.yearlyPriceZMW}/year
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Limits */}
+                                        <div className="px-6 py-4 space-y-3">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-slate-600 flex items-center gap-2">
+                                                    <Users className="w-4 h-4" />
+                                                    Students
+                                                </span>
+                                                <span className="font-semibold text-slate-900">
                                                     {plan.maxStudents === 0 ? 'Unlimited' : plan.maxStudents}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        onClick={() => togglePlanStatus(plan)}
-                                                        className={`px-2 py-1 rounded text-xs font-medium ${plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                            }`}
-                                                    >
-                                                        {plan.isActive ? 'Active' : 'Inactive'}
-                                                    </button>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingPlan(plan);
-                                                            setNewPlan(plan);
-                                                            setIsPlanModalOpen(true);
-                                                        }}
-                                                        className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-slate-600 flex items-center gap-2">
+                                                    <GraduationCap className="w-4 h-4" />
+                                                    Teachers
+                                                </span>
+                                                <span className="font-semibold text-slate-900">
+                                                    {plan.maxTeachers === 0 ? 'Unlimited' : plan.maxTeachers}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Features */}
+                                        {plan.features && plan.features.length > 0 && (
+                                            <div className="px-6 py-4 border-t bg-slate-50">
+                                                <p className="text-xs font-medium text-slate-700 mb-2">FEATURES</p>
+                                                <div className="space-y-1">
+                                                    {plan.features.slice(0, 3).map((feature, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 text-sm text-slate-600">
+                                                            <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                                                            <span className="truncate">{feature}</span>
+                                                        </div>
+                                                    ))}
+                                                    {plan.features.length > 3 && (
+                                                        <p className="text-xs text-slate-500 mt-1">
+                                                            +{plan.features.length - 3} more features
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Status & Actions */}
+                                        <div className="px-6 py-4 border-t bg-white flex items-center justify-between gap-3">
+                                            <button
+                                                onClick={() => togglePlanStatus(plan)}
+                                                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    plan.isActive 
+                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                }`}
+                                            >
+                                                {plan.isActive ? '✓ Active' : '✕ Inactive'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingPlan(plan);
+                                                    setNewPlan(plan);
+                                                    setIsPlanModalOpen(true);
+                                                }}
+                                                className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                                            >
+                                                <Settings className="w-3 h-3" />
+                                                Edit
+                                            </button>
+                                        </div>
+
+                                        {/* Subscription Count */}
+                                        {plan._count && plan._count.subscriptionPayments > 0 && (
+                                            <div className="px-6 py-2 bg-blue-50 border-t border-blue-100">
+                                                <p className="text-xs text-blue-700 text-center">
+                                                    {plan._count.subscriptionPayments} active subscription{plan._count.subscriptionPayments !== 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
+
+                            {/* Empty State */}
+                            {plans.length === 0 && (
+                                <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
+                                    <CreditCard className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Plans Yet</h3>
+                                    <p className="text-slate-600 mb-4">Create your first subscription plan to get started</p>
+                                    <button
+                                        onClick={() => {
+                                            setEditingPlan(null);
+                                            setNewPlan({
+                                                name: '',
+                                                tier: 'STARTER',
+                                                monthlyPriceZMW: 0,
+                                                yearlyPriceZMW: 0,
+                                                includedStudents: 50,
+                                                maxStudents: 50,
+                                                maxTeachers: 5,
+                                                maxUsers: 10,
+                                                maxClasses: 5,
+                                                maxStorageGB: 1,
+                                                features: [],
+                                                isActive: true,
+                                                isPopular: false,
+                                                description: ''
+                                            });
+                                            setIsPlanModalOpen(true);
+                                        }}
+                                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Create First Plan
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -4298,6 +4704,231 @@ const PlatformAdmin = () => {
 
                     {/* Revenue Reconciliation Tab */}
                     {activeTab === 'reconciliation' && <RevenueReconciliation />}
+
+                    {/* Communication Center Tab */}
+                    {activeTab === 'communication' && (
+                        <div className="space-y-6">
+                            {/* Communication Center Header */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                        <Send className="w-7 h-7 text-blue-600" />
+                                        Communication Center
+                                    </h2>
+                                    <p className="text-slate-600 mt-1">Send messages to schools via email, SMS, and notifications</p>
+                                </div>
+                            </div>
+
+                            {/* Communication Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="bg-white rounded-xl border p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-slate-600">Total Schools</p>
+                                            <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totals.tenants || 0}</p>
+                                        </div>
+                                        <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                                            <Building2 className="w-6 h-6 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl border p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-slate-600">Active Schools</p>
+                                            <p className="text-3xl font-bold text-green-600 mt-2">
+                                                {stats?.tenantsByStatus?.ACTIVE || 0}
+                                            </p>
+                                        </div>
+                                        <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                                            <CheckCircle className="w-6 h-6 text-green-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl border p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-slate-600">Trial Schools</p>
+                                            <p className="text-3xl font-bold text-orange-600 mt-2">
+                                                {stats?.tenantsByStatus?.TRIAL || 0}
+                                            </p>
+                                        </div>
+                                        <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                                            <Clock className="w-6 h-6 text-orange-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl border p-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm text-slate-600">Active Announcements</p>
+                                            <p className="text-3xl font-bold text-purple-600 mt-2">
+                                                {announcements.filter(a => a.isActive).length}
+                                            </p>
+                                        </div>
+                                        <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                                            <MessageSquare className="w-6 h-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+                                    <Mail className="w-8 h-8 mb-3" />
+                                    <h3 className="text-lg font-semibold mb-2">Send Bulk Email</h3>
+                                    <p className="text-blue-100 text-sm mb-4">Send emails to multiple schools at once</p>
+                                    <button 
+                                        onClick={() => setShowBulkEmailModal(true)}
+                                        className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-medium text-sm"
+                                    >
+                                        Compose Email
+                                    </button>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+                                    <Phone className="w-8 h-8 mb-3" />
+                                    <h3 className="text-lg font-semibold mb-2">Send Bulk SMS</h3>
+                                    <p className="text-green-100 text-sm mb-4">Send SMS messages to schools</p>
+                                    <button 
+                                        onClick={() => setShowBulkSMSModal(true)}
+                                        className="px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 font-medium text-sm"
+                                    >
+                                        Compose SMS
+                                    </button>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+                                    <MessageSquare className="w-8 h-8 mb-3" />
+                                    <h3 className="text-lg font-semibold mb-2">Send Notification</h3>
+                                    <p className="text-purple-100 text-sm mb-4">Send in-app notifications to schools</p>
+                                    <button 
+                                        onClick={() => setShowBulkNotificationModal(true)}
+                                        className="px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 font-medium text-sm"
+                                    >
+                                        Create Notification
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Message Templates */}
+                            <div className="bg-white rounded-xl border overflow-hidden">
+                                <div className="px-6 py-4 border-b bg-slate-50">
+                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                        <FileText className="w-5 h-5" />
+                                        Message Templates
+                                    </h3>
+                                </div>
+                                <div className="p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {MESSAGE_TEMPLATES.map((template) => (
+                                            <div 
+                                                key={template.id}
+                                                onClick={() => handleTemplatePreview(template)}
+                                                className="border rounded-lg p-4 hover:border-blue-500 cursor-pointer transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <h4 className="font-medium text-slate-900">{template.name}</h4>
+                                                        <p className="text-sm text-slate-600 mt-1">{template.description}</p>
+                                                    </div>
+                                                    <span className={`px-2 py-1 bg-${template.categoryColor}-100 text-${template.categoryColor}-700 text-xs rounded-full`}>
+                                                        {template.category}
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleTemplatePreview(template);
+                                                    }}
+                                                    className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    Preview Template →
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recent Communications */}
+                            <div className="bg-white rounded-xl border overflow-hidden">
+                                <div className="px-6 py-4 border-b bg-slate-50 flex items-center justify-between">
+                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                        <Clock className="w-5 h-5" />
+                                        Recent Communications
+                                    </h3>
+                                    <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                        View All →
+                                    </button>
+                                </div>
+                                <div className="divide-y">
+                                    {announcements.slice(0, 5).map((announcement) => (
+                                        <div key={announcement.id} className="p-4 hover:bg-slate-50">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-medium text-slate-900">{announcement.title}</h4>
+                                                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                                            announcement.type === 'SUCCESS' ? 'bg-green-100 text-green-700' :
+                                                            announcement.type === 'WARNING' ? 'bg-orange-100 text-orange-700' :
+                                                            announcement.type === 'ERROR' ? 'bg-red-100 text-red-700' :
+                                                            'bg-blue-100 text-blue-700'
+                                                        }`}>
+                                                            {announcement.type}
+                                                        </span>
+                                                        {announcement.isActive && (
+                                                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                                                                Active
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-slate-600 mt-1 line-clamp-2">{announcement.message}</p>
+                                                    <p className="text-xs text-slate-400 mt-2">
+                                                        {new Date(announcement.createdAt).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {announcements.length === 0 && (
+                                        <div className="p-8 text-center text-slate-400">
+                                            No communications yet
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Targeting Options Info */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                                <div className="flex items-start gap-3">
+                                    <Target className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-semibold text-blue-900 mb-2">Smart Targeting</h4>
+                                        <p className="text-sm text-blue-800 mb-3">
+                                            Target schools by tier, status, or select specific schools for personalized communication.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="px-3 py-1 bg-white text-blue-700 text-xs rounded-full border border-blue-200">
+                                                By Tier: FREE, STARTER, PROFESSIONAL, ENTERPRISE
+                                            </span>
+                                            <span className="px-3 py-1 bg-white text-blue-700 text-xs rounded-full border border-blue-200">
+                                                By Status: ACTIVE, TRIAL, SUSPENDED
+                                            </span>
+                                            <span className="px-3 py-1 bg-white text-blue-700 text-xs rounded-full border border-blue-200">
+                                                By School: Select specific schools
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
 
@@ -4438,6 +5069,396 @@ const PlatformAdmin = () => {
                                 >
                                     <Send className="w-4 h-4" />
                                     {loading ? 'Sending...' : 'Send Email'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Template Preview Modal */}
+            {showTemplatePreview && selectedTemplate && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-900">{selectedTemplate.name}</h3>
+                                    <p className="text-sm text-slate-600">{selectedTemplate.description}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowTemplatePreview(false)}
+                                className="p-2 hover:bg-slate-100 rounded-lg"
+                            >
+                                <XCircle className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            {/* Template Category */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-600">Category:</span>
+                                <span className={`px-3 py-1 bg-${selectedTemplate.categoryColor}-100 text-${selectedTemplate.categoryColor}-700 text-sm rounded-full font-medium`}>
+                                    {selectedTemplate.category}
+                                </span>
+                            </div>
+
+                            {/* Subject Preview */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Email Subject
+                                </label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                    <p className="text-slate-900 font-medium">{selectedTemplate.subject}</p>
+                                </div>
+                            </div>
+
+                            {/* Message Preview */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Email Message
+                                </label>
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                                    <pre className="text-slate-900 whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                                        {selectedTemplate.message}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            {/* Template Variables Info */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p className="text-sm text-blue-800 font-medium mb-2">📝 Template Variables</p>
+                                <p className="text-xs text-blue-700 mb-2">
+                                    This template uses variables that will be automatically replaced when sent:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedTemplate.message.match(/\{\{[^}]+\}\}/g)?.map((variable: string, index: number) => (
+                                        <code key={index} className="px-2 py-1 bg-white text-blue-700 text-xs rounded border border-blue-200">
+                                            {variable}
+                                        </code>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={() => setShowTemplatePreview(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => handleUseTemplate(selectedTemplate)}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    Use This Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk SMS Modal */}
+            {showBulkSMSModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+                            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                <Phone className="w-5 h-5 text-green-600" />
+                                Send Bulk SMS to Schools
+                            </h3>
+                            <button
+                                onClick={() => setShowBulkSMSModal(false)}
+                                className="p-2 hover:bg-slate-100 rounded-lg"
+                            >
+                                <XCircle className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            {/* Target Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Target Schools
+                                </label>
+                                <div className="space-y-2">
+                                    <div>
+                                        <label className="text-xs text-slate-600 mb-1 block">By Tier</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'].map(tier => (
+                                                <label key={tier} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={bulkSMSForm.targetTiers.includes(tier)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setBulkSMSForm({
+                                                                    ...bulkSMSForm,
+                                                                    targetTiers: [...bulkSMSForm.targetTiers, tier]
+                                                                });
+                                                            } else {
+                                                                setBulkSMSForm({
+                                                                    ...bulkSMSForm,
+                                                                    targetTiers: bulkSMSForm.targetTiers.filter(t => t !== tier)
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="rounded"
+                                                    />
+                                                    <span className="text-sm">{tier}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs text-slate-600 mb-1 block">By Status</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['TRIAL', 'ACTIVE', 'SUSPENDED', 'EXPIRED'].map(status => (
+                                                <label key={status} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={bulkSMSForm.targetStatuses.includes(status)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setBulkSMSForm({
+                                                                    ...bulkSMSForm,
+                                                                    targetStatuses: [...bulkSMSForm.targetStatuses, status]
+                                                                });
+                                                            } else {
+                                                                setBulkSMSForm({
+                                                                    ...bulkSMSForm,
+                                                                    targetStatuses: bulkSMSForm.targetStatuses.filter(s => s !== status)
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="rounded"
+                                                    />
+                                                    <span className="text-sm">{status}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Leave empty to send to all schools with phone numbers
+                                </p>
+                            </div>
+
+                            {/* Message */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    SMS Message *
+                                </label>
+                                <textarea
+                                    value={bulkSMSForm.message}
+                                    onChange={(e) => setBulkSMSForm({ ...bulkSMSForm, message: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[150px]"
+                                    placeholder="Your SMS message here... (Keep it concise for SMS)"
+                                    maxLength={160}
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {bulkSMSForm.message.length}/160 characters
+                                </p>
+                            </div>
+
+                            {/* Preview */}
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <p className="text-sm text-green-800 font-medium mb-1">📱 SMS Preview</p>
+                                <p className="text-xs text-green-600">
+                                    This SMS will be sent to schools with phone numbers matching your criteria
+                                </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={() => setShowBulkSMSModal(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={sendBulkSMS}
+                                    disabled={loading || !bulkSMSForm.message}
+                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <Phone className="w-4 h-4" />
+                                    {loading ? 'Sending...' : 'Send SMS'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Notification Modal */}
+            {showBulkNotificationModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+                            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                <MessageSquare className="w-5 h-5 text-purple-600" />
+                                Send Bulk Notification to Schools
+                            </h3>
+                            <button
+                                onClick={() => setShowBulkNotificationModal(false)}
+                                className="p-2 hover:bg-slate-100 rounded-lg"
+                            >
+                                <XCircle className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            {/* Target Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Target Schools
+                                </label>
+                                <div className="space-y-2">
+                                    <div>
+                                        <label className="text-xs text-slate-600 mb-1 block">By Tier</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'].map(tier => (
+                                                <label key={tier} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={bulkNotificationForm.targetTiers.includes(tier)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setBulkNotificationForm({
+                                                                    ...bulkNotificationForm,
+                                                                    targetTiers: [...bulkNotificationForm.targetTiers, tier]
+                                                                });
+                                                            } else {
+                                                                setBulkNotificationForm({
+                                                                    ...bulkNotificationForm,
+                                                                    targetTiers: bulkNotificationForm.targetTiers.filter(t => t !== tier)
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="rounded"
+                                                    />
+                                                    <span className="text-sm">{tier}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-xs text-slate-600 mb-1 block">By Status</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['TRIAL', 'ACTIVE', 'SUSPENDED', 'EXPIRED'].map(status => (
+                                                <label key={status} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={bulkNotificationForm.targetStatuses.includes(status)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setBulkNotificationForm({
+                                                                    ...bulkNotificationForm,
+                                                                    targetStatuses: [...bulkNotificationForm.targetStatuses, status]
+                                                                });
+                                                            } else {
+                                                                setBulkNotificationForm({
+                                                                    ...bulkNotificationForm,
+                                                                    targetStatuses: bulkNotificationForm.targetStatuses.filter(s => s !== status)
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="rounded"
+                                                    />
+                                                    <span className="text-sm">{status}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Leave empty to send to all schools
+                                </p>
+                            </div>
+
+                            {/* Notification Type */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Notification Type *
+                                </label>
+                                <div className="flex gap-2">
+                                    {(['INFO', 'SUCCESS', 'WARNING', 'ERROR'] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setBulkNotificationForm({ ...bulkNotificationForm, type })}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                bulkNotificationForm.type === type
+                                                    ? type === 'INFO' ? 'bg-blue-600 text-white' :
+                                                      type === 'SUCCESS' ? 'bg-green-600 text-white' :
+                                                      type === 'WARNING' ? 'bg-orange-600 text-white' :
+                                                      'bg-red-600 text-white'
+                                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Notification Title *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={bulkNotificationForm.title}
+                                    onChange={(e) => setBulkNotificationForm({ ...bulkNotificationForm, title: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    placeholder="Important Update"
+                                />
+                            </div>
+
+                            {/* Message */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Notification Message *
+                                </label>
+                                <textarea
+                                    value={bulkNotificationForm.message}
+                                    onChange={(e) => setBulkNotificationForm({ ...bulkNotificationForm, message: e.target.value })}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[150px]"
+                                    placeholder="Your notification message here..."
+                                />
+                            </div>
+
+                            {/* Preview */}
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                <p className="text-sm text-purple-800 font-medium mb-1">🔔 Notification Preview</p>
+                                <p className="text-xs text-purple-600">
+                                    This notification will appear in the dashboard for school administrators
+                                </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={() => setShowBulkNotificationModal(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={sendBulkNotification}
+                                    disabled={loading || !bulkNotificationForm.title || !bulkNotificationForm.message}
+                                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    {loading ? 'Sending...' : 'Send Notification'}
                                 </button>
                             </div>
                         </div>

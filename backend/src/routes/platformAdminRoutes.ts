@@ -30,6 +30,14 @@ import {
     getAllAnnouncements,
     deleteAnnouncement,
     toggleAnnouncementStatus,
+    sendBulkEmailToSchools,
+    sendBulkSMSToSchools,
+    sendBulkNotificationToSchools,
+    getCommunicationHistory,
+    getCommunicationStats,
+    scheduleAnnouncement,
+    sendTargetedMessage,
+    getMessageTemplates,
     exportTenants,
     exportSubscriptionPayments,
     exportSchoolTransactions,
@@ -90,6 +98,16 @@ router.get('/announcements', getAllAnnouncements);
 router.post('/announcements', authorizePlatformRole(['PLATFORM_SUPERADMIN']), createAnnouncement);
 router.delete('/announcements/:id', authorizePlatformRole(['PLATFORM_SUPERADMIN']), deleteAnnouncement);
 router.patch('/announcements/:id/status', authorizePlatformRole(['PLATFORM_SUPERADMIN']), toggleAnnouncementStatus);
+
+// Communication Center
+router.post('/communication/bulk-email', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SUPPORT']), sendBulkEmailToSchools);
+router.post('/communication/bulk-sms', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SUPPORT']), sendBulkSMSToSchools);
+router.post('/communication/bulk-notification', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SUPPORT']), sendBulkNotificationToSchools);
+router.post('/communication/targeted-message', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SUPPORT']), sendTargetedMessage);
+router.post('/communication/schedule-announcement', authorizePlatformRole(['PLATFORM_SUPERADMIN']), scheduleAnnouncement);
+router.get('/communication/history', getCommunicationHistory);
+router.get('/communication/stats', getCommunicationStats);
+router.get('/communication/templates', getMessageTemplates);
 
 // Export Reports
 router.get('/export/tenants', authorizePlatformRole(['PLATFORM_SUPERADMIN', 'PLATFORM_SALES']), exportTenants);

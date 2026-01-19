@@ -375,215 +375,160 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Pricing Plans */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-4">
-                {plans.map((plan, index) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {plans.map((plan) => {
                     const isCurrentPlan = status?.subscription.tier === plan.tier;
                     const price = Number(billingCycle === 'yearly' ? plan.yearlyPriceZMW : plan.monthlyPriceZMW);
                     const priceUSD = Number(billingCycle === 'yearly' ? plan.yearlyPriceUSD : plan.monthlyPriceUSD);
-
-                    // Tier-specific styling
-                    const tierStyles: Record<string, { gradient: string; iconBg: string; iconColor: string; accent: string; ring: string }> = {
-                        FREE: {
-                            gradient: 'from-slate-50 to-gray-100',
-                            iconBg: 'bg-gradient-to-br from-gray-100 to-gray-200',
-                            iconColor: 'text-gray-500',
-                            accent: 'gray',
-                            ring: 'ring-gray-200'
-                        },
-                        STARTER: {
-                            gradient: 'from-blue-50 via-indigo-50 to-blue-100',
-                            iconBg: 'bg-gradient-to-br from-blue-400 to-indigo-500',
-                            iconColor: 'text-white',
-                            accent: 'blue',
-                            ring: 'ring-blue-200'
-                        },
-                        PROFESSIONAL: {
-                            gradient: 'from-purple-50 via-violet-50 to-purple-100',
-                            iconBg: 'bg-gradient-to-br from-purple-500 to-pink-500',
-                            iconColor: 'text-white',
-                            accent: 'purple',
-                            ring: 'ring-purple-200'
-                        },
-                        ENTERPRISE: {
-                            gradient: 'from-amber-50 via-orange-50 to-amber-100',
-                            iconBg: 'bg-gradient-to-br from-amber-400 to-orange-500',
-                            iconColor: 'text-white',
-                            accent: 'amber',
-                            ring: 'ring-amber-200'
-                        }
-                    };
-
-                    const style = tierStyles[plan.tier] || tierStyles.FREE;
 
                     return (
                         <div
                             key={plan.id}
                             className={`
-                                relative group
-                                bg-gradient-to-br ${style.gradient}
-                                rounded-2xl overflow-hidden
-                                border transition-all duration-500 ease-out
-                                hover:shadow-2xl hover:-translate-y-2
+                                relative bg-white rounded-2xl overflow-hidden
+                                border-2 transition-all duration-300
+                                hover:shadow-xl hover:-translate-y-1
                                 ${plan.isPopular
-                                    ? 'border-purple-300 shadow-xl shadow-purple-100 lg:scale-105 z-10'
+                                    ? 'border-purple-500 shadow-lg shadow-purple-100'
                                     : isCurrentPlan
-                                        ? 'border-blue-300 shadow-lg shadow-blue-50'
-                                        : 'border-white/60 shadow-lg hover:border-gray-200'
+                                        ? 'border-blue-400 shadow-md'
+                                        : 'border-slate-200 hover:border-slate-300'
                                 }
                             `}
-                            style={{
-                                animationDelay: `${index * 100}ms`,
-                                backdropFilter: 'blur(10px)'
-                            }}
                         >
-                            {/* Decorative background elements */}
-                            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                <div className={`absolute -top-24 -right-24 w-48 h-48 bg-${style.accent}-200/30 rounded-full blur-3xl transition-transform duration-700 group-hover:scale-150`} />
-                                <div className={`absolute -bottom-24 -left-24 w-48 h-48 bg-${style.accent}-100/40 rounded-full blur-3xl transition-transform duration-700 group-hover:scale-125`} />
+                            {/* Header */}
+                            <div className={`px-6 py-4 ${
+                                plan.isPopular 
+                                    ? 'bg-gradient-to-r from-purple-500 to-purple-600' 
+                                    : isCurrentPlan
+                                        ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                        : 'bg-slate-50'
+                            }`}>
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                        plan.isPopular || isCurrentPlan
+                                            ? 'bg-white/20'
+                                            : 'bg-slate-200'
+                                    }`}>
+                                        <Crown className={`w-6 h-6 ${
+                                            plan.isPopular || isCurrentPlan ? 'text-white' : 'text-slate-600'
+                                        }`} />
+                                    </div>
+                                    {plan.isPopular && (
+                                        <span className="px-3 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
+                                            POPULAR
+                                        </span>
+                                    )}
+                                    {isCurrentPlan && !plan.isPopular && (
+                                        <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                                            <Check className="w-3 h-3" /> ACTIVE
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className={`text-xl font-bold ${
+                                    plan.isPopular || isCurrentPlan ? 'text-white' : 'text-slate-900'
+                                }`}>
+                                    {plan.name}
+                                </h3>
+                                <p className={`text-sm mt-1 ${
+                                    plan.isPopular || isCurrentPlan ? 'text-white/80' : 'text-slate-600'
+                                }`}>
+                                    {plan.description}
+                                </p>
                             </div>
 
-                            {/* Card Content */}
-                            <div className="relative p-6">
-                                {/* Badges */}
-                                <div className="flex justify-center gap-2 mb-5 min-h-[28px]">
-                                    {plan.isPopular && (
-                                        <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-purple-200 animate-pulse">
-                                            <span className="text-sm">✨</span> Most Popular
-                                        </span>
-                                    )}
-                                    {isCurrentPlan && (
-                                        <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-emerald-200">
-                                            <Check className="w-3.5 h-3.5" /> Your Plan
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Plan Header */}
-                                <div className="text-center mb-6">
-                                    <div className={`
-                                        inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4
-                                        ${style.iconBg}
-                                        shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3
-                                    `}>
-                                        <Crown className={`w-8 h-8 ${style.iconColor} drop-shadow-sm`} />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900 tracking-tight">{plan.name}</h3>
-                                    <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{plan.description}</p>
-                                </div>
-
-                                {/* Pricing */}
-                                <div className="text-center mb-6 py-4 border-y border-gray-200/50">
-                                    <div className="flex items-baseline justify-center gap-1">
-                                        {price === 0 ? (
-                                            <span className="text-4xl font-extrabold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
-                                                Free
+                            {/* Pricing */}
+                            <div className="px-6 py-6 border-b">
+                                <div className="flex items-baseline gap-1">
+                                    {price === 0 ? (
+                                        <span className="text-4xl font-bold text-slate-900">Free</span>
+                                    ) : (
+                                        <>
+                                            <span className="text-lg text-slate-600">K</span>
+                                            <span className="text-4xl font-bold text-slate-900">
+                                                {price.toLocaleString()}
                                             </span>
-                                        ) : (
-                                            <>
-                                                <span className="text-lg font-medium text-gray-400">K</span>
-                                                <span className={`text-4xl font-extrabold bg-gradient-to-r from-${style.accent}-600 to-${style.accent}-800 bg-clip-text text-transparent`}>
-                                                    {price.toLocaleString()}
-                                                </span>
-                                            </>
-                                        )}
-                                        {price > 0 && (
-                                            <span className="text-gray-400 text-sm font-medium ml-1">
+                                            <span className="text-slate-600">
                                                 /{billingCycle === 'yearly' ? 'year' : 'mo'}
                                             </span>
-                                        )}
-                                    </div>
-                                    {price > 0 && (
-                                        <p className="text-xs text-gray-400 mt-2 font-medium">
+                                        </>
+                                    )}
+                                </div>
+                                {price > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                        <p className="text-sm text-slate-500">
                                             ≈ ${priceUSD.toFixed(0)} USD
                                         </p>
-                                    )}
-                                    {price > 0 && billingCycle === 'yearly' && (
-                                        <p className="text-xs text-emerald-600 mt-1 font-semibold">
-                                            Save 17% with annual billing
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Resources */}
-                                <div className="space-y-3 mb-6">
-                                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
-                                        <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
-                                            <GraduationCap className={`w-5 h-5 text-${style.accent}-600`} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {plan.maxStudents === 0 ? 'Unlimited' : plan.maxStudents.toLocaleString()}
+                                        {billingCycle === 'yearly' && (
+                                            <p className="text-xs text-green-600 font-semibold">
+                                                💰 Save 17% annually
                                             </p>
-                                            <p className="text-xs text-gray-500">Students</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
-                                        <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
-                                            <Users className={`w-5 h-5 text-${style.accent}-600`} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {plan.maxTeachers === 0 ? 'Unlimited' : plan.maxTeachers}
-                                            </p>
-                                            <p className="text-xs text-gray-500">Teachers</p>
-                                        </div>
-                                    </div>
-
-                                    {/* API Limits */}
-                                    {(plan.features.includes('api_access') || (plan.monthlyApiCallLimit !== undefined && plan.monthlyApiCallLimit > 0)) && (
-                                        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/60 backdrop-blur-sm border border-gray-100 transition-colors hover:bg-white/80">
-                                            <div className={`w-9 h-9 rounded-lg bg-${style.accent}-100 flex items-center justify-center flex-shrink-0`}>
-                                                <Server className={`w-5 h-5 text-${style.accent}-600`} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-900">
-                                                    {!plan.monthlyApiCallLimit || plan.monthlyApiCallLimit === 0
-                                                        ? 'Unlimited'
-                                                        : plan.monthlyApiCallLimit.toLocaleString()}
-                                                </p>
-                                                <p className="text-xs text-gray-500">API Calls/mo</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Features */}
-                                <div className="mb-6">
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">What's included</p>
-                                    <ul className="space-y-2.5">
-                                        {plan.features.slice(0, 4).map((feature) => (
-                                            <li key={feature} className="flex items-center gap-2.5 text-sm group/item">
-                                                <div className={`w-5 h-5 rounded-full bg-${style.accent}-100 flex items-center justify-center flex-shrink-0 transition-colors group-hover/item:bg-${style.accent}-200`}>
-                                                    <Check className={`w-3 h-3 text-${style.accent}-600`} />
-                                                </div>
-                                                <span className="text-gray-700 font-medium">{featureLabels[feature] || feature}</span>
-                                            </li>
-                                        ))}
-                                        {plan.features.length > 4 && (
-                                            <li className="text-xs text-gray-400 pl-7 font-medium">
-                                                + {plan.features.length - 4} more features
-                                            </li>
                                         )}
-                                    </ul>
-                                </div>
+                                    </div>
+                                )}
+                            </div>
 
-                                {/* CTA Button */}
+                            {/* Limits */}
+                            <div className="px-6 py-4 space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600 flex items-center gap-2">
+                                        <GraduationCap className="w-4 h-4" />
+                                        Students
+                                    </span>
+                                    <span className="font-semibold text-slate-900">
+                                        {plan.maxStudents === 0 ? 'Unlimited' : plan.maxStudents.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600 flex items-center gap-2">
+                                        <Users className="w-4 h-4" />
+                                        Teachers
+                                    </span>
+                                    <span className="font-semibold text-slate-900">
+                                        {plan.maxTeachers === 0 ? 'Unlimited' : plan.maxTeachers}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Features */}
+                            <div className="px-6 py-4 border-t bg-slate-50">
+                                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">
+                                    What's Included
+                                </p>
+                                <ul className="space-y-2">
+                                    {plan.features.slice(0, 5).map((feature) => (
+                                        <li key={feature} className="flex items-start gap-2 text-sm">
+                                            <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                            <span className="text-slate-700">
+                                                {featureLabels[feature] || feature}
+                                            </span>
+                                        </li>
+                                    ))}
+                                    {plan.features.length > 5 && (
+                                        <li className="text-xs text-slate-500 pl-6">
+                                            +{plan.features.length - 5} more features
+                                        </li>
+                                    )}
+                                </ul>
+                            </div>
+
+                            {/* CTA Button */}
+                            <div className="px-6 py-4">
                                 <button
                                     onClick={() => openPaymentModal(plan)}
                                     disabled={isCurrentPlan || plan.tier === 'FREE' || processingMomo}
                                     className={`
-                                        w-full py-3.5 px-4 rounded-xl font-semibold text-sm
-                                        transition-all duration-300 ease-out
+                                        w-full py-3 px-4 rounded-xl font-semibold text-sm
+                                        transition-all duration-200
                                         flex items-center justify-center gap-2
                                         disabled:cursor-not-allowed
                                         ${isCurrentPlan
-                                            ? 'bg-gray-100 text-gray-400 border border-gray-200'
+                                            ? 'bg-slate-100 text-slate-500 border border-slate-200'
                                             : plan.tier === 'FREE'
-                                                ? 'bg-gray-50 text-gray-500 border border-gray-200'
+                                                ? 'bg-slate-100 text-slate-600 border border-slate-200'
                                                 : plan.isPopular
-                                                    ? 'bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-purple-200 hover:shadow-xl hover:shadow-purple-300 hover:scale-[1.02] active:scale-[0.98]'
-                                                    : `bg-${style.accent}-600 text-white hover:bg-${style.accent}-700 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`
+                                                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-md hover:shadow-lg hover:from-purple-700 hover:to-purple-800'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
                                         }
                                     `}
                                 >
@@ -604,17 +549,12 @@ const Subscription: React.FC = () => {
                                             ) : (
                                                 <>
                                                     Get Started
-                                                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                                                    <ChevronRight className="w-4 h-4" />
                                                 </>
                                             )}
                                         </>
                                     )}
                                 </button>
-                            </div>
-
-                            {/* Shine effect on hover */}
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                             </div>
                         </div>
                     );
