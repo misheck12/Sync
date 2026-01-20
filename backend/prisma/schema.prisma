@@ -199,6 +199,14 @@ model Tenant {
   paymentReconciliations PaymentReconciliation[]
   missingPaymentAlerts MissingPaymentAlert[]
   
+  // LMS Relations
+  forums            Forum[]
+  announcements     Announcement[]
+  
+  // LMS - Forums & Announcements
+  forums            Forum[]
+  announcements     Announcement[]
+  
   @@index([slug])
   @@index([status])
   @@map("tenants")
@@ -710,6 +718,14 @@ model User {
   
   // Security
   twoFactorAuth            TwoFactorAuth?
+  
+  // LMS Relations
+  forumsCreated            Forum[]
+  forumTopicsCreated       ForumTopic[]
+  forumPosts               ForumPost[]
+  forumPostLikes           ForumPostLike[]
+  announcementsCreated     Announcement[]
+  announcementReads        AnnouncementRead[]
 
   // Email is unique within a tenant (same email can exist in different schools)
   @@unique([tenantId, email])
@@ -809,6 +825,7 @@ model Class {
   timetablePeriods TimetablePeriod[]
   topicProgress  TopicProgress[]
   lessonPlans    LessonPlan[]
+  forums         Forum[]
 
   @@index([tenantId])
   @@map("classes")
@@ -835,6 +852,8 @@ model Subject {
   timetablePeriods TimetablePeriod[]
   topics          Topic[]
   lessonPlans     LessonPlan[]
+  forums          Forum[]
+  forums          Forum[]
 
   // Subject code unique per tenant
   @@unique([tenantId, code])
@@ -2360,4 +2379,345 @@ model Topic {
   homework        Homework[]
   resources       Resource[]
   lessons         Lesson[]
+}
+
+// ==========================================
+// LMS - FORUMS & DISCUSSIONS
+// ==========================================
+
+enum ForumType {
+  GENERAL
+  QA
+  ANNOUNCEMENT
+  DISCUSSION
+}
+
+enum PostStatus {
+  ACTIVE
+  LOCKED
+  ARCHIVED
+}
+
+model Forum {
+  id          String   @id @default(uuid())
+  
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  classId     String?
+  class       Class?   @relation(fields: [classId], references: [id])
+  
+  subjectId   String?
+  subject     Subject? @relation(fields: [subjectId], references: [id])
+  
+  name        String
+  description String?
+  type        ForumType @default(GENERAL)
+  isActive    Boolean  @default(true)
+  
+  createdById String
+  createdBy   User     @relation("ForumCreator", fields: [createdById], references: [id])
+  
+  posts       ForumPost[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([tenantId])
+  @@index([classId])
+  @@index([subjectId])
+  @@map("forums")
+}
+
+model ForumPost {
+  id          String   @id @default(uuid())
+  
+  forumId     String
+  forum       Forum    @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  
+  parentPostId String?
+  parentPost  ForumPost? @relation("PostReplies", fields: [parentPostId], references: [id], onDelete: Cascade)
+  replies     ForumPost[] @relation("PostReplies")
+  
+  userId      String
+  user        User     @relation("ForumPosts", fields: [userId], references: [id])
+  
+  title       String?
+  content     String   @db.Text
+  attachments String[]
+  
+  isPinned    Boolean  @default(false)
+  isAnswered  Boolean  @default(false)
+  status      PostStatus @default(ACTIVE)
+  
+  likes       Int      @default(0)
+  views       Int      @default(0)
+  
+  postLikes   PostLike[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([forumId])
+  @@index([parentPostId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("forum_posts")
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation("PostLikes", fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+// ==========================================
+// LMS - ANNOUNCEMENTS
+// ==========================================
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AnnouncementCategory {
+  GENERAL
+  EXAM
+  EVENT
+  HOLIDAY
+  EMERGENCY
+  ACADEMIC
+  ADMINISTRATIVE
+}
+
+model Announcement {
+  id              String   @id @default(uuid())
+  
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  title           String
+  content         String   @db.Text
+  category        AnnouncementCategory @default(GENERAL)
+  priority        AnnouncementPriority @default(NORMAL)
+  attachments     String[]
+  
+  targetAudience  String   @default("ALL") // ALL, TEACHERS, PARENTS, STUDENTS
+  classIds        String[] // Empty = all classes
+  
+  sendSMS         Boolean  @default(false)
+  sendEmail       Boolean  @default(false)
+  
+  scheduledFor    DateTime?
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  
+  requiresAcknowledgment Boolean @default(false)
+  
+  createdById     String
+  createdBy       User     @relation("AnnouncementCreator", fields: [createdById], references: [id])
+  
+  reads           AnnouncementRead[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([tenantId])
+  @@index([publishedAt])
+  @@index([priority])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id              String   @id @default(uuid())
+  
+  announcementId  String
+  announcement    Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation("AnnouncementReads", fields: [userId], references: [id])
+  
+  readAt          DateTime @default(now())
+  acknowledgedAt  DateTime?
+  
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@map("announcement_reads")
+}
+
+
+// ==========================================
+// FORUMS & DISCUSSIONS
+// ==========================================
+
+enum ForumType {
+  GENERAL
+  SUBJECT
+  CLASS
+  QA
+}
+
+model Forum {
+  id          String      @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  type        ForumType   @default(GENERAL)
+  classId     String?
+  subjectId   String?
+  createdById String
+  isPinned    Boolean     @default(false)
+  isLocked    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class       Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  topics      ForumTopic[]
+
+  @@index([tenantId])
+  @@index([classId])
+  @@index([subjectId])
+  @@map("forums")
+}
+
+model ForumTopic {
+  id          String      @id @default(uuid())
+  forumId     String
+  title       String
+  content     String      @db.Text
+  createdById String
+  isPinned    Boolean     @default(false)
+  isLocked    Boolean     @default(false)
+  isResolved  Boolean     @default(false)
+  views       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  forum       Forum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  posts       ForumPost[]
+
+  @@index([forumId])
+  @@index([createdById])
+  @@map("forum_topics")
+}
+
+model ForumPost {
+  id           String      @id @default(uuid())
+  topicId      String
+  content      String      @db.Text
+  createdById  String
+  parentPostId String?
+  isAnswer     Boolean     @default(false)
+  likes        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  topic        ForumTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  createdBy    User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  parentPost   ForumPost?  @relation("PostReplies", fields: [parentPostId], references: [id], onDelete: SetNull)
+  replies      ForumPost[] @relation("PostReplies")
+  postLikes    ForumPostLike[]
+
+  @@index([topicId])
+  @@index([createdById])
+  @@index([parentPostId])
+  @@map("forum_posts")
+}
+
+model ForumPostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("forum_post_likes")
+}
+
+// ==========================================
+// ANNOUNCEMENTS
+// ==========================================
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AnnouncementCategory {
+  GENERAL
+  EXAM
+  EVENT
+  HOLIDAY
+  EMERGENCY
+  ACADEMIC
+  ADMINISTRATIVE
+}
+
+model Announcement {
+  id             String                @id @default(uuid())
+  tenantId       String
+  title          String
+  content        String                @db.Text
+  category       AnnouncementCategory  @default(GENERAL)
+  priority       AnnouncementPriority  @default(NORMAL)
+  createdById    String
+  publishAt      DateTime?
+  expiresAt      DateTime?
+  isPublished    Boolean               @default(true)
+  sendSMS        Boolean               @default(false)
+  sendEmail      Boolean               @default(false)
+  targetAudience String                @default("ALL") // ALL, TEACHERS, PARENTS, STUDENTS
+  classIds       String[]
+  attachments    String[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy      User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  reads          AnnouncementRead[]
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@index([publishAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String       @id @default(uuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@map("announcement_reads")
 }

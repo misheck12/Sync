@@ -19,13 +19,15 @@ import Settings from './pages/settings/Settings';
 import Subscription from './pages/subscription/Subscription';
 import Profile from './pages/profile/Profile';
 import Communication from './pages/communication/Communication';
-import MyChildren from './pages/parents/MyChildren';
-import AcademicReports from './pages/parents/AcademicReports';
 import TeacherHomework from './pages/teacher/TeacherHomework';
 import HomeworkGrading from './pages/teacher/HomeworkGrading';
 import TeacherResources from './pages/teacher/TeacherResources';
 import ParentHomework from './pages/parent/ParentHomework';
 import ParentResources from './pages/parent/ParentResources';
+import ForumList from './pages/forums/ForumList';
+import ForumView from './pages/forums/ForumView';
+import TopicView from './pages/forums/TopicView';
+import AnnouncementList from './pages/announcements/AnnouncementList';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import RoleGuard from './components/layout/RoleGuard';
@@ -178,6 +180,14 @@ function App() {
                     <ParentResources />
                   </RoleGuard>
                 } />
+
+                {/* Forums Routes (All authenticated users) */}
+                <Route path="/forums" element={<ForumList />} />
+                <Route path="/forums/:forumId" element={<ForumView />} />
+                <Route path="/forums/topics/:topicId" element={<TopicView />} />
+
+                {/* Announcements Routes (All authenticated users) */}
+                <Route path="/announcements" element={<AnnouncementList />} />
 
                 <Route path="/settings" element={
                   <RoleGuard allowedRoles={['SUPER_ADMIN']}>

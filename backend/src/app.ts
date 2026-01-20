@@ -35,6 +35,8 @@ import invoiceRoutes from './routes/invoiceRoutes';
 import homeworkRoutes from './routes/homeworkRoutes';
 import resourceRoutes from './routes/resourceRoutes';
 import parentRoutes from './routes/parentRoutes';
+import forumRoutes from './routes/forumRoutes';
+import announcementRoutes from './routes/announcementRoutes';
 
 import path from 'path';
 
@@ -95,6 +97,8 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/v1/homework', homeworkRoutes);
 app.use('/api/v1/resources', resourceRoutes);
 app.use('/api/v1/parent', parentRoutes);
+app.use('/api/v1/forums', forumRoutes);
+app.use('/api/v1/announcements', announcementRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
