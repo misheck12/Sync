@@ -18,6 +18,7 @@ export const getDashboardStats = async (req: TenantRequest, res: Response) => {
       });
 
       const totalStudents = myClasses.reduce((acc, curr) => acc + curr._count.students, 0);
+      const classIds = myClasses.map(c => c.id);
 
       // 2. Today's Schedule
       const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -37,7 +38,6 @@ export const getDashboardStats = async (req: TenantRequest, res: Response) => {
       });
 
       // 3. Recent Assessments (Created for my classes)
-      const classIds = myClasses.map(c => c.id);
       const recentAssessments = await prisma.assessment.findMany({
         where: {
           tenantId,
@@ -52,16 +52,179 @@ export const getDashboardStats = async (req: TenantRequest, res: Response) => {
         }
       });
 
+      // 4. Pending Homework Submissions (New!)
+      const pendingSubmissions = await prisma.homeworkSubmission.count({
+        where: {
+          homework: {
+            subjectContent: {
+              teacherId: userId,
+              tenantId
+            }
+          },
+          status: 'SUBMITTED' // Submitted but not graded
+        }
+      });
+
+      // 5. My Homework with pending grades (New!)
+      const homeworkWithPendingGrades = await prisma.homework.findMany({
+        where: {
+          subjectContent: {
+            teacherId: userId,
+            tenantId
+          },
+          submissions: {
+            some: {
+              status: 'SUBMITTED'
+            }
+          }
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          subjectContent: {
+            include: {
+              class: true,
+              subject: true
+            }
+          },
+          _count: {
+            select: {
+              submissions: true
+            }
+          }
+        }
+      });
+
+      // 6. Today's Attendance Status (New!)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Get student IDs for my classes
+      const myStudentIds = await prisma.student.findMany({
+        where: {
+          classId: { in: classIds },
+          status: 'ACTIVE'
+        },
+        select: { id: true }
+      });
+      const studentIds = myStudentIds.map(s => s.id);
+
+      const todayAttendance = await prisma.attendance.findMany({
+        where: {
+          tenantId,
+          classId: { in: classIds },
+          date: {
+            gte: today,
+            lt: tomorrow
+          }
+        }
+      });
+
+      const presentCount = todayAttendance.filter(a => a.status === 'PRESENT').length;
+      const absentCount = todayAttendance.filter(a => a.status === 'ABSENT').length;
+      const lateCount = todayAttendance.filter(a => a.status === 'LATE').length;
+      const attendanceTaken = todayAttendance.length > 0;
+      const attendanceRate = studentIds.length > 0
+        ? Math.round(((presentCount + lateCount) / studentIds.length) * 100)
+        : 0;
+
+      // 7. Upcoming Homework Deadlines (Next 7 days) (New!)
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+
+      const upcomingDeadlines = await prisma.homework.findMany({
+        where: {
+          subjectContent: {
+            teacherId: userId,
+            tenantId
+          },
+          dueDate: {
+            gte: new Date(),
+            lte: nextWeek
+          }
+        },
+        take: 5,
+        orderBy: { dueDate: 'asc' },
+        include: {
+          subjectContent: {
+            include: {
+              class: true,
+              subject: true
+            }
+          },
+          _count: {
+            select: {
+              submissions: true
+            }
+          }
+        }
+      });
+
+      // 8. Recent Forum Posts from Students (New!)
+      const recentForumPosts = await prisma.forumPost.findMany({
+        where: {
+          forum: {
+            tenantId,
+            OR: [
+              { classId: { in: classIds } },
+              { createdById: userId }
+            ]
+          },
+          user: {
+            role: { in: ['STUDENT', 'PARENT'] }
+          }
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              fullName: true,
+              role: true
+            }
+          },
+          forum: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // 9. Classes Needing Attendance Today (New!)
+      const classesWithScheduleToday = todaySchedule.map(s => s.classId);
+      const classesWithAttendanceToday = [...new Set(todayAttendance.map(a => a.classId))];
+      const classesNeedingAttendance = myClasses.filter(
+        c => classesWithScheduleToday.includes(c.id) && !classesWithAttendanceToday.includes(c.id)
+      );
+
       return res.json({
         role: 'TEACHER',
         stats: {
           totalStudents,
           totalClasses: myClasses.length,
-          todayScheduleCount: todaySchedule.length
+          todayScheduleCount: todaySchedule.length,
+          pendingSubmissions,
+          attendanceRate,
+          attendanceTaken,
+          upcomingDeadlinesCount: upcomingDeadlines.length,
+          classesNeedingAttendance: classesNeedingAttendance.length
         },
         myClasses,
         todaySchedule,
-        recentAssessments
+        recentAssessments,
+        homeworkWithPendingGrades,
+        upcomingDeadlines,
+        recentForumPosts,
+        classesNeedingAttendance,
+        attendanceStats: {
+          present: presentCount,
+          absent: absentCount,
+          late: lateCount,
+          total: studentIds.length
+        }
       });
     }
 
