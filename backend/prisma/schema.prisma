@@ -202,10 +202,7 @@ model Tenant {
   // LMS Relations
   forums            Forum[]
   announcements     Announcement[]
-  
-  // LMS - Forums & Announcements
-  forums            Forum[]
-  announcements     Announcement[]
+  subjectContents   SubjectContent[]
   
   @@index([slug])
   @@index([status])
@@ -720,12 +717,13 @@ model User {
   twoFactorAuth            TwoFactorAuth?
   
   // LMS Relations
-  forumsCreated            Forum[]
-  forumTopicsCreated       ForumTopic[]
-  forumPosts               ForumPost[]
-  forumPostLikes           ForumPostLike[]
-  announcementsCreated     Announcement[]
-  announcementReads        AnnouncementRead[]
+  forumsCreated            Forum[]         @relation("ForumCreator")
+  forumPosts               ForumPost[]     @relation("ForumPosts")
+  postLikes                PostLike[]      @relation("PostLikes")
+  announcementsCreated     Announcement[]  @relation("AnnouncementCreator")
+  announcementReads        AnnouncementRead[] @relation("AnnouncementReads")
+  subjectContentsTaught    SubjectContent[]
+  homeworkGraded           HomeworkSubmission[]
 
   // Email is unique within a tenant (same email can exist in different schools)
   @@unique([tenantId, email])
@@ -788,6 +786,7 @@ model Student {
   termResults       TermResult[]
   termReports       StudentTermReport[]
   submissions     AssessmentSubmission[]
+  homeworkSubmissions HomeworkSubmission[]
 
   // Admission number unique per tenant
   @@unique([tenantId, admissionNumber])
@@ -826,6 +825,7 @@ model Class {
   topicProgress  TopicProgress[]
   lessonPlans    LessonPlan[]
   forums         Forum[]
+  subjectContents SubjectContent[]
 
   @@index([tenantId])
   @@map("classes")
@@ -853,7 +853,7 @@ model Subject {
   topics          Topic[]
   lessonPlans     LessonPlan[]
   forums          Forum[]
-  forums          Forum[]
+  subjectContents SubjectContent[]
 
   // Subject code unique per tenant
   @@unique([tenantId, code])
@@ -880,6 +880,7 @@ model AcademicTerm {
   studentReports StudentTermReport[]
   timetablePeriods TimetablePeriod[]
   lessonPlans    LessonPlan[]
+  subjectContents SubjectContent[]
 
   @@index([tenantId])
   @@map("academic_terms")
@@ -1281,6 +1282,9 @@ model Topic {
   orderIndex  Int      @default(0)
 
   progress    TopicProgress[]
+  homework    Homework[]
+  resources   Resource[]
+  lessons     Lesson[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2144,7 +2148,7 @@ enum ResourceType {
   NOTES
 }
 
-enum SubmissionStatus {
+enum HomeworkSubmissionStatus {
   DRAFT
   SUBMITTED
   GRADED
@@ -2246,7 +2250,7 @@ model HomeworkSubmission {
   gradedByUserId  String?
   gradedBy        User?    @relation(fields: [gradedByUserId], references: [id], onDelete: SetNull)
   
-  status          SubmissionStatus @default(DRAFT)
+  status          HomeworkSubmissionStatus @default(DRAFT)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2335,51 +2339,10 @@ model LessonResource {
   @@map("lesson_resource")
 }
 
-// Update existing models to add LMS relations
-// Add to Tenant model
-model Tenant {
-  // ... existing fields
-  subjectContent  SubjectContent[]
-}
-
-// Add to Class model
-model Class {
-  // ... existing fields
-  subjectContent  SubjectContent[]
-}
-
-// Add to Subject model
-model Subject {
-  // ... existing fields
-  subjectContent  SubjectContent[]
-}
-
-// Add to AcademicTerm model
-model AcademicTerm {
-  // ... existing fields
-  subjectContent  SubjectContent[]
-}
-
-// Add to User model
-model User {
-  // ... existing fields
-  subjectContentTeaching SubjectContent[]
-  homeworkGraded        HomeworkSubmission[]
-}
-
-// Add to Student model
-model Student {
-  // ... existing fields
-  homeworkSubmissions   HomeworkSubmission[]
-}
-
-// Add to Topic model
-model Topic {
-  // ... existing fields
-  homework        Homework[]
-  resources       Resource[]
-  lessons         Lesson[]
-}
+// NOTE: LMS relations have been added directly to the original model definitions above.
+// See: Tenant.subjectContent, Class.subjectContent, Subject.subjectContent, 
+//      AcademicTerm.subjectContent, User.subjectContentTeaching/homeworkGraded,
+//      Student.homeworkSubmissions, Topic.homework/resources/lessons
 
 // ==========================================
 // LMS - FORUMS & DISCUSSIONS
@@ -2559,165 +2522,3 @@ model AnnouncementRead {
   @@map("announcement_reads")
 }
 
-
-// ==========================================
-// FORUMS & DISCUSSIONS
-// ==========================================
-
-enum ForumType {
-  GENERAL
-  SUBJECT
-  CLASS
-  QA
-}
-
-model Forum {
-  id          String      @id @default(uuid())
-  tenantId    String
-  name        String
-  description String?
-  type        ForumType   @default(GENERAL)
-  classId     String?
-  subjectId   String?
-  createdById String
-  isPinned    Boolean     @default(false)
-  isLocked    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  class       Class?      @relation(fields: [classId], references: [id], onDelete: SetNull)
-  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  topics      ForumTopic[]
-
-  @@index([tenantId])
-  @@index([classId])
-  @@index([subjectId])
-  @@map("forums")
-}
-
-model ForumTopic {
-  id          String      @id @default(uuid())
-  forumId     String
-  title       String
-  content     String      @db.Text
-  createdById String
-  isPinned    Boolean     @default(false)
-  isLocked    Boolean     @default(false)
-  isResolved  Boolean     @default(false)
-  views       Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  forum       Forum       @relation(fields: [forumId], references: [id], onDelete: Cascade)
-  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  posts       ForumPost[]
-
-  @@index([forumId])
-  @@index([createdById])
-  @@map("forum_topics")
-}
-
-model ForumPost {
-  id           String      @id @default(uuid())
-  topicId      String
-  content      String      @db.Text
-  createdById  String
-  parentPostId String?
-  isAnswer     Boolean     @default(false)
-  likes        Int         @default(0)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  topic        ForumTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  createdBy    User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  parentPost   ForumPost?  @relation("PostReplies", fields: [parentPostId], references: [id], onDelete: SetNull)
-  replies      ForumPost[] @relation("PostReplies")
-  postLikes    ForumPostLike[]
-
-  @@index([topicId])
-  @@index([createdById])
-  @@index([parentPostId])
-  @@map("forum_posts")
-}
-
-model ForumPostLike {
-  id        String   @id @default(uuid())
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-
-  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
-  @@index([postId])
-  @@index([userId])
-  @@map("forum_post_likes")
-}
-
-// ==========================================
-// ANNOUNCEMENTS
-// ==========================================
-
-enum AnnouncementPriority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
-}
-
-enum AnnouncementCategory {
-  GENERAL
-  EXAM
-  EVENT
-  HOLIDAY
-  EMERGENCY
-  ACADEMIC
-  ADMINISTRATIVE
-}
-
-model Announcement {
-  id             String                @id @default(uuid())
-  tenantId       String
-  title          String
-  content        String                @db.Text
-  category       AnnouncementCategory  @default(GENERAL)
-  priority       AnnouncementPriority  @default(NORMAL)
-  createdById    String
-  publishAt      DateTime?
-  expiresAt      DateTime?
-  isPublished    Boolean               @default(true)
-  sendSMS        Boolean               @default(false)
-  sendEmail      Boolean               @default(false)
-  targetAudience String                @default("ALL") // ALL, TEACHERS, PARENTS, STUDENTS
-  classIds       String[]
-  attachments    String[]
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-
-  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy      User                  @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  reads          AnnouncementRead[]
-
-  @@index([tenantId])
-  @@index([createdById])
-  @@index([publishAt])
-  @@map("announcements")
-}
-
-model AnnouncementRead {
-  id             String       @id @default(uuid())
-  announcementId String
-  userId         String
-  readAt         DateTime     @default(now())
-
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([announcementId, userId])
-  @@index([announcementId])
-  @@index([userId])
-  @@map("announcement_reads")
-}

@@ -37,6 +37,8 @@ import resourceRoutes from './routes/resourceRoutes';
 import parentRoutes from './routes/parentRoutes';
 import forumRoutes from './routes/forumRoutes';
 import announcementRoutes from './routes/announcementRoutes';
+import fileUploadRoutes from './routes/uploadRoutes';
+import searchRoutes from './routes/searchRoutes';
 
 import path from 'path';
 
@@ -99,6 +101,8 @@ app.use('/api/v1/resources', resourceRoutes);
 app.use('/api/v1/parent', parentRoutes);
 app.use('/api/v1/forums', forumRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
+app.use('/api/v1/upload', fileUploadRoutes);
+app.use('/api/v1/search', searchRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

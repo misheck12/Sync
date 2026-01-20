@@ -121,11 +121,11 @@ export const getAnnouncements = async (req: TenantRequest, res: Response) => {
     // Filter unread if requested
     let filtered = announcements;
     if (unreadOnly === 'true') {
-      filtered = announcements.filter(a => a.reads.length === 0);
+      filtered = announcements.filter((a: any) => a.reads.length === 0);
     }
 
     // Add isRead flag
-    const result = filtered.map(a => ({
+    const result = filtered.map((a: any) => ({
       ...a,
       isRead: a.reads.length > 0,
       readAt: a.reads[0]?.readAt || null,

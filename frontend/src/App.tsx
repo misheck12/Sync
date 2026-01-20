@@ -24,6 +24,8 @@ import HomeworkGrading from './pages/teacher/HomeworkGrading';
 import TeacherResources from './pages/teacher/TeacherResources';
 import ParentHomework from './pages/parent/ParentHomework';
 import ParentResources from './pages/parent/ParentResources';
+import MyChildren from './pages/parents/MyChildren';
+import AcademicReports from './pages/parents/AcademicReports';
 import ForumList from './pages/forums/ForumList';
 import ForumView from './pages/forums/ForumView';
 import TopicView from './pages/forums/TopicView';

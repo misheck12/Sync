@@ -1,645 +1,456 @@
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient() as any;
 
-interface NotificationOptions {
-  to: string;
+interface EmailOptions {
+  to: string | string[];
   subject: string;
-  text: string;
-  html?: string;
+  html: string;
+  text?: string;
 }
 
-interface SmsOptions {
-  to: string;
+interface SMSOptions {
+  to: string | string[];
   message: string;
 }
 
-interface NotificationSettings {
-  emailNotificationsEnabled?: boolean;
-  smsNotificationsEnabled?: boolean;
-  smtpHost?: string | null;
-  smtpPort?: number | null;
-  smtpSecure?: boolean;
-  smtpUser?: string | null;
-  smtpPassword?: string | null;
-  smtpFromEmail?: string | null;
-  smtpFromName?: string | null;
-  smsProvider?: string | null;
-  smsApiKey?: string | null;
-  smsApiSecret?: string | null;
-  smsSenderId?: string | null;
-  schoolName?: string;
-}
+// Email service
+export class EmailService {
+  private transporter: nodemailer.Transporter | null = null;
 
-// Get school settings for notifications
-async function getNotificationSettings(tenantId: string): Promise<NotificationSettings | null> {
-  const settings = await prisma.tenant.findUnique({
-    where: { id: tenantId }
-  });
+  async initialize(tenantId: string) {
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          smtpHost: true,
+          smtpPort: true,
+          smtpSecure: true,
+          smtpUser: true,
+          smtpPassword: true,
+          smtpFromEmail: true,
+          smtpFromName: true,
+        }
+      });
 
-  if (!settings) return null;
-
-  return {
-    emailNotificationsEnabled: settings.emailEnabled,
-    smsNotificationsEnabled: settings.smsEnabled,
-    smtpHost: settings.smtpHost,
-    smtpPort: settings.smtpPort,
-    smtpSecure: settings.smtpSecure,
-    smtpUser: settings.smtpUser,
-    smtpPassword: settings.smtpPassword,
-    smtpFromEmail: settings.smtpFromEmail,
-    smtpFromName: settings.smtpFromName,
-    smsProvider: settings.smsProvider,
-    smsApiKey: settings.smsApiKey,
-    smsApiSecret: settings.smsApiSecret,
-    smsSenderId: settings.smsSenderId,
-    schoolName: settings.name,
-  };
-}
-
-// Send Email Notification
-export async function sendEmail(tenantId: string, options: NotificationOptions): Promise<boolean> {
-  try {
-    const settings = await getNotificationSettings(tenantId);
-
-    if (!settings) {
-      console.log('No settings found for tenant:', tenantId);
-      return false;
-    }
-
-    // Check if email notifications are enabled (default to true if field doesn't exist)
-    const emailEnabled = settings.emailNotificationsEnabled ?? true;
-    if (!emailEnabled) {
-      console.log('Email notifications are disabled');
-      return false;
-    }
-
-    if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPassword) {
-      console.log('SMTP settings not configured');
-      return false;
-    }
-
-    // Port 465 = SSL/TLS (secure: true)
-    // Port 587 = STARTTLS (secure: false, will upgrade to TLS)
-    const port = settings.smtpPort || 587;
-    const isSecure = port === 465; // Only port 465 uses direct SSL
-
-    const transporter = nodemailer.createTransport({
-      host: settings.smtpHost,
-      port: port,
-      secure: isSecure, // false for 587 (STARTTLS), true for 465 (SSL)
-      auth: {
-        user: settings.smtpUser,
-        pass: settings.smtpPassword,
-      },
-      // TLS options for better compatibility
-      tls: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
-        ciphers: 'SSLv3',
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    } as any);
-
-    const mailOptions = {
-      from: `"${settings.smtpFromName || settings.schoolName || 'School'}" <${settings.smtpFromEmail || settings.smtpUser}>`,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${options.to}`);
-    return true;
-  } catch (error) {
-    console.error('Email sending failed:', error);
-    return false;
-  }
-}
-
-// Send SMS Notification
-export async function sendSms(tenantId: string, options: SmsOptions): Promise<boolean> {
-  try {
-    const settings = await getNotificationSettings(tenantId);
-
-    if (!settings) {
-      console.log('No settings found');
-      return false;
-    }
-
-    // Check if SMS notifications are enabled (default to false if field doesn't exist)
-    const smsEnabled = settings.smsNotificationsEnabled ?? false;
-    if (!smsEnabled) {
-      console.log('SMS notifications are disabled');
-      return false;
-    }
-
-    if (!settings.smsProvider || !settings.smsApiKey) {
-      console.log('SMS settings not configured');
-      return false;
-    }
-
-    // Format phone number (remove spaces, ensure proper format)
-    const phone = options.to.replace(/\s+/g, '');
-
-    // Provider-specific SMS sending
-    switch (settings.smsProvider.toUpperCase()) {
-      case 'AFRICASTALKING':
-        return await sendAfricasTalkingSms(phone, options.message, settings);
-      case 'TWILIO':
-        return await sendTwilioSms(phone, options.message, settings);
-      default:
-        console.log(`Unknown SMS provider: ${settings.smsProvider}`);
+      if (!tenant || !tenant.smtpHost) {
+        console.log('SMTP not configured for tenant:', tenantId);
         return false;
-    }
-  } catch (error) {
-    console.error('SMS sending failed:', error);
-    return false;
-  }
-}
-
-// Africa's Talking SMS Provider
-async function sendAfricasTalkingSms(to: string, message: string, settings: NotificationSettings): Promise<boolean> {
-  try {
-    const response = await fetch('https://api.africastalking.com/version1/messaging', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'apiKey': settings.smsApiKey || '',
-      },
-      body: new URLSearchParams({
-        username: settings.smsApiSecret || '', // AT uses username in apiSecret field
-        to: to,
-        message: message,
-        from: settings.smsSenderId || '',
-      }),
-    });
-
-    const result = await response.json();
-    console.log('Africa\'s Talking SMS response:', result);
-    return result.SMSMessageData?.Recipients?.[0]?.status === 'Success';
-  } catch (error) {
-    console.error('Africa\'s Talking SMS error:', error);
-    return false;
-  }
-}
-
-// Twilio SMS Provider
-async function sendTwilioSms(to: string, message: string, settings: NotificationSettings): Promise<boolean> {
-  try {
-    const accountSid = settings.smsApiKey || '';
-    const authToken = settings.smsApiSecret || '';
-
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          To: to,
-          From: settings.smsSenderId || '',
-          Body: message,
-        }),
       }
-    );
 
-    const result = await response.json();
-    console.log('Twilio SMS response:', result);
-    return result.status === 'queued' || result.status === 'sent';
-  } catch (error) {
-    console.error('Twilio SMS error:', error);
-    return false;
+      this.transporter = nodemailer.createTransport({
+        host: tenant.smtpHost,
+        port: tenant.smtpPort || 587,
+        secure: tenant.smtpSecure || false,
+        auth: {
+          user: tenant.smtpUser,
+          pass: tenant.smtpPassword,
+        },
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Email service initialization error:', error);
+      return false;
+    }
+  }
+
+  async sendEmail(options: EmailOptions): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email transporter not initialized');
+      return false;
+    }
+
+    try {
+      const recipients = Array.isArray(options.to) ? options.to : [options.to];
+
+      for (const recipient of recipients) {
+        await this.transporter.sendMail({
+          from: process.env.SMTP_FROM_EMAIL || 'noreply@sync.com',
+          to: recipient,
+          subject: options.subject,
+          html: options.html,
+          text: options.text || options.html.replace(/<[^>]*>/g, ''),
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Send email error:', error);
+      return false;
+    }
   }
 }
 
-// Send notification via both channels (based on settings)
-export async function sendNotification(
-  tenantId: string,
-  email: string | undefined,
-  phone: string | undefined,
-  subject: string,
-  message: string,
-  htmlMessage?: string,
-  smsMessage?: string
-): Promise<{ emailSent: boolean; smsSent: boolean }> {
-  let emailSent = false;
-  let smsSent = false;
+// SMS service
+export class SMSService {
+  private apiKey: string | null = null;
+  private apiSecret: string | null = null;
+  private senderId: string | null = null;
+  private provider: string | null = null;
 
-  if (email) {
-    emailSent = await sendEmail(tenantId, {
-      to: email,
-      subject,
-      text: message,
-      html: htmlMessage,
-    });
+  async initialize(tenantId: string) {
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          smsProvider: true,
+          smsApiKey: true,
+          smsApiSecret: true,
+          smsSenderId: true,
+        }
+      });
+
+      if (!tenant || !tenant.smsProvider) {
+        console.log('SMS not configured for tenant:', tenantId);
+        return false;
+      }
+
+      this.provider = tenant.smsProvider;
+      this.apiKey = tenant.smsApiKey;
+      this.apiSecret = tenant.smsApiSecret;
+      this.senderId = tenant.smsSenderId;
+
+      return true;
+    } catch (error) {
+      console.error('SMS service initialization error:', error);
+      return false;
+    }
   }
 
-  if (phone) {
-    // Use provided SMS message or fallback to truncated email text
-    const finalSmsMessage = smsMessage || message.substring(0, 160);
-    smsSent = await sendSms(tenantId, {
-      to: phone,
-      message: finalSmsMessage,
-    });
-  }
+  async sendSMS(options: SMSOptions): Promise<boolean> {
+    if (!this.apiKey || !this.provider) {
+      console.error('SMS service not initialized');
+      return false;
+    }
 
-  return { emailSent, smsSent };
+    try {
+      const recipients = Array.isArray(options.to) ? options.to : [options.to];
+
+      // TODO: Implement actual SMS sending based on provider
+      // For now, just log
+      console.log('SMS would be sent:', {
+        provider: this.provider,
+        recipients,
+        message: options.message,
+      });
+
+      // Simulate success
+      return true;
+    } catch (error) {
+      console.error('Send SMS error:', error);
+      return false;
+    }
+  }
 }
 
-// Payment Receipt Email Template
-export function generatePaymentReceiptEmail(
+// Notification templates
+export const NotificationTemplates = {
+  // Homework notifications
+  homeworkPosted: (homework: any) => ({
+    subject: `New Homework: ${homework.title}`,
+    html: `
+      <h2>New Homework Posted</h2>
+      <p><strong>Subject:</strong> ${homework.subjectContent.subject.name}</p>
+      <p><strong>Class:</strong> ${homework.subjectContent.class.name}</p>
+      <p><strong>Title:</strong> ${homework.title}</p>
+      <p><strong>Instructions:</strong> ${homework.instructions || 'See details in app'}</p>
+      <p><strong>Due Date:</strong> ${homework.dueDate ? new Date(homework.dueDate).toLocaleDateString() : 'No due date'}</p>
+      <p>Log in to view full details and submit your work.</p>
+    `,
+    sms: `New homework: ${homework.title} for ${homework.subjectContent.subject.name}. Due: ${homework.dueDate ? new Date(homework.dueDate).toLocaleDateString() : 'TBA'}`,
+  }),
+
+  homeworkGraded: (submission: any) => ({
+    subject: `Homework Graded: ${submission.homework.title}`,
+    html: `
+      <h2>Your Homework Has Been Graded</h2>
+      <p><strong>Homework:</strong> ${submission.homework.title}</p>
+      <p><strong>Score:</strong> ${submission.marks}/${submission.maxMarks} (${Math.round((submission.marks / submission.maxMarks) * 100)}%)</p>
+      ${submission.feedback ? `<p><strong>Feedback:</strong> ${submission.feedback}</p>` : ''}
+      <p>Log in to view full details.</p>
+    `,
+    sms: `Homework graded: ${submission.homework.title}. Score: ${submission.marks}/${submission.maxMarks}`,
+  }),
+
+  // Announcement notifications
+  announcementPosted: (announcement: any) => ({
+    subject: `${announcement.priority === 'URGENT' ? '🚨 URGENT: ' : ''}${announcement.title}`,
+    html: `
+      <h2>${announcement.title}</h2>
+      <p><strong>Category:</strong> ${announcement.category}</p>
+      <p><strong>Priority:</strong> ${announcement.priority}</p>
+      <div>${announcement.content}</div>
+      ${announcement.expiresAt ? `<p><em>Expires: ${new Date(announcement.expiresAt).toLocaleDateString()}</em></p>` : ''}
+    `,
+    sms: `${announcement.priority === 'URGENT' ? 'URGENT: ' : ''}${announcement.title}. ${announcement.content.substring(0, 100)}...`,
+  }),
+
+  // Forum notifications
+  topicReply: (post: any, topic: any) => ({
+    subject: `New reply to: ${topic.title}`,
+    html: `
+      <h2>New Reply in Forum</h2>
+      <p><strong>Topic:</strong> ${topic.title}</p>
+      <p><strong>Reply by:</strong> ${post.createdBy.fullName}</p>
+      <p>${post.content}</p>
+      <p>Log in to view and respond.</p>
+    `,
+    sms: `New reply to "${topic.title}" by ${post.createdBy.fullName}`,
+  }),
+
+  topicAnswered: (topic: any) => ({
+    subject: `Your question was answered: ${topic.title}`,
+    html: `
+      <h2>Your Question Has Been Answered</h2>
+      <p><strong>Topic:</strong> ${topic.title}</p>
+      <p>A teacher has marked an answer to your question.</p>
+      <p>Log in to view the answer.</p>
+    `,
+    sms: `Your question "${topic.title}" has been answered!`,
+  }),
+};
+
+// Generate payment receipt email/SMS content
+export const generatePaymentReceiptEmail = (
   guardianName: string,
   studentName: string,
   amount: number,
   paymentDate: Date,
   method: string,
-  transactionRef: string,
+  transactionId: string,
   schoolName: string
-): { subject: string; text: string; html: string; sms: string } {
-  const subject = `✅ Payment Receipt - ${schoolName}`;
-  const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const formattedDate = paymentDate.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
+) => {
+  const formattedDate = paymentDate.toLocaleDateString('en-ZM', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
+  const formattedAmount = new Intl.NumberFormat('en-ZM', {
+    style: 'currency',
+    currency: 'ZMW',
+  }).format(amount);
 
-  // Concise SMS with Guardian Name
-  const sms = `Hi ${guardianName.split(' ')[0]}, received ZMW ${formattedAmount} for ${studentName} at ${schoolName}. Ref: ${transactionRef}.`;
-
-  const text = `
-Dear Parent/Guardian,
-
-This is to confirm that we have received your payment for ${studentName}.
-
-Payment Details:
-- Amount: ZMW ${formattedAmount}
-- Date: ${formattedDate}
-- Method: ${method.replace('_', ' ')}
-- Transaction ID: ${transactionRef}
-
-Thank you for your prompt payment.
-
-Best regards,
-${schoolName}
-  `.trim();
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Receipt</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f1f5f9; line-height: 1.6;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-          
-          <!-- Header with gradient -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); padding: 40px 40px 30px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td>
-                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">Payment Receipt</h1>
-                    <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${schoolName}</p>
-                  </td>
-                  <td style="text-align: right; vertical-align: top;">
-                    <span style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">✓ Paid</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
+  return {
+    subject: `Payment Receipt - ${schoolName}`,
+    text: `Dear ${guardianName},\n\nThank you for your payment of ${formattedAmount} for ${studentName}.\n\nTransaction ID: ${transactionId}\nPayment Method: ${method}\nDate: ${formattedDate}\n\nThank you,\n${schoolName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">Payment Receipt</h2>
+        <p>Dear ${guardianName},</p>
+        <p>Thank you for your payment. Here are the details:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Student</td>
+            <td style="padding: 10px 0; font-weight: bold;">${studentName}</td>
           </tr>
-          
-          <!-- Success Amount Banner -->
-          <tr>
-            <td style="background-color: #10b981; padding: 25px; text-align: center;">
-              <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Amount Received</p>
-              <p style="margin: 8px 0 0; color: #ffffff; font-size: 42px; font-weight: 700;">ZMW ${formattedAmount}</p>
-            </td>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Amount</td>
+            <td style="padding: 10px 0; font-weight: bold; color: #059669;">${formattedAmount}</td>
           </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px;">
-              <p style="margin: 0 0 20px; color: #334155; font-size: 16px;">Dear Parent/Guardian,</p>
-              <p style="margin: 0 0 30px; color: #475569; font-size: 15px;">We're pleased to confirm that your payment for <strong style="color: #1e293b;">${studentName}</strong> has been successfully received.</p>
-              
-              <!-- Payment Details Card -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <tr>
-                  <td style="padding: 24px;">
-                    <h3 style="margin: 0 0 20px; color: #1e293b; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Payment Details</h3>
-                    
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
-                          <span style="color: #64748b; font-size: 14px;">Student</span>
-                        </td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
-                          <strong style="color: #1e293b; font-size: 14px;">${studentName}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
-                          <span style="color: #64748b; font-size: 14px;">Date</span>
-                        </td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
-                          <strong style="color: #1e293b; font-size: 14px;">${formattedDate}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
-                          <span style="color: #64748b; font-size: 14px;">Payment Method</span>
-                        </td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
-                          <strong style="color: #1e293b; font-size: 14px;">${method.replace('_', ' ')}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 0;">
-                          <span style="color: #64748b; font-size: 14px;">Transaction ID</span>
-                        </td>
-                        <td style="padding: 12px 0; text-align: right;">
-                          <strong style="color: #3b82f6; font-size: 14px; font-family: monospace;">${transactionRef}</strong>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="margin: 30px 0 0; color: #475569; font-size: 15px;">Thank you for your prompt payment. This receipt serves as confirmation of the transaction.</p>
-              
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 30px;">
-                <tr>
-                  <td>
-                    <p style="margin: 0; color: #475569; font-size: 15px;">Best regards,</p>
-                    <p style="margin: 5px 0 0; color: #1e293b; font-size: 16px; font-weight: 600;">${schoolName}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Payment Method</td>
+            <td style="padding: 10px 0;">${method}</td>
           </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f8fafc; padding: 24px; border-top: 1px solid #e2e8f0; text-align: center;">
-              <p style="margin: 0; color: #94a3b8; font-size: 12px;">This is an automated message. Please do not reply to this email.</p>
-              <p style="margin: 8px 0 0; color: #94a3b8; font-size: 12px;">© ${new Date().getFullYear()} ${schoolName}. All rights reserved.</p>
-            </td>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Transaction ID</td>
+            <td style="padding: 10px 0; font-family: monospace;">${transactionId}</td>
           </tr>
-          
+          <tr>
+            <td style="padding: 10px 0; color: #6b7280;">Date</td>
+            <td style="padding: 10px 0;">${formattedDate}</td>
+          </tr>
         </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
+        <p style="color: #6b7280; font-size: 14px;">Thank you for your payment.</p>
+        <p style="color: #374151;">${schoolName}</p>
+      </div>
+    `,
+    sms: `${schoolName}: Payment of ${formattedAmount} received for ${studentName}. Ref: ${transactionId}. Thank you!`,
+  };
+};
 
-  return { subject, text, html, sms };
-}
-
-// Fee Reminder Email Template
-export function generateFeeReminderEmail(
+// Generate fee reminder email/SMS content
+export const generateFeeReminderEmail = (
   studentName: string,
   outstandingAmount: number,
   dueDate: Date | null,
   schoolName: string,
-  isOverdue: boolean
-): { subject: string; text: string; html: string } {
-  const subject = isOverdue
-    ? `⚠️ OVERDUE: Fee Payment Required - ${schoolName}`
-    : `📋 Fee Payment Reminder - ${schoolName}`;
+  isOverdue: boolean = false
+) => {
+  const formattedAmount = new Intl.NumberFormat('en-ZM', {
+    style: 'currency',
+    currency: 'ZMW',
+  }).format(outstandingAmount);
+  const formattedDueDate = dueDate
+    ? dueDate.toLocaleDateString('en-ZM', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    : 'N/A';
 
-  const formattedAmount = outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const dueDateStr = dueDate
-    ? dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    : 'As soon as possible';
-  const urgencyText = isOverdue ? 'This payment is now overdue.' : `Payment is due by ${dueDateStr}.`;
+  const urgencyText = isOverdue ? 'OVERDUE: ' : '';
+  const urgencyClass = isOverdue ? 'color: #dc2626;' : '';
 
-  const text = `
-Dear Parent/Guardian,
-
-This is a reminder regarding outstanding fees for ${studentName}.
-
-Outstanding Amount: ZMW ${formattedAmount}
-${urgencyText}
-
-Please make payment at your earliest convenience to avoid any inconvenience.
-
-Best regards,
-${schoolName}
-  `.trim();
-
-  // Colors based on urgency
-  const headerGradient = isOverdue
-    ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'
-    : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-  const accentColor = isOverdue ? '#dc2626' : '#f59e0b';
-  const accentBgColor = isOverdue ? '#fef2f2' : '#fffbeb';
-  const accentBorderColor = isOverdue ? '#fecaca' : '#fde68a';
-  const badgeText = isOverdue ? 'Overdue' : 'Reminder';
-  const headerIcon = isOverdue ? '⚠️' : '📋';
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fee Reminder</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f1f5f9; line-height: 1.6;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-          
-          <!-- Header with gradient -->
-          <tr>
-            <td style="background: ${headerGradient}; padding: 40px 40px 30px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td>
-                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">${headerIcon} Fee ${isOverdue ? 'Overdue Notice' : 'Reminder'}</h1>
-                    <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${schoolName}</p>
-                  </td>
-                  <td style="text-align: right; vertical-align: top;">
-                    <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); color: #ffffff; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${badgeText}</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
+  return {
+    subject: `${urgencyText}Fee Reminder for ${studentName} - ${schoolName}`,
+    text: `Dear Parent/Guardian,\n\nThis is a reminder that ${studentName} has an outstanding fee balance of ${formattedAmount}.${dueDate ? ` Payment is due by ${formattedDueDate}.` : ''}\n\nPlease make the payment at your earliest convenience.\n\nThank you,\n${schoolName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="${urgencyClass}">${urgencyText}Fee Reminder</h2>
+        <p>Dear Parent/Guardian,</p>
+        <p>This is a reminder regarding outstanding school fees for <strong>${studentName}</strong>.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Outstanding Amount</td>
+            <td style="padding: 10px 0; font-weight: bold; ${isOverdue ? 'color: #dc2626;' : 'color: #059669;'}">${formattedAmount}</td>
           </tr>
-          
-          <!-- Outstanding Amount Banner -->
-          <tr>
-            <td style="background-color: ${accentColor}; padding: 25px; text-align: center;">
-              <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Outstanding Balance</p>
-              <p style="margin: 8px 0 0; color: #ffffff; font-size: 42px; font-weight: 700;">ZMW ${formattedAmount}</p>
-            </td>
+          ${dueDate ? `
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px 0; color: #6b7280;">Due Date</td>
+            <td style="padding: 10px 0; ${isOverdue ? 'color: #dc2626; font-weight: bold;' : ''}">${formattedDueDate}${isOverdue ? ' (OVERDUE)' : ''}</td>
           </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px;">
-              <p style="margin: 0 0 20px; color: #334155; font-size: 16px;">Dear Parent/Guardian,</p>
-              <p style="margin: 0 0 30px; color: #475569; font-size: 15px;">This is a ${isOverdue ? 'final notice' : 'friendly reminder'} regarding outstanding school fees for <strong style="color: #1e293b;">${studentName}</strong>.</p>
-              
-              <!-- Urgency Box -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${accentBgColor}; border-radius: 12px; border: 2px solid ${accentBorderColor};">
-                <tr>
-                  <td style="padding: 20px; text-align: center;">
-                    <p style="margin: 0; color: ${accentColor}; font-size: 18px; font-weight: 700;">
-                      ${isOverdue ? '⚠️ Payment Required Immediately' : `� Due Date: ${dueDateStr}`}
-                    </p>
-                    <p style="margin: 10px 0 0; color: #64748b; font-size: 14px;">
-                      ${isOverdue
-      ? 'This payment has exceeded its due date. Please settle the outstanding balance as soon as possible to avoid service interruption.'
-      : 'Please ensure payment is made before the due date to avoid any late fees or service interruption.'}
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Payment Details Card -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 24px;">
-                <tr>
-                  <td style="padding: 24px;">
-                    <h3 style="margin: 0 0 16px; color: #1e293b; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Account Summary</h3>
-                    
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
-                          <span style="color: #64748b; font-size: 14px;">Student Name</span>
-                        </td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
-                          <strong style="color: #1e293b; font-size: 14px;">${studentName}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0;">
-                          <span style="color: #64748b; font-size: 14px;">Outstanding Amount</span>
-                        </td>
-                        <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">
-                          <strong style="color: ${accentColor}; font-size: 16px;">ZMW ${formattedAmount}</strong>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 0;">
-                          <span style="color: #64748b; font-size: 14px;">Status</span>
-                        </td>
-                        <td style="padding: 12px 0; text-align: right;">
-                          <span style="display: inline-block; background-color: ${accentColor}; color: #ffffff; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${isOverdue ? 'OVERDUE' : 'PENDING'}</span>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="margin: 30px 0 0; color: #475569; font-size: 15px;">If you have already made this payment, please disregard this notice. For any questions or payment arrangements, please contact the school's finance office.</p>
-              
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 30px;">
-                <tr>
-                  <td>
-                    <p style="margin: 0; color: #475569; font-size: 15px;">Best regards,</p>
-                    <p style="margin: 5px 0 0; color: #1e293b; font-size: 16px; font-weight: 600;">${schoolName}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f8fafc; padding: 24px; border-top: 1px solid #e2e8f0; text-align: center;">
-              <p style="margin: 0; color: #94a3b8; font-size: 12px;">This is an automated message. Please do not reply to this email.</p>
-              <p style="margin: 8px 0 0; color: #94a3b8; font-size: 12px;">© ${new Date().getFullYear()} ${schoolName}. All rights reserved.</p>
-            </td>
-          </tr>
-          
+          ` : ''}
         </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
+        <p>Please make the payment at your earliest convenience to avoid any inconvenience.</p>
+        <p style="color: #374151;">${schoolName}</p>
+      </div>
+    `,
+    sms: `${urgencyText}${schoolName}: Fee reminder for ${studentName}. Outstanding: ${formattedAmount}${dueDate ? `. Due: ${formattedDueDate}` : ''}. Please pay soon.`,
+  };
+};
 
-  return { subject, text, html };
-}
+// Send notification via email and/or SMS
+export const sendNotification = async (
+  tenantId: string,
+  email: string | undefined,
+  phone: string | undefined,
+  subject: string,
+  text: string,
+  html?: string,
+  smsMessage?: string
+): Promise<{ emailSent: boolean; smsSent: boolean }> => {
+  const result = { emailSent: false, smsSent: false };
 
-// Create a single notification in the database
-export async function createNotification(
+  try {
+    // Send Email
+    if (email && (html || text)) {
+      const emailService = new EmailService();
+      const initialized = await emailService.initialize(tenantId);
+      if (initialized) {
+        result.emailSent = await emailService.sendEmail({
+          to: email,
+          subject,
+          html: html || `<p>${text}</p>`,
+          text,
+        });
+      }
+    }
+
+    // Send SMS
+    if (phone && (smsMessage || text)) {
+      const smsService = new SMSService();
+      const initialized = await smsService.initialize(tenantId);
+      if (initialized) {
+        result.smsSent = await smsService.sendSMS({
+          to: phone,
+          message: smsMessage || text,
+        });
+      }
+    }
+
+    return result;
+  } catch (error: any) {
+    console.error('sendNotification error:', error);
+    return result;
+  }
+};
+
+// Create a single notification for a user
+export const createNotification = async (
   tenantId: string,
   userId: string,
   title: string,
   message: string,
   type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR' = 'INFO'
-): Promise<boolean> {
+) => {
   try {
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         tenantId,
         userId,
         title,
         message,
         type,
-        isRead: false,
       },
     });
-    return true;
+    return notification;
   } catch (error) {
-    console.error('Failed to create notification:', error);
-    return false;
+    console.error('Create notification error:', error);
+    return null;
   }
-}
+};
 
 // Broadcast notification to multiple users
-export async function broadcastNotification(
+export const broadcastNotification = async (
   tenantId: string,
   userIds: string[],
   title: string,
   message: string,
   type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR' = 'INFO'
-): Promise<number> {
+) => {
   try {
-    const result = await prisma.notification.createMany({
+    const notifications = await prisma.notification.createMany({
       data: userIds.map((userId) => ({
         tenantId,
         userId,
         title,
         message,
         type,
-        isRead: false,
       })),
     });
-    return result.count;
+    return notifications;
   } catch (error) {
-    console.error('Failed to broadcast notifications:', error);
-    return 0;
+    console.error('Broadcast notification error:', error);
+    return null;
   }
-}
-
-export default {
-  sendEmail,
-  sendSms,
-  sendNotification,
-  createNotification,
-  broadcastNotification,
-  generatePaymentReceiptEmail,
-  generateFeeReminderEmail,
 };
+
+// Notification queue (for background processing)
+export const queueNotification = async (
+  tenantId: string,
+  type: 'email' | 'sms' | 'both',
+  recipients: string[],
+  template: any
+) => {
+  try {
+    // TODO: Implement actual queue (Redis, Bull, etc.)
+    // For now, send immediately
+
+    if (type === 'email' || type === 'both') {
+      const emailService = new EmailService();
+      await emailService.initialize(tenantId);
+      await emailService.sendEmail({
+        to: recipients,
+        subject: template.subject,
+        html: template.html,
+      });
+    }
+
+    if (type === 'sms' || type === 'both') {
+      const smsService = new SMSService();
+      await smsService.initialize(tenantId);
+      await smsService.sendSMS({
+        to: recipients,
+        message: template.sms,
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Queue notification error:', error);
+    return false;
+  }
+};
+

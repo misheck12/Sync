@@ -8,7 +8,7 @@ CREATE TYPE "HomeworkType" AS ENUM ('CLASSWORK', 'HOMEWORK', 'PROJECT', 'RESEARC
 CREATE TYPE "ResourceType" AS ENUM ('PDF', 'VIDEO', 'DOCUMENT', 'LINK', 'IMAGE', 'PAST_PAPER', 'NOTES');
 
 -- Create enum for submission status
-CREATE TYPE "SubmissionStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'GRADED', 'RETURNED');
+CREATE TYPE "HomeworkSubmissionStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'GRADED', 'RETURNED');
 
 -- Subject Content (Links class to subject with teacher)
 CREATE TABLE "subject_content" (
@@ -60,7 +60,7 @@ CREATE TABLE "homework_submission" (
     "feedback" TEXT,
     "gradedAt" TIMESTAMP(3),
     "gradedByUserId" TEXT,
-    "status" "SubmissionStatus" NOT NULL DEFAULT 'DRAFT',
+    "status" "HomeworkSubmissionStatus" NOT NULL DEFAULT 'DRAFT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
