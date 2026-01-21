@@ -342,6 +342,30 @@ async function main() {
     } else {
       console.log(`✅ Student already exists: ${studentData.firstName} ${studentData.lastName}`);
     }
+
+    // Create Parent User Account and Link
+    if (studentData.guardianEmail) {
+      const parentPassword = await bcrypt.hash('parent123', 10);
+      const parentUser = await prisma.user.upsert({
+        where: { email: studentData.guardianEmail },
+        update: {},
+        create: {
+          email: studentData.guardianEmail,
+          passwordHash: parentPassword,
+          fullName: studentData.guardianName || 'Parent',
+          role: 'PARENT',
+        }
+      });
+
+      // Link student to parent if not already linked
+      if (student.parentId !== parentUser.id) {
+        await prisma.student.update({
+          where: { id: student.id },
+          data: { parentId: parentUser.id }
+        });
+        console.log(`  👨‍👩‍👧 Linked ${student.firstName} to parent ${parentUser.fullName}`);
+      }
+    }
   }
 
   // Create some additional payment history
@@ -383,6 +407,7 @@ async function main() {
   console.log('  - Admin: admin@sync.com / admin123');
   console.log('  - Bursar: bursar@sync.com / bursar123');
   console.log('  - Teacher: robbie.tembo@sync.com / teacher123');
+  console.log('  - Parent: (Use any guardian email from above) e.g., peter.mwamba@email.com / parent123');
 }
 
 main()

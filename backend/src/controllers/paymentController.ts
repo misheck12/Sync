@@ -3,6 +3,12 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { sendNotification, generatePaymentReceiptEmail } from '../services/notificationService';
+import {
+  initiateMobileMoneyCollection,
+  getCollectionStatus,
+  getCollectionById,
+  MobileMoneyCollectionRequest
+} from '../services/lencoService';
 
 const prisma = new PrismaClient();
 
@@ -244,6 +250,20 @@ export const getPayments = async (req: Request, res: Response) => {
 export const getStudentPayments = async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;
+    const userRole = (req as any).user?.role;
+    const userId = (req as any).user?.userId;
+
+    // Security check for PARENT
+    if (userRole === 'PARENT') {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { parentId: true }
+      });
+
+      if (!student || student.parentId !== userId) {
+        return res.status(403).json({ message: 'Unauthorized access to student payments' });
+      }
+    }
 
     const payments = await prisma.payment.findMany({
       where: { studentId },
@@ -609,6 +629,687 @@ export const checkDuplicatePayment = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Check duplicate error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ============================================
+// MOBILE MONEY PAYMENT FUNCTIONS (Lenco API)
+// ============================================
+
+// Validation schema for mobile money collection
+const mobileMoneyPaymentSchema = z.object({
+  studentId: z.string().uuid(),
+  amount: z.number().positive(),
+  phone: z.string().min(10).max(15),
+  country: z.enum(['zm', 'mw']).default('zm'),
+  operator: z.enum(['airtel', 'mtn', 'tnm']),
+  notes: z.string().optional(),
+});
+
+// Generate unique reference for mobile money collection
+const generateMobileMoneyReference = (): string => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `MM-${timestamp}-${random}`;
+};
+
+/**
+ * Initiate a mobile money payment collection
+ * This sends a payment prompt to the customer's phone
+ */
+export const initiateMobileMoneyPayment = async (req: Request, res: Response) => {
+  try {
+    const parseResult = mobileMoneyPaymentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors });
+    }
+
+    const { studentId, amount, phone, country, operator, notes } = parseResult.data;
+
+    // Calculate 2.5% processing fee
+    const processingFee = amount * 0.025;
+    const totalCharge = amount + processingFee;
+
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Validate operator for country
+    if (country === 'zm' && !['airtel', 'mtn'].includes(operator)) {
+      return res.status(400).json({ message: 'For Zambia, only airtel or mtn operators are supported' });
+    }
+    if (country === 'mw' && !['airtel', 'tnm'].includes(operator)) {
+      return res.status(400).json({ message: 'For Malawi, only airtel or tnm operators are supported' });
+    }
+
+    // Check if student exists
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        admissionNumber: true,
+        guardianPhone: true,
+        parentId: true,
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Security Check: If user is PARENT, ensure they are the parent of this student
+    if ((req as any).user.role === 'PARENT') {
+      if (student.parentId !== userId) {
+        return res.status(403).json({ message: 'Unauthorized: You can only make payments for your own children' });
+      }
+    }
+
+    // Generate unique reference
+    const reference = generateMobileMoneyReference();
+
+    // Create the collection record in our database first
+    const collection = await prisma.mobileMoneyCollection.create({
+      data: {
+        reference,
+        studentId,
+        amount: totalCharge,
+        phone,
+        country,
+        operator,
+        initiatedByUserId: userId,
+        status: 'PENDING',
+      },
+    });
+
+    // Call Lenco API to initiate the collection
+    const lencoResult = await initiateMobileMoneyCollection({
+      amount: totalCharge,
+      phone,
+      country: country as 'zm' | 'mw',
+      operator: operator as 'airtel' | 'mtn' | 'tnm',
+      reference,
+    });
+
+    if (!lencoResult.success) {
+      // Update collection status to FAILED
+      await prisma.mobileMoneyCollection.update({
+        where: { id: collection.id },
+        data: {
+          status: 'FAILED',
+          reasonForFailure: lencoResult.error,
+        },
+      });
+
+      return res.status(400).json({
+        message: 'Failed to initiate mobile money collection',
+        error: lencoResult.error,
+      });
+    }
+
+    // Update collection with Lenco response
+    const updatedCollection = await prisma.mobileMoneyCollection.update({
+      where: { id: collection.id },
+      data: {
+        lencoReference: lencoResult.data?.lencoReference,
+        lencoCollectionId: lencoResult.data?.id,
+        status: lencoResult.data?.status === 'pay-offline' ? 'PAY_OFFLINE' : 'PENDING',
+        fee: lencoResult.data?.fee ? parseFloat(lencoResult.data.fee) : null,
+        accountName: lencoResult.data?.mobileMoneyDetails?.accountName,
+      },
+      include: {
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+            admissionNumber: true,
+          }
+        }
+      }
+    });
+
+    console.log(`Mobile money collection initiated: ${reference} for student ${studentId}`);
+
+    res.status(201).json({
+      message: 'Mobile money payment request initiated. Customer will receive a prompt to authorize payment.',
+      collection: {
+        id: updatedCollection.id,
+        reference: updatedCollection.reference,
+        lencoReference: updatedCollection.lencoReference,
+        amount: Number(updatedCollection.amount),
+        phone: updatedCollection.phone,
+        operator: updatedCollection.operator,
+        status: updatedCollection.status,
+        student: updatedCollection.student,
+        initiatedAt: updatedCollection.initiatedAt,
+      },
+      nextSteps: [
+        'Customer should authorize payment on their phone',
+        'Use the /check-status endpoint to poll for payment completion',
+        'Or wait for webhook notification at /webhook/lenco',
+      ]
+    });
+  } catch (error) {
+    console.error('Initiate mobile money payment error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * Check the status of a mobile money collection
+ */
+export const checkMobileMoneyStatus = async (req: Request, res: Response) => {
+  try {
+    const { reference } = req.params;
+
+    if (!reference) {
+      return res.status(400).json({ message: 'Reference is required' });
+    }
+
+    // Find the collection in our database
+    const collection = await prisma.mobileMoneyCollection.findUnique({
+      where: { reference },
+      include: {
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+            admissionNumber: true,
+          }
+        },
+        payment: true,
+      }
+    });
+
+    if (!collection) {
+      return res.status(404).json({ message: 'Collection not found' });
+    }
+
+    // If already successful or failed, return cached status
+    if (collection.status === 'SUCCESSFUL' || collection.status === 'FAILED') {
+      return res.json({
+        collection: {
+          id: collection.id,
+          reference: collection.reference,
+          amount: Number(collection.amount),
+          status: collection.status,
+          student: collection.student,
+          payment: collection.payment ? {
+            id: collection.payment.id,
+            transactionId: collection.payment.transactionId,
+          } : null,
+          completedAt: collection.completedAt,
+          reasonForFailure: collection.reasonForFailure,
+        }
+      });
+    }
+
+    // Query Lenco API for latest status
+    const lencoResult = await getCollectionStatus(reference);
+
+    if (!lencoResult.success) {
+      return res.json({
+        collection: {
+          id: collection.id,
+          reference: collection.reference,
+          amount: Number(collection.amount),
+          status: collection.status,
+          student: collection.student,
+          error: 'Could not fetch latest status from payment provider',
+        }
+      });
+    }
+
+    // Map Lenco status to our status
+    let newStatus: 'PENDING' | 'PAY_OFFLINE' | 'SUCCESSFUL' | 'FAILED' = collection.status;
+    if (lencoResult.data?.status === 'successful') {
+      newStatus = 'SUCCESSFUL';
+    } else if (lencoResult.data?.status === 'failed') {
+      newStatus = 'FAILED';
+    } else if (lencoResult.data?.status === 'pay-offline') {
+      newStatus = 'PAY_OFFLINE';
+    }
+
+    // If status changed, update the collection
+    if (newStatus !== collection.status) {
+      const updatedCollection = await prisma.mobileMoneyCollection.update({
+        where: { id: collection.id },
+        data: {
+          status: newStatus,
+          completedAt: newStatus === 'SUCCESSFUL' ? new Date() : null,
+          reasonForFailure: lencoResult.data?.reasonForFailure,
+          operatorTransactionId: lencoResult.data?.mobileMoneyDetails?.operatorTransactionId,
+          accountName: lencoResult.data?.mobileMoneyDetails?.accountName,
+        },
+      });
+
+      // If successful, create the actual payment record
+      if (newStatus === 'SUCCESSFUL') {
+        const payment = await createPaymentFromCollection(collection);
+
+        return res.json({
+          collection: {
+            id: updatedCollection.id,
+            reference: updatedCollection.reference,
+            amount: Number(updatedCollection.amount),
+            status: updatedCollection.status,
+            student: collection.student,
+            payment: payment ? {
+              id: payment.id,
+              transactionId: payment.transactionId,
+            } : null,
+            completedAt: updatedCollection.completedAt,
+          },
+          message: 'Payment completed successfully',
+        });
+      }
+    }
+
+    res.json({
+      collection: {
+        id: collection.id,
+        reference: collection.reference,
+        amount: Number(collection.amount),
+        status: newStatus,
+        student: collection.student,
+        reasonForFailure: lencoResult.data?.reasonForFailure,
+      }
+    });
+  } catch (error) {
+    console.error('Check mobile money status error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * Helper function to create a payment record from a successful mobile money collection
+ */
+async function createPaymentFromCollection(collection: any) {
+  try {
+    const transactionId = generateTransactionId();
+
+    const payment = await prisma.payment.create({
+      data: {
+        transactionId,
+        studentId: collection.studentId,
+        // Dismount the 2.5% fee to record only the tuition amount
+        amount: Number(collection.amount) / 1.025,
+        method: 'MOBILE_MONEY',
+        notes: `Mobile Money payment via ${collection.operator.toUpperCase()}. Ref: ${collection.reference}`,
+        status: 'COMPLETED',
+        recordedByUserId: collection.initiatedByUserId,
+      },
+    });
+
+    // Link the payment to the collection
+    await prisma.mobileMoneyCollection.update({
+      where: { id: collection.id },
+      data: { paymentId: payment.id },
+    });
+
+    console.log(`Payment created from mobile money collection: ${payment.transactionId}`);
+
+    // TODO: Send notification to parent about successful payment
+    // This would use the existing sendNotification service
+
+    return payment;
+  } catch (error) {
+    console.error('Error creating payment from collection:', error);
+    return null;
+  }
+}
+
+/**
+ * Webhook endpoint for Lenco to notify us of payment status changes
+ */
+export const handleLencoWebhook = async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+
+    console.log('Lenco webhook received:', JSON.stringify(payload, null, 2));
+
+    // Extract relevant data from webhook
+    const { reference, status, reasonForFailure, mobileMoneyDetails } = payload.data || {};
+
+    if (!reference) {
+      console.log('Webhook missing reference');
+      return res.status(400).json({ message: 'Missing reference' });
+    }
+
+    // Find the collection
+    const collection = await prisma.mobileMoneyCollection.findUnique({
+      where: { reference },
+    });
+
+    if (!collection) {
+      console.log(`Collection not found for reference: ${reference}`);
+      return res.status(404).json({ message: 'Collection not found' });
+    }
+
+    // Map Lenco status to our status
+    let newStatus: 'PENDING' | 'PAY_OFFLINE' | 'SUCCESSFUL' | 'FAILED' = collection.status;
+    if (status === 'successful') {
+      newStatus = 'SUCCESSFUL';
+    } else if (status === 'failed') {
+      newStatus = 'FAILED';
+    } else if (status === 'pay-offline') {
+      newStatus = 'PAY_OFFLINE';
+    }
+
+    // Update collection status
+    await prisma.mobileMoneyCollection.update({
+      where: { id: collection.id },
+      data: {
+        status: newStatus,
+        completedAt: newStatus === 'SUCCESSFUL' ? new Date() : null,
+        reasonForFailure: reasonForFailure || null,
+        operatorTransactionId: mobileMoneyDetails?.operatorTransactionId,
+        accountName: mobileMoneyDetails?.accountName,
+      },
+    });
+
+    // If successful, create the payment record
+    if (newStatus === 'SUCCESSFUL' && !collection.paymentId) {
+      await createPaymentFromCollection(collection);
+    }
+
+    console.log(`Webhook processed for collection ${reference}: ${newStatus}`);
+
+    // Respond to webhook
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Lenco webhook error:', error);
+    res.status(500).json({ message: 'Webhook processing failed' });
+  }
+};
+
+/**
+ * Get all mobile money collections (with pagination)
+ */
+export const getMobileMoneyCollections = async (req: Request, res: Response) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const status = req.query.status as string;
+    const studentId = req.query.studentId as string;
+
+    const skip = (page - 1) * limit;
+    const where: any = {};
+
+    if (status) {
+      where.status = status.toUpperCase();
+    }
+
+    if (studentId) {
+      where.studentId = studentId;
+    }
+
+    // Security Check: If user is PARENT, only show collections for their children
+    if ((req as any).user.role === 'PARENT') {
+      const parentId = (req as any).user.userId;
+      where.student = { parentId };
+    }
+
+    const [collections, total] = await Promise.all([
+      prisma.mobileMoneyCollection.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              admissionNumber: true,
+            }
+          },
+          payment: {
+            select: {
+              id: true,
+              transactionId: true,
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.mobileMoneyCollection.count({ where }),
+    ]);
+
+    res.json({
+      data: collections.map(c => ({
+        ...c,
+        amount: Number(c.amount),
+        fee: c.fee ? Number(c.fee) : null,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
+    });
+  } catch (error) {
+    console.error('Get mobile money collections error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * Get a single mobile money collection by ID
+ */
+export const getMobileMoneyCollectionById = async (req: Request, res: Response) => {
+  try {
+    const { collectionId } = req.params;
+
+    const collection = await prisma.mobileMoneyCollection.findUnique({
+      where: { id: collectionId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            admissionNumber: true,
+            guardianPhone: true,
+            guardianEmail: true,
+            class: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        },
+        payment: {
+          select: {
+            id: true,
+            transactionId: true,
+            paymentDate: true,
+            status: true,
+          }
+        }
+      }
+    });
+
+    if (!collection) {
+      return res.status(404).json({ message: 'Collection not found' });
+    }
+
+    // Security Check: If user is PARENT, ensure they own this collection
+    if ((req as any).user.role === 'PARENT') {
+      const parentId = (req as any).user.userId;
+      // We need to check if the student belongs to this parent
+      // The collection includes student, but let's check the student.parentId
+      // We didn't include parentId in the query above, let's fix that or rely on initiatedByUserId if that's trustworthy, 
+      // but parent might not have initiated it (maybe initiated by admin?).
+      // Better to check Student link.
+
+      const student = await prisma.student.findUnique({
+        where: { id: collection.studentId },
+        select: { parentId: true }
+      });
+
+      if (student?.parentId !== parentId) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+    }
+
+    res.json({
+      ...collection,
+      amount: Number(collection.amount),
+      fee: collection.fee ? Number(collection.fee) : null,
+    });
+  } catch (error) {
+    console.error('Get mobile money collection error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ============================================
+// PUBLIC PAYMENT FUNCTIONS
+// ============================================
+
+export const getStudentForPublicPayment = async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.params;
+
+    if (!identifier) {
+      return res.status(400).json({ message: 'Student Identifier is required' });
+    }
+
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { id: identifier },
+          { admissionNumber: identifier }
+        ]
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        admissionNumber: true,
+        class: { select: { name: true } }
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found.' });
+    }
+
+    // Calculate Balance
+    const totalFees = await prisma.studentFeeStructure.aggregate({
+      where: { studentId: student.id },
+      _sum: { amountDue: true }
+    });
+
+    const totalPayments = await prisma.payment.aggregate({
+      where: {
+        studentId: student.id,
+        status: 'COMPLETED'
+      },
+      _sum: { amount: true }
+    });
+
+    const due = Number(totalFees._sum.amountDue || 0);
+    const paid = Number(totalPayments._sum.amount || 0);
+    const balance = due - paid;
+
+    res.json({ ...student, balance });
+  } catch (error) {
+    console.error('Public Get Student Error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const initiatePublicMobileMoneyPayment = async (req: Request, res: Response) => {
+  try {
+    const parseResult = mobileMoneyPaymentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: parseResult.error.errors });
+    }
+
+    const { studentId, amount, phone, country, operator, notes } = parseResult.data;
+
+    // Calculate 2.5% processing fee
+    const processingFee = amount * 0.025;
+    const totalCharge = amount + processingFee;
+
+    if (country === 'zm' && !['airtel', 'mtn'].includes(operator)) {
+      return res.status(400).json({ message: 'For Zambia, only airtel or mtn operators are supported' });
+    }
+
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    const reference = generateMobileMoneyReference();
+
+    const collection = await prisma.mobileMoneyCollection.create({
+      data: {
+        reference,
+        studentId,
+        amount: totalCharge,
+        phone,
+        country,
+        operator,
+        status: 'PENDING',
+      },
+    });
+
+    const lencoResult = await initiateMobileMoneyCollection({
+      amount: totalCharge,
+      phone,
+      country: country as 'zm' | 'mw',
+      operator: operator as 'airtel' | 'mtn' | 'tnm',
+      reference,
+    });
+
+    if (!lencoResult.success) {
+      await prisma.mobileMoneyCollection.update({
+        where: { id: collection.id },
+        data: {
+          status: 'FAILED',
+          reasonForFailure: lencoResult.error,
+        },
+      });
+
+      return res.status(400).json({
+        message: 'Failed to initiate mobile money collection',
+        error: lencoResult.error,
+      });
+    }
+
+    const updatedCollection = await prisma.mobileMoneyCollection.update({
+      where: { id: collection.id },
+      data: {
+        lencoReference: lencoResult.data?.lencoReference,
+        lencoCollectionId: lencoResult.data?.id,
+        status: lencoResult.data?.status === 'pay-offline' ? 'PAY_OFFLINE' : 'PENDING',
+        fee: lencoResult.data?.fee ? parseFloat(lencoResult.data.fee) : null,
+        accountName: lencoResult.data?.mobileMoneyDetails?.accountName,
+      },
+    });
+
+    res.status(201).json({
+      message: 'Mobile money payment request initiated.',
+      collection: {
+        id: updatedCollection.id,
+        reference: updatedCollection.reference,
+        amount: Number(updatedCollection.amount),
+        phone: updatedCollection.phone,
+        operator: updatedCollection.operator,
+        status: updatedCollection.status,
+      },
+    });
+
+  } catch (error) {
+    console.error('Public Initiate Payment Error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

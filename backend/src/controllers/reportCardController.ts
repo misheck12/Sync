@@ -371,3 +371,48 @@ export const updateReportRemarks = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to update remarks' });
   }
 };
+
+export const verifyReport = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const report = await prisma.studentTermReport.findUnique({
+      where: { id },
+      include: {
+        student: true,
+        class: true,
+        term: true
+      }
+    });
+
+    if (!report) {
+      return res.status(404).json({ valid: false, message: 'Report not found' });
+    }
+
+    const settings = await prisma.schoolSettings.findFirst();
+
+    const results = await prisma.termResult.findMany({
+      where: {
+        studentId: report.studentId,
+        termId: report.termId
+      }
+    });
+
+    const totalScore = results.reduce((sum, r) => sum + Number(r.totalScore), 0);
+    const averageScore = results.length > 0 ? totalScore / results.length : 0;
+
+    res.json({
+      valid: true,
+      studentName: `${report.student.firstName} ${report.student.lastName}`,
+      admissionNumber: report.student.admissionNumber,
+      className: report.class.name,
+      term: report.term.name,
+      averageScore,
+      schoolName: settings?.schoolName || 'Sync School System',
+      generatedAt: report.updatedAt
+    });
+  } catch (error) {
+    console.error('Verify report error:', error);
+    res.status(500).json({ valid: false, error: 'Verification failed' });
+  }
+};

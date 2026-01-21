@@ -147,6 +147,7 @@ model Student {
   termResults       TermResult[]
   termReports       StudentTermReport[]
   submissions     AssessmentSubmission[]
+  mobileMoneyCollections MobileMoneyCollection[]
 
   @@map("students")
 }
@@ -261,6 +262,11 @@ model SchoolSettings {
   smsApiSecret      String?
   smsSenderId       String?
 
+  // Lenco Payment Gateway Settings
+  lencoApiKey       String?  // Lenco API key
+  lencoEnvironment  String?  @default("sandbox") // 'sandbox' or 'production'
+  lencoDefaultBearer String? @default("merchant") // 'merchant' or 'customer' - who pays fees
+
   updatedAt         DateTime @updatedAt
 
   @@map("school_settings")
@@ -321,6 +327,59 @@ enum PaymentStatus {
   PENDING
 }
 
+enum MobileMoneyStatus {
+  PENDING        // Collection request initiated
+  PAY_OFFLINE    // Waiting for customer authorization
+  SUCCESSFUL     // Payment completed
+  FAILED         // Payment failed
+}
+
+model MobileMoneyCollection {
+  id                  String            @id @default(uuid())
+  reference           String            @unique // Our unique reference
+  lencoReference      String?           // Lenco's reference
+  lencoCollectionId   String?           // Lenco's collection ID
+  
+  studentId           String
+  student             Student           @relation(fields: [studentId], references: [id])
+  amount              Decimal           @db.Decimal(10, 2)
+  currency            String            @default("ZMW")
+  
+  // Mobile Money Details
+  phone               String
+  country             String            // 'zm' or 'mw'
+  operator            String            // 'airtel', 'mtn', 'tnm'
+  accountName         String?           // Returned by Lenco after verification
+  operatorTransactionId String?         // Operator's transaction ID
+  
+  // Fee handling
+  fee                 Decimal?          @db.Decimal(10, 2)
+  bearer              String            @default("merchant") // 'merchant' or 'customer'
+  
+  // Status tracking
+  status              MobileMoneyStatus @default(PENDING)
+  reasonForFailure    String?
+  
+  // Timing
+  initiatedAt         DateTime          @default(now())
+  completedAt         DateTime?
+  
+  // Link to actual payment record (created when successful)
+  paymentId           String?           @unique
+  payment             Payment?          @relation(fields: [paymentId], references: [id])
+  
+  initiatedByUserId   String?
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([reference])
+  @@index([lencoReference])
+  @@index([studentId, status])
+  @@index([status])
+  @@map("mobile_money_collections")
+}
+
 model Payment {
   id              String        @id @default(uuid())
   transactionId   String?       @unique // Auto-generated: TXN-XXXXXXXX
@@ -338,8 +397,11 @@ model Payment {
   voidedBy        User?         @relation("VoidedPayments", fields: [voidedByUserId], references: [id])
   voidReason      String?       // Why the payment was voided
   
-  recordedByUserId String
-  recordedBy      User          @relation("RecordedPayments", fields: [recordedByUserId], references: [id])
+  // Mobile money collection link (if paid via Lenco)
+  mobileMoneyCollection MobileMoneyCollection?
+  
+  recordedByUserId String?
+  recordedBy      User?         @relation("RecordedPayments", fields: [recordedByUserId], references: [id])
   createdAt       DateTime      @default(now())
 
   @@index([transactionId])
