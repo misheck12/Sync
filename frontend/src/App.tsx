@@ -29,6 +29,9 @@ import StudentAssessments from './pages/student/StudentAssessments';
 import AttendanceRegister from './pages/academics/AttendanceRegister';
 import TeacherGradebook from './pages/academics/TeacherGradebook';
 import { Toaster } from 'react-hot-toast';
+import VerifyReport from './pages/public/VerifyReport';
+import PublicPayment from './pages/public/PublicPayment';
+import ShareTargetHandler from './pages/public/ShareTargetHandler';
 
 function App() {
   return (
@@ -38,6 +41,10 @@ function App() {
           <Toaster position="top-right" />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/verify/report/:id" element={<VerifyReport />} />
+            <Route path="/pay" element={<PublicPayment />} />
+            <Route path="/share-target" element={<ShareTargetHandler />} />
+            <Route path="/open-file" element={<ShareTargetHandler />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/student/quiz/:assessmentId" element={<StudentQuiz />} />
