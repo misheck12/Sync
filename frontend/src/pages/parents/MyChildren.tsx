@@ -214,16 +214,16 @@ const MyChildren = () => {
   };
 
   if (loading) {
-    return <div className="p-6">Loading...</div>;
+    return <div className="p-6 dark:text-gray-400">Loading...</div>;
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">My Children</h1>
+    <div className="p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto">
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">My Children</h1>
 
       <div className="space-y-8">
         {children.map((child) => (
-          <div key={child.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div key={child.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             {/* Enhanced Header - Same as before */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -274,26 +274,26 @@ const MyChildren = () => {
                 {/* NEW: Daily Overview Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Today's Schedule */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-semibold text-slate-700 flex items-center text-sm">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center text-sm">
                         <Clock size={16} className="mr-2 text-blue-500" />
                         Today's Schedule
                       </h4>
-                      <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
                       </span>
                     </div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {child.todaysClasses && child.todaysClasses.length > 0 ? (
                         child.todaysClasses.map(period => (
-                          <div key={period.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all">
-                            <div className="w-14 text-center bg-blue-50 rounded p-1">
-                              <span className="block text-xs font-bold text-blue-700">{period.startTime}</span>
-                              <span className="block text-[10px] text-blue-400">{period.endTime}</span>
+                          <div key={period.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700 border border-transparent hover:border-slate-100 dark:hover:border-slate-600 transition-all">
+                            <div className="w-14 text-center bg-blue-50 dark:bg-blue-900/30 rounded p-1">
+                              <span className="block text-xs font-bold text-blue-700 dark:text-blue-400">{period.startTime}</span>
+                              <span className="block text-[10px] text-blue-400 dark:text-blue-500">{period.endTime}</span>
                             </div>
                             <div className="flex-1">
-                              <span className="block text-sm font-medium text-slate-700 truncate">{period.subject.name}</span>
+                              <span className="block text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{period.subject.name}</span>
                             </div>
                           </div>
                         ))
@@ -306,31 +306,31 @@ const MyChildren = () => {
                   </div>
 
                   {/* Pending Assignments */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-semibold text-slate-700 flex items-center text-sm">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center text-sm">
                         <ClipboardList size={16} className="mr-2 text-purple-500" />
                         Upcoming Tasks
                       </h4>
-                      <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded-full font-medium">
                         {child.pendingAssessments?.length || 0} Pending
                       </span>
                     </div>
                     <div className="space-y-3 max-h-60 overflow-y-auto">
                       {child.pendingAssessments && child.pendingAssessments.length > 0 ? (
                         child.pendingAssessments.map(assessment => (
-                          <div key={assessment.id} className="p-3 bg-purple-50 border border-purple-100 rounded-lg hover:shadow-sm transition-all">
+                          <div key={assessment.id} className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg hover:shadow-sm transition-all">
                             <div className="flex justify-between items-start mb-1">
-                              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${assessment.type === 'QUIZ' ? 'bg-orange-100 text-orange-700' : 'bg-white text-purple-700'
+                              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${assessment.type === 'QUIZ' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-white dark:bg-slate-700 text-purple-700 dark:text-purple-400'
                                 }`}>
                                 {assessment.type}
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                 {new Date(assessment.date).toLocaleDateString()}
                               </span>
                             </div>
-                            <h5 className="text-sm font-medium text-slate-800 line-clamp-1" title={assessment.title}>{assessment.title}</h5>
-                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                            <h5 className="text-sm font-medium text-slate-800 dark:text-white line-clamp-1" title={assessment.title}>{assessment.title}</h5>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                               <BookOpen size={10} />
                               {assessment.subject.name}
                             </div>
@@ -345,10 +345,10 @@ const MyChildren = () => {
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                   <div className="flex items-center space-x-2 mb-4">
                     <TrendingUp className="text-blue-600" size={20} />
-                    <h3 className="text-lg font-bold text-slate-800">Academic Performance</h3>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Academic Performance</h3>
                   </div>
 
                   {/* Performance Chart - Existing */}
@@ -385,7 +385,7 @@ const MyChildren = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-700 rounded-lg border border-dashed border-slate-200 dark:border-slate-600">
                         <TrendingUp size={32} className="mb-2 opacity-50" />
                         <p>No performance data available</p>
                       </div>
@@ -395,9 +395,9 @@ const MyChildren = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Recent Results */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-semibold text-slate-700 flex items-center">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center">
                         <TrendingUp size={16} className="mr-2 text-blue-500" />
                         Recent Results
                       </h4>
@@ -405,14 +405,14 @@ const MyChildren = () => {
                     <div className="space-y-3">
                       {child.assessmentResults && child.assessmentResults.length > 0 ? (
                         child.assessmentResults.slice(0, 5).map((result) => (
-                          <div key={result.id} className="flex justify-between items-center p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+                          <div key={result.id} className="flex justify-between items-center p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
                             <div>
-                              <span className="font-medium text-slate-700 block text-sm">{result.assessment.subject.name}</span>
-                              <span className="text-xs text-slate-500">{result.assessment.title}</span>
+                              <span className="font-medium text-slate-700 dark:text-slate-200 block text-sm">{result.assessment.subject.name}</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">{result.assessment.title}</span>
                             </div>
                             <div className="flex items-center">
                               <div className="text-right mr-3">
-                                <span className="font-bold text-slate-800 block">{Number(result.score)}</span>
+                                <span className="font-bold text-slate-800 dark:text-white block">{Number(result.score)}</span>
                                 <span className="text-[10px] text-slate-400 uppercase">Score</span>
                               </div>
                               <div className={`w-1.5 h-8 rounded-full ${Number(result.score) >= 75 ? 'bg-green-500' :
@@ -430,9 +430,9 @@ const MyChildren = () => {
                   </div>
 
                   {/* Report Cards */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-semibold text-slate-700 flex items-center">
+                      <h4 className="font-semibold text-slate-700 dark:text-slate-200 flex items-center">
                         <FileText size={16} className="mr-2 text-blue-500" />
                         Report Cards
                       </h4>
@@ -440,14 +440,14 @@ const MyChildren = () => {
                     <div className="space-y-3">
                       {child.termReports && child.termReports.length > 0 ? (
                         child.termReports.map((report) => (
-                          <div key={report.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div key={report.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600">
                             <div className="flex items-center">
-                              <div className="w-8 h-8 bg-white rounded flex items-center justify-center text-blue-600 mr-3 shadow-sm">
+                              <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center text-blue-600 mr-3 shadow-sm">
                                 <FileText size={16} />
                               </div>
-                              <span className="text-sm font-medium text-slate-700">{report.term.name}</span>
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{report.term.name}</span>
                             </div>
-                            <button className="text-blue-600 hover:text-blue-800 text-xs font-medium px-3 py-1.5 bg-white border border-blue-100 rounded-md hover:bg-blue-50 transition-colors shadow-sm">
+                            <button className="text-blue-600 hover:text-blue-800 text-xs font-medium px-3 py-1.5 bg-white dark:bg-slate-600 border border-blue-100 dark:border-slate-500 rounded-md hover:bg-blue-50 dark:hover:bg-slate-500 transition-colors shadow-sm">
                               View
                             </button>
                           </div>
@@ -466,14 +466,14 @@ const MyChildren = () => {
               <div className="space-y-6">
 
                 {/* Fee Structure */}
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
                   <div
-                    className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+                    className="p-4 bg-slate-50 dark:bg-slate-700 border-b border-slate-100 dark:border-slate-600 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
                     onClick={() => toggleFeeDetails(child.id)}
                   >
                     <div className="flex items-center space-x-2">
-                      <CreditCard size={18} className="text-slate-600" />
-                      <h3 className="font-semibold text-slate-800">Fee Structure</h3>
+                      <CreditCard size={18} className="text-slate-600 dark:text-slate-300" />
+                      <h3 className="font-semibold text-slate-800 dark:text-white">Fee Structure</h3>
                     </div>
                     {expandedFees[child.id] ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
                   </div>
@@ -483,40 +483,40 @@ const MyChildren = () => {
                       {child.feeStructures && child.feeStructures.length > 0 ? (
                         <>
                           {child.feeStructures.map((fee) => (
-                            <div key={fee.id} className="flex justify-between text-sm py-1 border-b border-slate-50 last:border-0">
-                              <span className="text-slate-600">{fee.feeTemplate.name}</span>
-                              <span className="font-medium text-slate-900">ZMW {Number(fee.amountDue).toLocaleString()}</span>
+                            <div key={fee.id} className="flex justify-between text-sm py-1 border-b border-slate-50 dark:border-slate-700 last:border-0">
+                              <span className="text-slate-600 dark:text-slate-400">{fee.feeTemplate.name}</span>
+                              <span className="font-medium text-slate-900 dark:text-white">ZMW {Number(fee.amountDue).toLocaleString()}</span>
                             </div>
                           ))}
-                          <div className="flex justify-between text-sm font-bold pt-3 mt-1 bg-slate-50 -mx-4 -mb-4 p-4 border-t border-slate-100">
-                            <span>Total Fees</span>
-                            <span className="text-blue-700">ZMW {child.feeStructures?.reduce((sum, f) => sum + Number(f.amountDue), 0).toLocaleString()}</span>
+                          <div className="flex justify-between text-sm font-bold pt-3 mt-1 bg-slate-50 dark:bg-slate-700 -mx-4 -mb-4 p-4 border-t border-slate-100 dark:border-slate-600">
+                            <span className="dark:text-white">Total Fees</span>
+                            <span className="text-blue-700 dark:text-blue-400">ZMW {child.feeStructures?.reduce((sum, f) => sum + Number(f.amountDue), 0).toLocaleString()}</span>
                           </div>
                         </>
                       ) : (
-                        <p className="text-sm text-slate-500 italic text-center py-2">No fee structure assigned</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 italic text-center py-2">No fee structure assigned</p>
                       )}
                     </div>
                   )}
                 </div>
 
                 {/* Recent Payments */}
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <CreditCard size={18} className="text-green-600" />
-                    <h3 className="font-semibold text-slate-800">Recent Payments</h3>
+                    <h3 className="font-semibold text-slate-800 dark:text-white">Recent Payments</h3>
                   </div>
                   <div className="space-y-3">
                     {child.payments.length > 0 ? (
                       child.payments.slice(0, 3).map((payment, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-sm p-2 rounded hover:bg-slate-50 transition-colors">
+                        <div key={idx} className="flex justify-between items-center text-sm p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                           <div>
-                            <span className="text-slate-500 text-xs block mb-0.5">{new Date(payment.paymentDate).toLocaleDateString()}</span>
-                            <span className="font-bold text-slate-800">ZMW {Number(payment.amount).toLocaleString()}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-xs block mb-0.5">{new Date(payment.paymentDate).toLocaleDateString()}</span>
+                            <span className="font-bold text-slate-800 dark:text-white">ZMW {Number(payment.amount).toLocaleString()}</span>
                           </div>
                           <button
                             onClick={() => generateReceipt(child, payment)}
-                            className="text-slate-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
+                            className="text-slate-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
                             title="Download Receipt"
                           >
                             <Download size={18} />
@@ -524,7 +524,7 @@ const MyChildren = () => {
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-slate-500 italic text-center py-4">No payment records found</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 italic text-center py-4">No payment records found</p>
                     )}
                   </div>
                   {child.payments.length > 0 && (
@@ -538,26 +538,26 @@ const MyChildren = () => {
                 </div>
 
                 {/* Attendance Summary */}
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Calendar size={18} className="text-orange-500" />
-                    <h3 className="font-semibold text-slate-800">Recent Attendance</h3>
+                    <h3 className="font-semibold text-slate-800 dark:text-white">Recent Attendance</h3>
                   </div>
                   <div className="space-y-3">
                     {child.attendance.length > 0 ? (
                       child.attendance.slice(0, 5).map((record, idx) => (
                         <div key={idx} className="flex justify-between items-center text-sm">
-                          <span className="text-slate-600">{new Date(record.date).toLocaleDateString()}</span>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${record.status === 'PRESENT' ? 'bg-green-100 text-green-700' :
-                            record.status === 'ABSENT' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'
+                          <span className="text-slate-600 dark:text-slate-400">{new Date(record.date).toLocaleDateString()}</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${record.status === 'PRESENT' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                            record.status === 'ABSENT' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                              'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                             }`}>
                             {record.status}
                           </span>
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-slate-500 italic text-center py-4">No attendance records found</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 italic text-center py-4">No attendance records found</p>
                     )}
                   </div>
                 </div>
@@ -567,12 +567,12 @@ const MyChildren = () => {
           </div>
         ))}
         {children.length === 0 && (
-          <div className="col-span-full text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-300">
-            <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+          <div className="col-span-full text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600">
+            <div className="mx-auto w-16 h-16 bg-slate-50 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
               <User className="text-slate-400" size={32} />
             </div>
-            <h3 className="text-xl font-medium text-slate-900">No children linked</h3>
-            <p className="text-slate-500 mt-2 max-w-md mx-auto">Contact the school administration to link your account to your children's profiles.</p>
+            <h3 className="text-xl font-medium text-slate-900 dark:text-white">No children linked</h3>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto">Contact the school administration to link your account to your children's profiles.</p>
           </div>
         )}
       </div>
@@ -580,36 +580,36 @@ const MyChildren = () => {
       {/* Payment History Modal (Tabbed) */}
       {showHistoryModal && historyChild && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-white border-b border-slate-100 p-6 sticky top-0 z-10">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 p-6 sticky top-0 z-10">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">Payment History</h3>
-                  <p className="text-slate-500 text-sm">{historyChild.firstName} {historyChild.lastName}</p>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">Payment History</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">{historyChild.firstName} {historyChild.lastName}</p>
                 </div>
-                <button onClick={() => setShowHistoryModal(false)} className="bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors">
-                  <X size={20} className="text-slate-600" />
+                <button onClick={() => setShowHistoryModal(false)} className="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 p-2 rounded-full transition-colors">
+                  <X size={20} className="text-slate-600 dark:text-slate-300" />
                 </button>
               </div>
 
               {/* Switch Table / Tabs */}
-              <div className="flex bg-slate-100 p-1 rounded-xl">
+              <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
                 <button
                   onClick={() => setHistoryTab('receipts')}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${historyTab === 'receipts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${historyTab === 'receipts' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                 >
                   Official Receipts
                 </button>
                 <button
                   onClick={() => setHistoryTab('transactions')}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${historyTab === 'transactions' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${historyTab === 'transactions' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                 >
                   Mobile Money Transactions
                 </button>
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-900/50">
               {historyTab === 'receipts' ? (
                 // RECeIPTS LIST
                 loadingHistory ? (
@@ -617,22 +617,22 @@ const MyChildren = () => {
                 ) : historyPayments.length > 0 ? (
                   <div className="space-y-4">
                     {historyPayments.map((payment) => (
-                      <div key={payment.id} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all">
+                      <div key={payment.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-md transition-all">
                         <div className="flex items-start gap-4">
-                          <div className={`p-3 rounded-full ${payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'}`}>
+                          <div className={`p-3 rounded-full ${payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
                             <CreditCard size={20} />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800">ZMW {Number(payment.amount).toLocaleString()}</p>
-                            <p className="text-xs text-slate-500">{new Date(payment.createdAt || payment.paymentDate).toLocaleDateString()} • {new Date(payment.createdAt || payment.paymentDate).toLocaleTimeString()}</p>
+                            <p className="font-bold text-slate-800 dark:text-white">ZMW {Number(payment.amount).toLocaleString()}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(payment.createdAt || payment.paymentDate).toLocaleDateString()} • {new Date(payment.createdAt || payment.paymentDate).toLocaleTimeString()}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{payment.method?.replace('_', ' ')}</span>
+                              <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{payment.method?.replace('_', ' ')}</span>
                               <span className="text-[10px] text-slate-400 font-mono">{payment.transactionId || '---'}</span>
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="inline-block px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 bg-green-100 text-green-700">
+                          <span className="inline-block px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                             COMPLETED
                           </span>
                           <button
@@ -646,7 +646,7 @@ const MyChildren = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                  <div className="text-center py-16 text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-600">
                     <p>No successful payments found.</p>
                   </div>
                 )
@@ -657,24 +657,24 @@ const MyChildren = () => {
                 ) : historyTransactions.length > 0 ? (
                   <div className="space-y-4">
                     {historyTransactions.map((tx) => (
-                      <div key={tx.id} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all">
+                      <div key={tx.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-md transition-all">
                         <div className="flex items-start gap-4">
-                          <div className={`p-3 rounded-full ${tx.status === 'SUCCESSFUL' ? 'bg-green-100 text-green-600' : tx.status === 'FAILED' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}`}>
+                          <div className={`p-3 rounded-full ${tx.status === 'SUCCESSFUL' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : tx.status === 'FAILED' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
                             <CreditCard size={20} />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800">ZMW {Number(tx.amount).toLocaleString()}</p>
-                            <p className="text-xs text-slate-500">{new Date(tx.initiatedAt).toLocaleDateString()} • {new Date(tx.initiatedAt).toLocaleTimeString()}</p>
+                            <p className="font-bold text-slate-800 dark:text-white">ZMW {Number(tx.amount).toLocaleString()}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(tx.initiatedAt).toLocaleDateString()} • {new Date(tx.initiatedAt).toLocaleTimeString()}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{tx.operator}</span>
+                              <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{tx.operator}</span>
                               <span className="text-[10px] text-slate-400 font-mono">{tx.reference}</span>
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 ${tx.status === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
-                            tx.status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                              'bg-orange-100 text-orange-700'
+                          <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 ${tx.status === 'SUCCESSFUL' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                            tx.status === 'FAILED' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                              'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                             }`}>
                             {tx.status?.replace('_', ' ')}
                           </span>
@@ -686,14 +686,14 @@ const MyChildren = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                  <div className="text-center py-16 text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-600">
                     <p>No mobile money history found.</p>
                   </div>
                 )
               )}
             </div>
             {/* Footer */}
-            <div className="p-4 border-t border-slate-100 bg-white text-center">
+            <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 text-center">
               <button
                 onClick={() => setShowHistoryModal(false)}
                 className="text-blue-600 font-medium text-sm hover:underline"
@@ -708,7 +708,7 @@ const MyChildren = () => {
       {/* Payment Modal */}
       {showPaymentModal && selectedChildForPayment && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-bold">Make Payment</h3>
@@ -724,7 +724,7 @@ const MyChildren = () => {
 
             <form onSubmit={handleInitiatePayment} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fee Amount (ZMW)</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fee Amount (ZMW)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">ZMW</span>
                   <input
@@ -734,48 +734,48 @@ const MyChildren = () => {
                     step="0.01"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold text-lg text-slate-800"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-bold text-lg text-slate-800 dark:text-white"
                     placeholder="0.00"
                   />
                 </div>
               </div>
 
               {Number(paymentAmount) > 0 && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Subtotal</span>
-                    <span className="font-semibold text-slate-800">ZMW {Number(paymentAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="text-slate-600 dark:text-slate-400">Subtotal</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">ZMW {Number(paymentAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Processing Fee (2.5%)</span>
-                    <span className="font-semibold text-slate-800">ZMW {(Number(paymentAmount) * 0.025).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-slate-600 dark:text-slate-400">Processing Fee (2.5%)</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">ZMW {(Number(paymentAmount) * 0.025).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between text-base pt-2 border-t border-blue-200 mt-2">
-                    <span className="font-bold text-slate-800">Total Bill</span>
-                    <span className="font-bold text-blue-700">ZMW {(Number(paymentAmount) * 1.025).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between text-base pt-2 border-t border-blue-200 dark:border-blue-700 mt-2">
+                    <span className="font-bold text-slate-800 dark:text-white">Total Bill</span>
+                    <span className="font-bold text-blue-700 dark:text-blue-400">ZMW {(Number(paymentAmount) * 1.025).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mobile Number</label>
                 <input
                   type="tel"
                   required
                   value={paymentPhone}
                   onChange={(e) => setPaymentPhone(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium dark:text-white"
                   placeholder="097xxxxxxx"
                 />
                 <p className="text-xs text-slate-400 mt-1">The number that will authorize the payment</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-3">Network Operator</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Network Operator</label>
                 <div className="grid grid-cols-2 gap-4">
                   <label className={`
                     relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all
-                    ${paymentOperator === 'airtel' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 bg-white hover:border-slate-200'}
+                    ${paymentOperator === 'airtel' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'border-slate-100 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-500'}
                   `}>
                     <input
                       type="radio"
@@ -786,12 +786,12 @@ const MyChildren = () => {
                       onChange={(e) => setPaymentOperator(e.target.value)}
                       required
                     />
-                    <span className="font-bold">Airtel</span>
+                    <span className="font-bold dark:text-white">Airtel</span>
                   </label>
 
                   <label className={`
                     relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all
-                    ${paymentOperator === 'mtn' ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-slate-100 bg-white hover:border-slate-200'}
+                    ${paymentOperator === 'mtn' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' : 'border-slate-100 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-500'}
                   `}>
                     <input
                       type="radio"
@@ -802,7 +802,7 @@ const MyChildren = () => {
                       onChange={(e) => setPaymentOperator(e.target.value)}
                       required
                     />
-                    <span className="font-bold">MTN</span>
+                    <span className="font-bold dark:text-white">MTN</span>
                   </label>
                 </div>
               </div>

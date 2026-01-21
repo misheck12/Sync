@@ -88,7 +88,7 @@ const Scholarships = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-slate-800">Scholarship Programs</h2>
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-white">Scholarship Programs</h2>
         <div className="flex space-x-3">
           <button
             onClick={() => setShowImportModal(true)}
@@ -113,91 +113,91 @@ const Scholarships = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {scholarships.map((scholarship) => (
-          <div key={scholarship.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div key={scholarship.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
                 <GraduationCap size={24} />
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleEdit(scholarship)}
-                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                 >
                   <Edit2 size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(scholarship.id)}
-                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-1">{scholarship.name}</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">{scholarship.name}</h3>
             <div className="flex items-baseline mb-4">
-              <span className="text-2xl font-bold text-purple-600">{scholarship.percentage}%</span>
-              <span className="text-sm text-slate-500 ml-2">Discount</span>
+              <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">{scholarship.percentage}%</span>
+              <span className="text-sm text-slate-500 dark:text-gray-400 ml-2">Discount</span>
             </div>
 
-            <p className="text-sm text-slate-500 mb-4 min-h-[40px]">
+            <p className="text-sm text-slate-500 dark:text-gray-400 mb-4 min-h-[40px]">
               {scholarship.description || 'No description provided'}
             </p>
 
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
-              <span className="text-slate-500">Beneficiaries</span>
-              <span className="font-medium text-slate-800">{scholarship._count?.students || 0} Students</span>
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-sm">
+              <span className="text-slate-500 dark:text-gray-400">Beneficiaries</span>
+              <span className="font-medium text-slate-800 dark:text-white">{scholarship._count?.students || 0} Students</span>
             </div>
           </div>
         ))}
 
         {scholarships.length === 0 && !loading && (
-          <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
-            <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+          <div className="col-span-full text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
+            <div className="mx-auto w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
               <GraduationCap className="text-slate-400" size={24} />
             </div>
-            <h3 className="text-lg font-medium text-slate-900">No scholarships found</h3>
-            <p className="text-slate-500 mt-1">Create a scholarship program to get started</p>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white">No scholarships found</h3>
+            <p className="text-slate-500 dark:text-gray-400 mt-1">Create a scholarship program to get started</p>
           </div>
         )}
       </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
               {editingId ? 'Edit Scholarship' : 'New Scholarship'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Program Name</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Program Name</label>
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   placeholder="e.g. Presidential Scholarship"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Discount Percentage (%)</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Discount Percentage (%)</label>
                 <input
                   type="number"
                   required
                   min="0"
                   max="100"
                   step="0.01"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   placeholder="0-100"
                   value={formData.percentage}
                   onChange={(e) => setFormData({ ...formData, percentage: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Description</label>
                 <textarea
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   rows={3}
                   placeholder="Optional description..."
                   value={formData.description}
@@ -208,7 +208,7 @@ const Scholarships = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                  className="px-4 py-2 text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
                 >
                   Cancel
                 </button>

@@ -157,29 +157,29 @@ const AcademicReports = () => {
         doc.save(`${selectedChild.firstName}_${termData.termName}_Report.pdf`);
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading academic data...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading academic data...</div>;
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
                     <Award className="text-blue-600" size={32} />
                     Academic Reports
                 </h1>
-                <p className="text-gray-500 mt-2">View and download term performance reports for your children.</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">View and download term performance reports for your children.</p>
             </div>
 
             {children.length > 0 ? (
                 <>
                     {/* Child Selector Tabs */}
-                    <div className="flex space-x-2 mb-8 overflow-x-auto pb-2 border-b border-gray-200">
+                    <div className="flex space-x-2 mb-8 overflow-x-auto pb-2 border-b border-gray-200 dark:border-slate-700">
                         {children.map(child => (
                             <button
                                 key={child.id}
                                 onClick={() => setSelectedChildId(child.id)}
                                 className={`flex items-center space-x-2 px-6 py-3 rounded-t-lg text-sm font-medium transition-colors whitespace-nowrap border-b-2 ${selectedChildId === child.id
-                                        ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                        ? 'border-blue-600 text-blue-600 bg-blue-50/50 dark:bg-blue-900/30'
+                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 <User size={18} />
@@ -196,17 +196,17 @@ const AcademicReports = () => {
                                 const average = Math.round(totalScore / termData.results.length);
 
                                 return (
-                                    <div key={termId} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-wrap gap-4">
+                                    <div key={termId} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+                                        <div className="bg-gray-50 dark:bg-slate-700 px-6 py-4 border-b border-gray-200 dark:border-slate-600 flex justify-between items-center flex-wrap gap-4">
                                             <div>
-                                                <h3 className="text-lg font-bold text-gray-800">{termData.termName}</h3>
-                                                <p className="text-sm text-gray-500">
+                                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">{termData.termName}</h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
                                                     {new Date(termData.startDate).getFullYear()} • Average: <span className="font-bold text-blue-600">{average}%</span>
                                                 </p>
                                             </div>
                                             <button
                                                 onClick={() => generateReportCard(termId)}
-                                                className="flex items-center gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                                                className="flex items-center gap-2 bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 hover:bg-gray-50 dark:hover:bg-slate-500 text-gray-700 dark:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
                                             >
                                                 <Download size={16} />
                                                 Download Report PDF
@@ -217,32 +217,32 @@ const AcademicReports = () => {
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-left">
                                                     <thead>
-                                                        <tr className="border-b border-gray-100">
-                                                            <th className="pb-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Subject</th>
-                                                            <th className="pb-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Score</th>
-                                                            <th className="pb-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Grade</th>
-                                                            <th className="pb-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Remarks</th>
+                                                        <tr className="border-b border-gray-100 dark:border-slate-700">
+                                                            <th className="pb-3 px-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Subject</th>
+                                                            <th className="pb-3 px-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Score</th>
+                                                            <th className="pb-3 px-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Grade</th>
+                                                            <th className="pb-3 px-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Remarks</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-gray-50">
+                                                    <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
                                                         {termData.results.map((result) => (
-                                                            <tr key={result.id} className="hover:bg-gray-50/50 transition-colors">
+                                                            <tr key={result.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/50 transition-colors">
                                                                 <td className="py-3 px-4">
                                                                     <div className="flex items-center gap-2">
                                                                         <BookOpen size={14} className="text-gray-400" />
-                                                                        <span className="font-medium text-gray-800">{result.subject.name}</span>
+                                                                        <span className="font-medium text-gray-800 dark:text-white">{result.subject.name}</span>
                                                                     </div>
                                                                 </td>
-                                                                <td className="py-3 px-4 font-semibold text-gray-900">{Number(result.totalScore)}%</td>
+                                                                <td className="py-3 px-4 font-semibold text-gray-900 dark:text-white">{Number(result.totalScore)}%</td>
                                                                 <td className="py-3 px-4">
-                                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${(result.grade?.startsWith('A') || result.grade === 'D1' || result.grade === 'D2') ? 'bg-green-100 text-green-700' :
-                                                                            (result.grade?.startsWith('B') || result.grade?.startsWith('C')) ? 'bg-blue-100 text-blue-700' :
-                                                                                'bg-orange-100 text-orange-700'
+                                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${(result.grade?.startsWith('A') || result.grade === 'D1' || result.grade === 'D2') ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                                                                            (result.grade?.startsWith('B') || result.grade?.startsWith('C')) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                                                                                'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                                                                         }`}>
                                                                         {result.grade || '-'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="py-3 px-4 text-sm text-gray-500 truncate max-w-xs">{result.remarks || '-'}</td>
+                                                                <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{result.remarks || '-'}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -254,16 +254,16 @@ const AcademicReports = () => {
                             })}
                         </div>
                     ) : (
-                        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                            <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900">No Academic Records</h3>
-                            <p className="text-gray-500 mt-1">No term reports found for {selectedChild?.firstName}.</p>
+                        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-600">
+                            <FileText size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">No Academic Records</h3>
+                            <p className="text-gray-500 dark:text-gray-400 mt-1">No term reports found for {selectedChild?.firstName}.</p>
                         </div>
                     )}
                 </>
             ) : (
                 <div className="text-center py-20">
-                    <p className="text-gray-500">No children linked to your account.</p>
+                    <p className="text-gray-500 dark:text-gray-400">No children linked to your account.</p>
                 </div>
             )}
         </div>

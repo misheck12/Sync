@@ -33,8 +33,8 @@ const FinanceReports = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Loading analytics...</div>;
-    if (!data) return <div className="p-8 text-center">No data available</div>;
+    if (loading) return <div className="p-8 text-center text-gray-600 dark:text-gray-400">Loading analytics...</div>;
+    if (!data) return <div className="p-8 text-center text-gray-600 dark:text-gray-400">No data available</div>;
 
     // Prepare chart data
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -52,10 +52,10 @@ const FinanceReports = () => {
         <div className="space-y-6 animate-fade-in">
             {/* Revenue Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-lg text-slate-800 flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <h3 className="font-semibold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                             Monthly Revenue ({new Date().getFullYear()})
                         </h3>
                     </div>
@@ -81,10 +81,10 @@ const FinanceReports = () => {
                 </div>
 
                 {/* Payment Methods */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-lg text-slate-800 flex items-center gap-2">
-                            <PieChartIcon className="w-5 h-5 text-purple-600" />
+                        <h3 className="font-semibold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                            <PieChartIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                             Revenue by Payment Method
                         </h3>
                     </div>
@@ -113,21 +113,21 @@ const FinanceReports = () => {
             </div>
 
             {/* Class Collection Performance */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 className="font-semibold text-lg text-slate-800 mb-6 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-emerald-600" />
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     Collection Rate per Class
                 </h3>
                 <div className="space-y-4">
                     {data.classCollection.map((cls) => (
                         <div key={cls.className} className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="font-medium text-slate-700">{cls.className}</span>
-                                <span className="text-slate-500">
+                                <span className="font-medium text-slate-700 dark:text-gray-200">{cls.className}</span>
+                                <span className="text-slate-500 dark:text-gray-400">
                                     {cls.percentage}% ({cls.totalCollected.toLocaleString()} / {cls.totalDue.toLocaleString()})
                                 </span>
                             </div>
-                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${cls.percentage >= 80 ? 'bg-emerald-500' :
                                             cls.percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'

@@ -68,12 +68,12 @@ const Profile = () => {
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">My Profile</h1>
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">My Profile</h1>
 
       {/* Profile Header */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 flex flex-col items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 mb-6 flex flex-col items-center">
         <div className="relative mb-4 group">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-50 bg-gray-100">
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-blue-50 dark:border-blue-900/30 bg-gray-100 dark:bg-slate-700">
             {user?.profilePictureUrl ? (
               <img 
                 src={user.profilePictureUrl.startsWith('http') ? user.profilePictureUrl : `${import.meta.env.VITE_API_URL || ''}${user.profilePictureUrl}`} 
@@ -97,7 +97,7 @@ const Profile = () => {
             </button>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 bg-white text-gray-600 border border-gray-200 rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+              className="p-2 bg-white dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
               title="Upload Photo"
             >
               <Upload size={18} />
@@ -112,26 +112,26 @@ const Profile = () => {
           />
         </div>
 
-        <h2 className="text-xl font-bold text-gray-900">{user?.fullName}</h2>
-        <p className="text-sm text-gray-500 capitalize">{user?.role?.replace('_', ' ').toLowerCase()}</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user?.fullName}</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{user?.role?.replace('_', ' ').toLowerCase()}</p>
         
         {uploading && <p className="text-sm text-blue-600 mt-2 animate-pulse">Uploading...</p>}
       </div>
 
       {/* User Info */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <User size={20} className="text-blue-600" />
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+          <User size={20} className="text-blue-600 dark:text-blue-400" />
           Personal Information
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Full Name</label>
-            <div className="p-3 bg-gray-50 rounded-lg text-gray-900">{user?.fullName}</div>
+            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Full Name</label>
+            <div className="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg text-gray-900 dark:text-white">{user?.fullName}</div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Email Address</label>
-            <div className="p-3 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email Address</label>
+            <div className="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
               <Mail size={16} className="text-gray-400" />
               {user?.email}
             </div>
@@ -140,49 +140,49 @@ const Profile = () => {
       </div>
 
       {/* Change Password */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Lock size={20} className="text-blue-600" />
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+          <Lock size={20} className="text-blue-600 dark:text-blue-400" />
           Security
         </h3>
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Current Password</label>
             <input
               type="password"
               required
               value={passwords.currentPassword}
               onChange={e => setPasswords({...passwords, currentPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">New Password</label>
             <input
               type="password"
               required
               minLength={6}
               value={passwords.newPassword}
               onChange={e => setPasswords({...passwords, newPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Confirm New Password</label>
             <input
               type="password"
               required
               minLength={6}
               value={passwords.confirmPassword}
               onChange={e => setPasswords({...passwords, confirmPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div className="pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 dark:bg-blue-600 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-slate-600 transition-colors"
             >
               <Save size={18} />
               {loading ? 'Updating...' : 'Update Password'}
