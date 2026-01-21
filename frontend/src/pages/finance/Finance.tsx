@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import FinanceReports from './FinanceReports';
 
-import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp } from 'lucide-react';
+import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp, Smartphone } from 'lucide-react';
 import api from '../../utils/api';
 import Scholarships from './Scholarships';
 import BulkImportModal from '../../components/BulkImportModal';
 import ExportDropdown from '../../components/ExportDropdown';
 import StudentSelector from '../../components/StudentSelector';
+import MobileMoneyPayment from '../../components/MobileMoneyPayment';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
@@ -66,12 +67,12 @@ const getGradeLabel = (grade: number) => {
 };
 
 const Finance = () => {
-  const [activeTab, setActiveTab] = useState<'payments' | 'fees' | 'scholarships' | 'reminders' | 'reports'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'mobile-money' | 'fees' | 'scholarships' | 'reminders' | 'reports'>('payments');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string; class?: { id: string; name: string } }[]>([]);
+  const [students, setStudents] = useState<{ id: string; firstName: string; lastName: string; admissionNumber: string; guardianPhone?: string; class?: { id: string; name: string } }[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -149,12 +150,13 @@ const Finance = () => {
   const fetchStudents = async () => {
     try {
       const response = await api.get('/students');
-      // Ensure students have class info for the StudentSelector
+      // Ensure students have class info and guardianPhone for the StudentSelector and MobileMoneyPayment
       const studentsWithClass = response.data.map((s: any) => ({
         id: s.id,
         firstName: s.firstName,
         lastName: s.lastName,
         admissionNumber: s.admissionNumber,
+        guardianPhone: s.guardianPhone || '',
         class: s.class || undefined
       }));
       setStudents(studentsWithClass);
@@ -690,6 +692,16 @@ const Finance = () => {
           Payments
         </button>
         <button
+          onClick={() => setActiveTab('mobile-money')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'mobile-money'
+            ? 'bg-white text-slate-800 shadow-sm'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+          <Smartphone size={16} />
+          Mobile Money
+        </button>
+        <button
           onClick={() => setActiveTab('fees')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'fees'
             ? 'bg-white text-slate-800 shadow-sm'
@@ -736,6 +748,11 @@ const Finance = () => {
         <FinanceReports />
       ) : activeTab === 'scholarships' ? (
         <Scholarships />
+      ) : activeTab === 'mobile-money' ? (
+        <MobileMoneyPayment
+          students={students}
+          onPaymentSuccess={fetchPayments}
+        />
       ) : activeTab === 'reminders' ? (
         /* Fee Reminders Tab */
         <div className="space-y-6">
