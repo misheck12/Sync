@@ -34,7 +34,7 @@ const notifyTenantAdmins = async (tenantId: string, subject: string, html: strin
 // (Payment/Invoice models), which is scoped inside each tenant.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PLAN_PRICING: Record<TenantPlan, {
+export const DEFAULT_PLAN_PRICING: Record<TenantPlan, {
   pricePerActiveStudent: number;
   setupFeeAmount: number;
   setupFeeWaivedOnAnnual: boolean;

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../utils/api';
 import { actionColors } from '../utils/themeColors';
+import { isPlatformHost } from '../utils/platformAccess';
 
 interface ThemeSettings {
   schoolName: string;
@@ -26,6 +27,7 @@ const defaultSettings: ThemeSettings = {
 const THEME_CACHE_KEY = 'sync:theme-settings';
 
 const getCachedSettings = (): ThemeSettings => {
+  if (isPlatformHost()) return { ...defaultSettings, schoolName: 'Sync Operations' };
   try {
     const cached = localStorage.getItem(THEME_CACHE_KEY);
     return cached ? { ...defaultSettings, ...JSON.parse(cached) } : defaultSettings;
@@ -41,6 +43,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(true);
 
   const refreshSettings = async () => {
+    if (isPlatformHost()) {
+      const platformSettings = { ...defaultSettings, schoolName: 'Sync Operations' };
+      setSettings(platformSettings);
+      applyTheme(platformSettings);
+      setLoading(false);
+      return;
+    }
     try {
       const response = await api.get('/settings/public');
       setSettings(response.data);

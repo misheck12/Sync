@@ -4,6 +4,7 @@ import {
   synchronizeExistingPushSubscription,
   unsubscribeFromPushNotifications,
 } from '../utils/push';
+import { isPlatformHost } from '../utils/platformAccess';
 
 interface User {
   id: string;
@@ -33,6 +34,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getStoredPlatformUser = (): User | null => {
+  try {
+    const stored = JSON.parse(localStorage.getItem('user') || 'null') as User | null;
+    return stored?.role === 'PLATFORM_ADMIN' ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -54,6 +64,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      if (isPlatformHost()) {
+        const platformUser = getStoredPlatformUser();
+        if (!platformUser) {
+          clearSession();
+          return;
+        }
+        await api.get('/platform/overview');
+        setUser(platformUser);
+        return;
+      }
       const response = await api.get('/profile');
       const updatedUser = response.data;
       setUser(updatedUser);
@@ -88,9 +108,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Fetch fresh user data
         try {
-          const response = await api.get('/profile');
-          setUser(response.data);
-          localStorage.setItem('user', JSON.stringify(response.data));
+          if (isPlatformHost()) {
+            const platformUser = getStoredPlatformUser();
+            if (!platformUser) {
+              clearSession();
+              setIsLoading(false);
+              return;
+            }
+            await api.get('/platform/overview');
+            setUser(platformUser);
+          } else {
+            const response = await api.get('/profile');
+            setUser(response.data);
+            localStorage.setItem('user', JSON.stringify(response.data));
+          }
         } catch (error: any) {
           const status = error.response?.status;
           if (status === 401 || status === 403) {

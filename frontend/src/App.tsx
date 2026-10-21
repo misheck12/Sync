@@ -83,8 +83,8 @@ function App() {
             <PWAManager />
             <Suspense fallback={<AppLoadingScreen compact />}>
             <Routes>
-              <Route path="/login" element={shouldExposePlatformRoutes() ? <Navigate to="/ops/login" replace /> : <Login />} />
-              <Route path="/ops/login" element={shouldExposePlatformRoutes() ? <PlatformLogin /> : <Navigate to="/login" replace />} />
+              <Route path="/login" element={shouldExposePlatformRoutes() ? <PlatformLogin /> : <Login />} />
+              <Route path="/ops/login" element={<Navigate to="/login" replace />} />
               <Route path="/verify/report/:id" element={<VerifyReport />} />
               <Route path="/pay" element={<PublicPayment />} />
               <Route path="/share-target" element={<ShareTargetHandler />} />

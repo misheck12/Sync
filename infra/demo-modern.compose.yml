@@ -1,0 +1,54 @@
+# Isolated latest-code demonstration stack. Never connect it to legacy data.
+# Deploy with a private .env containing DEMO_DB_PASSWORD and DEMO_JWT_SECRET.
+name: sync-demo-modern
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sync_demo
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:?Set a private demo database password}
+      POSTGRES_DB: sync_demo
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sync_demo -d sync_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - demo
+
+  backend:
+    image: sync-demo-backend:20261020
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://sync_demo:${DEMO_DB_PASSWORD:?Set a private demo database password}@db:5432/sync_demo?schema=public
+      JWT_SECRET: ${DEMO_JWT_SECRET:?Set a private demo JWT secret}
+      CORS_ORIGINS: https://demo.syncsos.com,https://ops.syncsos.com
+      PLATFORM_ALLOWED_HOSTS: ops.syncsos.com
+      QUEUE_ENABLED: "false"
+      API_RATE_LIMIT_ENABLED: "true"
+      API_RATE_LIMIT_REQUIRED: "false"
+      AI_FINANCIAL_SNAPSHOT_CACHE_ENABLED: "false"
+      SMS_RATE_LIMIT_ENABLED: "false"
+    ports:
+      - "127.0.0.1:4082:3000"
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - demo
+
+networks:
+  demo:
+    internal: false
+
+volumes:
+  database:
+  uploads:

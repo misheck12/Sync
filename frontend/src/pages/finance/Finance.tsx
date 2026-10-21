@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FinanceReports from './FinanceReports';
 
-import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp, Smartphone, Receipt, Calculator, Wallet, PiggyBank, BarChart3, ClipboardList, Sparkles, Target, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Filter, DollarSign, CreditCard, Calendar, BookOpen, Users, Edit2, Trash2, Upload, X, Bell, Send, FileText, TrendingUp, Smartphone, Receipt, Calculator, Wallet, PiggyBank, BarChart3, ClipboardList, Sparkles, Target, ShieldCheck, AlertTriangle, ArrowRight, Download } from 'lucide-react';
 import api from '../../utils/api';
 import Scholarships from './Scholarships';
 import BulkImportModal from '../../components/BulkImportModal';
@@ -9,9 +9,6 @@ import ExportDropdown from '../../components/ExportDropdown';
 import StudentSelector from '../../components/StudentSelector';
 import MobileMoneyPayment from '../../components/MobileMoneyPayment';
 import { useAppDialog } from '../../components/ui/AppDialogProvider';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import QRCode from 'qrcode';
 
 // Accounting modules (rendered as embedded tabs)
 import Expenses from '../accounting/Expenses';
@@ -24,6 +21,7 @@ import AIFinancialAdvisor from '../accounting/AIFinancialAdvisor';
 import DebtCollection from '../accounting/DebtCollection';
 import BankReconciliation from '../accounting/BankReconciliation';
 import { financialApi, paymentControlApi, ReconciliationSummary } from '../../services/accountingService';
+import './Finance.css';
 
 interface Payment {
   id: string;
@@ -60,6 +58,7 @@ interface Payment {
   recordedBy: {
     fullName: string;
   };
+  allocations?: { amount: number }[];
 }
 
 interface FeeTemplate {
@@ -89,7 +88,13 @@ interface FeeCategory {
 interface AcademicTerm {
   id: string;
   name: string;
+  isActive?: boolean;
 }
+
+type PaymentControlSummary = ReconciliationSummary & {
+  pageUnallocatedPayments?: number;
+  pageUnallocatedAmount?: number;
+};
 
 interface Class {
   id: string;
@@ -102,6 +107,17 @@ const getGradeLabel = (grade: number) => {
 };
 
 const fmt = (amount: number) => `ZMW ${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const normalizePayment = (payment: Payment): Payment => {
+  if (!payment.allocations) return payment;
+  const allocatedAmount = payment.allocations.reduce((sum, allocation) => sum + Number(allocation.amount), 0);
+  return {
+    ...payment,
+    allocatedAmount,
+    unallocatedAmount: Math.max(0, Number(payment.amount) - allocatedAmount),
+    allocationCount: payment.allocations.length,
+  };
+};
 
 const Finance = () => {
   const { confirm, prompt, notify } = useAppDialog();
@@ -118,6 +134,9 @@ const Finance = () => {
     else setActiveSection('accounting');
   }, [activeTab]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentTotal, setPaymentTotal] = useState(0);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [loadingMorePayments, setLoadingMorePayments] = useState(false);
   const [feeTemplates, setFeeTemplates] = useState<FeeTemplate[]>([]);
   const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -137,9 +156,11 @@ const Finance = () => {
     totalRevenue: 0,
     totalTransactions: 0,
     pendingFees: 0,
-    overdueStudentsCount: 0
+    overdueCount: 0
   });
-  const [paymentControlSummary, setPaymentControlSummary] = useState<ReconciliationSummary>({
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
+  const [paymentControlSummary, setPaymentControlSummary] = useState<PaymentControlSummary>({
     totalPayments: 0,
     totalAmount: 0,
     reconciledPayments: 0,
@@ -150,7 +171,8 @@ const Finance = () => {
     unallocatedAmount: 0,
     missingBankReference: 0,
   });
-  const [paymentControlLoading, setPaymentControlLoading] = useState(false);
+  const [paymentControlLoading, setPaymentControlLoading] = useState(true);
+  const [paymentControlError, setPaymentControlError] = useState(false);
 
   // Form states
   const [newFee, setNewFee] = useState({ name: '', amount: '', academicTermId: '', categoryId: '', applicableGrade: '' });
@@ -168,6 +190,7 @@ const Finance = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [paymentTab, setPaymentTab] = useState<'completed' | 'voided'>('completed'); // 'completed' | 'voided'
+  const [progressFilter, setProgressFilter] = useState<'all' | 'unallocated' | 'unreconciled' | 'complete'>('all');
   const [resendingReceiptId, setResendingReceiptId] = useState<string | null>(null);
   const [creatingFeeCategory, setCreatingFeeCategory] = useState(false);
 
@@ -185,27 +208,33 @@ const Finance = () => {
     fetchClasses();
     fetchStudents();
     fetchStats();
-    fetchPaymentControlSummary();
   }, []);
 
   const fetchPaymentControlSummary = async () => {
     setPaymentControlLoading(true);
+    setPaymentControlError(false);
     try {
       const response = await paymentControlApi.getReconciliationDashboard();
       setPaymentControlSummary(response.data.summary);
     } catch (error) {
       console.error('Error fetching payment control summary:', error);
+      setPaymentControlError(true);
     } finally {
       setPaymentControlLoading(false);
     }
   };
 
   const fetchStats = async () => {
+    setStatsLoading(true);
+    setStatsError(false);
     try {
       const response = await api.get('/payments/stats');
       setStats(response.data);
     } catch (error) {
       console.error('Error fetching finance stats:', error);
+      setStatsError(true);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -214,17 +243,38 @@ const Finance = () => {
       const response = await api.get('/payments');
       // Handle paginated response structure
       if (response.data.data && Array.isArray(response.data.data)) {
-        setPayments(response.data.data);
+        setPayments(response.data.data.map(normalizePayment));
+        setPaymentTotal(response.data.meta?.total ?? response.data.data.length);
       } else if (Array.isArray(response.data)) {
-        setPayments(response.data);
+        setPayments(response.data.map(normalizePayment));
+        setPaymentTotal(response.data.length);
       } else {
         setPayments([]);
+        setPaymentTotal(0);
       }
-      fetchPaymentControlSummary();
+      setPaymentPage(1);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
       setLoading(false);
+      void fetchPaymentControlSummary();
+    }
+  };
+
+  const loadMorePayments = async () => {
+    if (loadingMorePayments || payments.length >= paymentTotal) return;
+    setLoadingMorePayments(true);
+    try {
+      const nextPage = paymentPage + 1;
+      const response = await api.get('/payments', { params: { page: nextPage } });
+      const nextPayments = Array.isArray(response.data?.data) ? response.data.data.map(normalizePayment) : [];
+      setPayments(current => [...current, ...nextPayments.filter((entry: Payment) => !current.some(item => item.id === entry.id))]);
+      setPaymentTotal(response.data.meta?.total ?? paymentTotal);
+      setPaymentPage(nextPage);
+    } catch {
+      notify('Could not load more payments. Please try again.', 'error');
+    } finally {
+      setLoadingMorePayments(false);
     }
   };
 
@@ -417,6 +467,7 @@ const Finance = () => {
       setShowAddModal(false);
       setPaymentForm({ studentId: '', amount: '', method: 'CASH', notes: '' });
       fetchPayments();
+      fetchStats();
     } catch (error: any) {
       console.error('Error recording payment:', error);
 
@@ -449,6 +500,7 @@ const Finance = () => {
             setShowAddModal(false);
             setPaymentForm({ studentId: '', amount: '', method: 'CASH', notes: '' });
             fetchPayments();
+            fetchStats();
           } catch (retryError) {
             console.error('Error on retry:', retryError);
             alert('Failed to record payment');
@@ -480,7 +532,7 @@ const Finance = () => {
       await api.post(`/payments/${paymentId}/void`, { reason: reason.trim() });
       alert('Payment voided successfully');
       fetchPayments();
-      fetchPaymentControlSummary();
+      fetchStats();
     } catch (error: any) {
       console.error('Error voiding payment:', error);
       alert(error.response?.data?.message || 'Failed to void payment');
@@ -512,7 +564,6 @@ const Finance = () => {
       const response = await paymentControlApi.autoAllocatePayments();
       notify(response.data.message || 'Payment allocation complete', response.data.allocated > 0 ? 'success' : 'info');
       fetchPayments();
-      fetchPaymentControlSummary();
     } catch (error: any) {
       notify(error.response?.data?.error || 'Failed to auto-allocate payments', 'error');
     }
@@ -538,7 +589,12 @@ const Finance = () => {
       ? payment.status === 'COMPLETED'
       : payment.status === 'VOIDED';
 
-    return matchesSearch && matchesMethod && matchesClass && matchesDate && matchesTab;
+    const matchesProgress = paymentTab === 'voided' || progressFilter === 'all'
+      || (progressFilter === 'unallocated' && Number(payment.unallocatedAmount || 0) > 0.009)
+      || (progressFilter === 'unreconciled' && !payment.isReconciled && Number(payment.unallocatedAmount || 0) <= 0.009)
+      || (progressFilter === 'complete' && !!payment.isReconciled && Number(payment.unallocatedAmount || 0) <= 0.009);
+
+    return matchesSearch && matchesMethod && matchesClass && matchesDate && matchesTab && matchesProgress;
   });
 
   // Fetch students with outstanding fees
@@ -605,218 +661,8 @@ const Finance = () => {
   // Generate payment receipt PDF
   const generatePaymentReceipt = async (payment: Payment) => {
     try {
-      const settingsRes = await api.get('/settings');
-      const schoolName = settingsRes.data.schoolName || 'School';
-      const schoolAddress = settingsRes.data.schoolAddress || '';
-      const schoolPhone = settingsRes.data.schoolPhone || '';
-      const schoolEmail = settingsRes.data.schoolEmail || '';
-
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      // --- QR Code Generation ---
-      const qrData = JSON.stringify({
-        id: payment.id,
-        student: `${payment.student.firstName} ${payment.student.lastName}`,
-        amount: payment.amount,
-        date: payment.paymentDate,
-        school: schoolName,
-        verified: true
-      });
-
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-        width: 120,
-        margin: 0,
-        color: { dark: '#1e293b', light: '#ffffff' }
-      });
-
-      // --- Color Palette ---
-      const primaryColor: [number, number, number] = [30, 58, 138]; // Deep Navy Blue
-      const accentColor: [number, number, number] = [241, 245, 249]; // Slate-100 (Backgrounds)
-      const textColor: [number, number, number] = [30, 41, 59]; // Slate-800
-      const mutedColor: [number, number, number] = [100, 116, 139]; // Slate-500
-
-      // --- Header ---
-      // Top Strip
-      doc.setFillColor(...primaryColor);
-      doc.rect(0, 0, pageWidth, 5, 'F');
-
-      // School Info (Left - Full Width Safe)
-      doc.setTextColor(...primaryColor);
-      doc.setFontSize(18);
-      doc.setFont('times', 'bold');
-      doc.text(schoolName.toUpperCase(), 14, 20);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...mutedColor);
-
-      let yPos = 26;
-      if (schoolAddress) {
-        doc.text(schoolAddress, 14, yPos);
-        yPos += 5;
-      }
-      if (schoolPhone || schoolEmail) {
-        doc.text([schoolPhone, schoolEmail].filter(Boolean).join(' | '), 14, yPos);
-      }
-
-      // Horizontal Line Divider
-      const headerBottom = 40;
-      doc.setDrawColor(226, 232, 240);
-      doc.line(14, headerBottom, pageWidth - 14, headerBottom);
-
-      // --- Receipt Meta Section (Below Header) ---
-      const metaY = headerBottom + 15;
-
-      // Left: Receipt Title & Number
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...mutedColor);
-      doc.text('OFFICIAL RECEIPT', 14, metaY);
-
-      doc.setFontSize(16);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`#${payment.id.substring(0, 8).toUpperCase()}`, 14, metaY + 8);
-
-      // Right: Date & Badge
-      doc.setFontSize(10);
-      doc.setTextColor(...mutedColor);
-      doc.text('Date Issued:', pageWidth - 50, metaY, { align: 'right' });
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...textColor);
-      doc.text(new Date(payment.paymentDate).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'short', year: 'numeric'
-      }), pageWidth - 14, metaY, { align: 'right' });
-
-      // Verified Badge
-      doc.setFillColor(220, 252, 231); // Green-100
-      doc.setTextColor(22, 163, 74);   // Green-600
-      doc.roundedRect(pageWidth - 44, metaY + 3, 30, 8, 4, 4, 'F');
-      doc.setFontSize(7);
-      doc.text('VERIFIED', pageWidth - 29, metaY + 8, { align: 'center' });
-
-      // --- Information Section (Grid Layout) ---
-      const startY = 80; // Pushed down
-      const colWidth = (pageWidth - 34) / 2;
-
-      // Student Section
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...primaryColor);
-      doc.text('STUDENT INFORMATION', 14, startY);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...mutedColor);
-      doc.text('Name:', 14, startY + 10);
-      doc.text('Admission No:', 14, startY + 17);
-      doc.text('Class:', 14, startY + 24);
-
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${payment.student.firstName} ${payment.student.lastName}`, 50, startY + 10);
-      doc.text(payment.student.admissionNumber, 50, startY + 17);
-      doc.text(payment.student.class?.name || 'N/A', 50, startY + 24);
-
-      // Payment Details Section
-      const col2X = 14 + colWidth + 6;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...primaryColor);
-      doc.text('PAYMENT DETAILS', col2X, startY);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...mutedColor);
-      doc.text('Payment Method:', col2X, startY + 10);
-      doc.text('Reference No:', col2X, startY + 17);
-      doc.text('Received By:', col2X, startY + 24);
-
-      doc.setTextColor(...textColor);
-      doc.setFont('helvetica', 'bold');
-      doc.text(payment.method.replace('_', ' '), col2X + 40, startY + 10);
-      doc.text(payment.transactionId || 'N/A', col2X + 40, startY + 17);
-      doc.text(payment.recordedBy.fullName, col2X + 40, startY + 24);
-
-      // --- Table Section ---
-      autoTable(doc, {
-        startY: startY + 40,
-        head: [['DESCRIPTION', 'AMOUNT (ZMW)']],
-        body: [
-          ['School Fees Payment', Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })]
-        ],
-        theme: 'plain', // Minimalist theme
-        headStyles: {
-          fillColor: [248, 250, 252],
-          textColor: [71, 85, 105],
-          fontStyle: 'bold',
-          fontSize: 9,
-          halign: 'left',
-          cellPadding: 10,
-          lineWidth: { bottom: 0.5 },
-          lineColor: [226, 232, 240]
-        },
-        bodyStyles: {
-          fontSize: 11,
-          textColor: [15, 23, 42],
-          cellPadding: 12,
-          valign: 'middle',
-          lineWidth: { bottom: 0.5 },
-          lineColor: [241, 245, 249]
-        },
-        columnStyles: {
-          1: { halign: 'right', fontStyle: 'bold' }
-        },
-        margin: { left: 14, right: 14 }
-      });
-
-      // --- Total & Verification Footer ---
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-
-      // Total Box (Right Aligned, Elegant)
-      doc.setFillColor(...accentColor);
-      doc.roundedRect(pageWidth - 70, finalY, 56, 20, 1, 1, 'F');
-
-      doc.setFontSize(9);
-      doc.setTextColor(...mutedColor);
-      doc.text('Total Amount', pageWidth - 65, finalY + 7);
-
-      doc.setFontSize(14);
-      doc.setTextColor(...primaryColor);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`ZMW ${Number(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 65, finalY + 15);
-
-      // Verification Logic (Bottom)
-      const footerY = pageHeight - 50;
-
-      // Separator
-      doc.setDrawColor(226, 232, 240);
-      doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
-
-      // QR Code
-      doc.addImage(qrCodeDataUrl, 'PNG', 14, footerY + 5, 25, 25);
-
-      // Verification Text
-      doc.setFontSize(10);
-      doc.setTextColor(...primaryColor);
-      doc.setFont('helvetica', 'bold');
-      doc.text('VERIFIED DOCUMENT', 45, footerY + 12);
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...mutedColor);
-      doc.text('This receipt is system-generated and includes a secure QR code.', 45, footerY + 18);
-      doc.text('No signature is required. Scan the QR code to verify authenticity.', 45, footerY + 23);
-
-      // Bottom Watermark/Text
-      doc.setFontSize(8);
-      doc.setTextColor(203, 213, 225); // Very light
-      doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
-
-      // Download
-      doc.save(`receipt_${payment.student.lastName}_${payment.id.substring(0, 8)}.pdf`);
+      const { default: downloadPaymentReceipt } = await import('./paymentReceipt');
+      await downloadPaymentReceipt(payment);
     } catch (error) {
       console.error('Error generating receipt:', error);
       alert('Failed to generate receipt');
@@ -840,15 +686,31 @@ const Finance = () => {
   };
 
   const overdueDebtors = debtors.filter(d => d.isOverdue);
+  const currentAcademicTerm = academicTerms.find(term => term.isActive);
+  const completedPayments = payments.filter(payment => payment.status === 'COMPLETED');
+  const voidedPayments = payments.filter(payment => payment.status === 'VOIDED');
+  const unallocatedPayments = completedPayments.filter(payment => Number(payment.unallocatedAmount || 0) > 0.009);
+  const unreconciledPayments = completedPayments.filter(payment => Number(payment.unallocatedAmount || 0) <= 0.009 && !payment.isReconciled);
+  const completePayments = completedPayments.filter(payment => Number(payment.unallocatedAmount || 0) <= 0.009 && payment.isReconciled);
+  const reconciledPercent = paymentControlSummary.totalPayments > 0
+    ? Math.round((paymentControlSummary.reconciledPayments / paymentControlSummary.totalPayments) * 100)
+    : 0;
+  const pageUnallocatedCount = paymentControlSummary.pageUnallocatedPayments ?? paymentControlSummary.unallocatedPayments ?? 0;
+  const pageUnallocatedAmount = paymentControlSummary.pageUnallocatedAmount ?? paymentControlSummary.unallocatedAmount ?? 0;
 
   return (
-    <div className="ds-page">
+    <div className="ds-page finance-workspace">
       <div className="ds-page-header">
         <div>
           <h1 className="ds-page-title">Finance & Payments</h1>
-          <p className="ds-page-subtitle">Manage school fees and transactions</p>
+          <p className="ds-page-subtitle">What was billed, what came in, and what still needs follow-up.</p>
         </div>
         <div className="ds-actions">
+          {currentAcademicTerm && (
+            <span className="finance-workspace__term" title="Academic term for reference. Payment figures and records below include all terms.">
+              <Calendar size={16} aria-hidden="true" /> {currentAcademicTerm.name}
+            </span>
+          )}
           {activeTab === 'fees' && (
             <>
               <button
@@ -891,7 +753,7 @@ const Finance = () => {
       </div>
 
       {/* Section Switcher */}
-      <div className="ds-actions" role="group" aria-label="Finance section">
+      <div className="ds-actions finance-workspace__section-tabs" role="group" aria-label="Finance section">
         <button
           onClick={() => { setActiveSection('revenue'); setActiveTab('payments'); }}
           aria-pressed={activeSection === 'revenue'}
@@ -911,7 +773,7 @@ const Finance = () => {
       </div>
 
       {/* Sub-tabs */}
-      <div className="ds-actions" role="group" aria-label="Finance views">
+      <div className="ds-actions finance-workspace__view-tabs" role="group" aria-label="Finance views">
         {activeSection === 'revenue' ? (
           <>
             <button onClick={() => setActiveTab('payments')}
@@ -1190,112 +1052,73 @@ const Finance = () => {
         <DebtCollection embedded />
       ) : activeTab === 'payments' ? (
         <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="ds-card">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 text-green-600 dark:text-green-400">
-                  <DollarSign size={24} />
-                </div>
-                <span className="text-sm text-slate-500 dark:text-gray-400">Total Revenue</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white">ZMW {stats.totalRevenue.toLocaleString()}</h3>
-              <p className="text-sm text-green-600 mt-1">All time revenue</p>
+          <section className="finance-workspace__metrics" aria-label="Finance summary, all time">
+            <div className="ds-card finance-workspace__metric">
+              <div className="finance-workspace__metric-label"><DollarSign size={17} aria-hidden="true" /><span>Collected</span></div>
+              <p className="finance-workspace__metric-value">{statsLoading || statsError ? '—' : fmt(stats.totalRevenue)}</p>
+              <p className="finance-workspace__metric-detail">{statsError ? 'Totals unavailable' : statsLoading ? 'Loading totals…' : `All terms · ${stats.totalTransactions.toLocaleString()} completed payments`}</p>
             </div>
-
-            <div className="ds-card">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 text-blue-600 dark:text-blue-400">
-                  <CreditCard size={24} />
-                </div>
-                <span className="text-sm text-slate-500 dark:text-gray-400">Transactions</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white">{stats.totalTransactions}</h3>
-              <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">Total transactions</p>
+            <div className="ds-card finance-workspace__metric">
+              <div className="finance-workspace__metric-label"><Wallet size={17} aria-hidden="true" /><span>Still owed</span></div>
+              <p className="finance-workspace__metric-value">{statsLoading || statsError ? '—' : fmt(stats.pendingFees)}</p>
+              <p className="finance-workspace__metric-detail">{statsError ? 'Balances unavailable' : statsLoading ? 'Loading balances…' : `All terms · ${stats.overdueCount.toLocaleString()} students with a balance`}</p>
             </div>
-
-            <div className="ds-card">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 text-orange-600 dark:text-orange-400">
-                  <Calendar size={24} />
-                </div>
-                <span className="text-sm text-slate-500 dark:text-gray-400">Pending Fees</span>
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white">ZMW {stats.pendingFees.toLocaleString()}</h3>
-              <p className="text-sm text-red-500 mt-1">{stats.overdueStudentsCount} students overdue</p>
+            <div className="ds-card finance-workspace__metric">
+              <div className="finance-workspace__metric-label"><ShieldCheck size={17} aria-hidden="true" /><span>Reconciled payments</span></div>
+              <p className="finance-workspace__metric-value">{paymentControlLoading || paymentControlError ? '—' : <>{paymentControlSummary.reconciledPayments.toLocaleString()} <span>of {paymentControlSummary.totalPayments.toLocaleString()} payments</span></>}</p>
+              {!paymentControlLoading && !paymentControlError && <div className="finance-workspace__progress" role="progressbar" aria-label="Payments reconciled" aria-valuenow={reconciledPercent} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${reconciledPercent}%` }} /></div>}
+              <p className="finance-workspace__metric-detail">{paymentControlError ? 'Reconciliation unavailable' : paymentControlLoading ? 'Loading reconciliation…' : `${fmt(paymentControlSummary.unreconciledAmount)} awaiting reconciliation · all terms`}</p>
             </div>
-          </div>
+          </section>
 
-          <div className="ds-card mb-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-                <div className="ds-surface-muted p-4">
-                  <p className="text-sm text-slate-500 dark:text-gray-400">Unreconciled receipts</p>
-                  <p className="text-xl font-bold text-orange-600">{paymentControlLoading ? '…' : paymentControlSummary.unreconciledPayments}</p>
-                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{fmt(paymentControlSummary.unreconciledAmount || 0)}</p>
-                </div>
-                <div className="ds-surface-muted p-4">
-                  <p className="text-sm text-slate-500 dark:text-gray-400">Unallocated payments</p>
-                  <p className="text-xl font-bold text-purple-600">{paymentControlLoading ? '…' : paymentControlSummary.unallocatedPayments}</p>
-                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{fmt(paymentControlSummary.unallocatedAmount || 0)}</p>
-                </div>
-                <div className="ds-surface-muted p-4">
-                  <p className="text-sm text-slate-500 dark:text-gray-400">Missing bank refs</p>
-                  <p className="text-xl font-bold text-red-600">{paymentControlLoading ? '…' : paymentControlSummary.missingBankReference}</p>
-                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">Bank deposits need statement evidence</p>
+          {statsError && <div className="finance-workspace__notice" role="alert">Could not load payment totals. <button type="button" onClick={fetchStats}>Try again</button></div>}
+          {paymentControlError && <div className="finance-workspace__notice" role="alert">Could not load payment controls. <button type="button" onClick={fetchPaymentControlSummary}>Try again</button></div>}
+
+          {!paymentControlLoading && !paymentControlError && (pageUnallocatedCount > 0 || paymentControlSummary.unreconciledPayments > 0 || paymentControlSummary.missingBankReference > 0) && (
+            <section className="finance-workspace__attention" aria-labelledby="finance-attention-title">
+              <div>
+                <h2 id="finance-attention-title">Needs attention</h2>
+                <div className="finance-workspace__attention-message">
+                  <AlertTriangle size={19} aria-hidden="true" />
+                  <div>
+                    <strong>{pageUnallocatedCount > 0 ? `${pageUnallocatedCount} payments not applied to fees` : `${paymentControlSummary.unreconciledPayments} payments awaiting reconciliation`}</strong>
+                    <p>{pageUnallocatedCount > 0 ? `${fmt(pageUnallocatedAmount)} is still unallocated among the first 50 payments in the reconciliation queue.` : `${fmt(paymentControlSummary.unreconciledAmount)} to reconcile · ${paymentControlSummary.missingBankReference} bank references missing.`}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={handleAutoAllocatePayments}
-                  className="ds-button-primary"
-                >
-                  Auto-allocate open payments
-                </button>
-                <button
-                  onClick={() => setActiveTab('bank-reconciliation')}
-                  className="ds-button-outline"
-                >
-                  Open reconciliation queue
-                </button>
+              <div className="finance-workspace__attention-actions">
+                <button type="button" className="ds-button-outline" onClick={() => setActiveTab('bank-reconciliation')}>Review <ArrowRight size={16} aria-hidden="true" /></button>
+                {pageUnallocatedCount > 0 && <button type="button" className="ds-button-primary" onClick={handleAutoAllocatePayments}>Apply to fees</button>}
               </div>
-            </div>
-          </div>
+            </section>
+          )}
 
-          {/* Tabs */}
-          <div className="ds-actions mb-6" role="group" aria-label="Payment status">
-            <button
-              onClick={() => setPaymentTab('completed')}
-              aria-pressed={paymentTab === 'completed'}
-              className={paymentTab === 'completed' ? 'ds-button-secondary' : 'ds-button-ghost'}
-            >
-              Valid Payments
-            </button>
-            <button
-              onClick={() => setPaymentTab('voided')}
-              aria-pressed={paymentTab === 'voided'}
-              className={paymentTab === 'voided' ? 'ds-button-secondary' : 'ds-button-ghost'}
-            >
-              Voided Transactions
-            </button>
-          </div>
+          <section className="finance-workspace__ledger ds-surface" aria-labelledby="finance-payments-heading">
+            <header className="finance-workspace__ledger-header">
+              <div>
+                <h2 id="finance-payments-heading">Payments received</h2>
+                <p>{loading ? 'Loading payment records…' : `${filteredPayments.length} shown · ${payments.length} of ${paymentTotal} records loaded · all terms`}</p>
+              </div>
+              <div className="finance-workspace__status-tabs" role="group" aria-label="Payment status">
+                <button type="button" onClick={() => { setPaymentTab('completed'); setProgressFilter('all'); }} aria-pressed={paymentTab === 'completed'}>Received {completedPayments.length}</button>
+                <button type="button" onClick={() => { setPaymentTab('voided'); setProgressFilter('all'); }} aria-pressed={paymentTab === 'voided'}>Voided {voidedPayments.length}</button>
+              </div>
+            </header>
 
-          {/* Search and Action Bar */}
-          <div className="ds-card mb-6">
-            <div className="ds-toolbar">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <div className="finance-workspace__ledger-toolbar">
+              <div className="finance-workspace__search">
+                <Search size={18} aria-hidden="true" />
                 <input
                   type="text"
-                  placeholder="Search by student name, ID, or reference..."
-                  className="ds-input pl-10"
+                  placeholder="Student, admission no. or reference"
+                  className="ds-input"
                   aria-label="Search payments by student name, ID, or reference"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <div className="ds-actions">
+              <div className="ds-actions finance-workspace__ledger-actions">
                 <button
                   onClick={() => setShowFilterModal(true)}
                   className={`${(classFilter !== 'ALL' || methodFilter !== 'ALL' || dateRange.start || dateRange.end)
@@ -1342,139 +1165,110 @@ const Finance = () => {
                 />
               </div>
             </div>
-          </div>
+
+            {paymentTab === 'completed' && (
+              <div className="finance-workspace__progress-tabs" role="group" aria-label="Payment progress">
+                {([
+                  { key: 'all', label: 'All', count: completedPayments.length },
+                  { key: 'unallocated', label: 'Not applied to fees', count: unallocatedPayments.length },
+                  { key: 'unreconciled', label: 'Awaiting reconciliation', count: unreconciledPayments.length },
+                  { key: 'complete', label: 'Complete', count: completePayments.length },
+                ] as const).map(option => (
+                  <button key={option.key} type="button" onClick={() => setProgressFilter(option.key)} aria-pressed={progressFilter === option.key}>
+                    {option.label} <span>{option.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
           {/* Payments Table */}
-          <div className="ds-surface overflow-hidden">
-            <div className="overflow-x-auto" role="region" aria-label="Payment transactions" tabIndex={0}>
-              <table className="ds-table">
+            <div className="finance-workspace__table-scroll" role="region" aria-label="Payment transactions" tabIndex={0}>
+              <table className="ds-table finance-workspace__table">
                 <thead>
                   <tr>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Date</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Student</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Class</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Amount (ZMW)</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Method</th>
-                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Transaction ID</th>
-                    {paymentTab === 'voided' ? (
-                      <>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Void Reason</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Voided By</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Allocation</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Reconciliation</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Notes</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Recorded By</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Actions</th>
-                      </>
-                    )}
+                    <th scope="col">Date</th>
+                    <th scope="col">Student</th>
+                    <th scope="col" className="text-right">Amount (ZMW)</th>
+                    <th scope="col">Method</th>
+                    <th scope="col">Progress</th>
+                    <th scope="col" className="text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-gray-400">Loading payments...</td>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-gray-400">Loading payments...</td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-gray-400">No payments found</td>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-gray-400">No payments found</td>
                     </tr>
                   ) : (
                     filteredPayments.map((payment) => (
                       <tr key={payment.id}>
-                        <td className="px-6 py-4 text-slate-600 dark:text-gray-300">
-                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        <td className="whitespace-nowrap">
+                          <span className="finance-workspace__cell-primary">{new Date(payment.paymentDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span className="finance-workspace__cell-detail">by {payment.recordedBy?.fullName || 'Unknown'}</span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-slate-800 dark:text-white">
+                        <td>
+                          <span className="finance-workspace__cell-primary">
                             {payment.student.firstName} {payment.student.lastName}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-gray-400">
-                            {payment.student.admissionNumber}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-slate-600 dark:text-gray-300">
-                          {payment.student.class?.name || 'No Class'}
-                        </td>
-                        <td className={`px-6 py-4 font-medium ${payment.status === 'VOIDED' ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-800 dark:text-white'}`}>
-                          {Number(payment.amount).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`ds-badge
-                            ${payment.method === 'CASH' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
-                              payment.method === 'MOBILE_MONEY' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400' :
-                                'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'}`}>
-                            {payment.method.replace('_', ' ')}
                           </span>
+                          <span className="finance-workspace__cell-detail">{payment.student.admissionNumber} · {payment.student.class?.name || 'No Class'}</span>
                         </td>
-                        <td className="px-6 py-4 text-slate-600 dark:text-gray-300 font-mono text-sm">
-                          {payment.transactionId || '-'}
+                        <td className={`text-right font-semibold whitespace-nowrap ${payment.status === 'VOIDED' ? 'line-through text-[var(--text-secondary)]' : ''}`}>
+                          {Number(payment.amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td>
+                          <span className="ds-badge ds-badge-neutral">{payment.method.replace(/_/g, ' ')}</span>
+                          <span className="finance-workspace__cell-detail">{payment.transactionId || 'No reference'}</span>
                         </td>
                         {paymentTab === 'voided' ? (
                           <>
-                            <td className="px-6 py-4 text-red-600 dark:text-red-400 text-sm italic">
-                              {payment.voidReason || 'No reason'}
+                            <td>
+                              <span className="ds-badge ds-badge-error">Voided</span>
+                              <span className="finance-workspace__cell-detail">{payment.voidReason || 'No reason'} · {payment.voidedBy?.fullName || 'Unknown'}</span>
                             </td>
-                            <td className="px-6 py-4 text-slate-600 dark:text-gray-300">
-                              {payment.voidedBy?.fullName || 'Unknown'}
-                            </td>
+                            <td className="text-right text-[var(--text-secondary)]">—</td>
                           </>
                         ) : (
                           <>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <span className={`font-medium ${(payment.unallocatedAmount || 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                                  {(payment.unallocatedAmount || 0) > 0 ? `Open ZMW ${Number(payment.unallocatedAmount || 0).toLocaleString()}` : 'Allocated'}
-                                </span>
-                                <div className="text-xs text-slate-500 dark:text-gray-400">
-                                  {payment.allocationCount || 0} fee item(s)
-                                </div>
-                              </div>
+                            <td>
+                              <span className={`ds-badge ${(payment.unallocatedAmount || 0) > 0.009 ? 'ds-badge-warning' : payment.isReconciled ? 'ds-badge-success' : 'ds-badge-info'}`}>
+                                {(payment.unallocatedAmount || 0) > 0.009 ? 'Not applied to fees' : payment.isReconciled ? 'Complete' : 'Awaiting reconciliation'}
+                              </span>
+                              <span className="finance-workspace__cell-detail">{(payment.unallocatedAmount || 0) > 0.009 ? `${fmt(payment.unallocatedAmount || 0)} not linked to a fee` : `${payment.allocationCount || 0} fee item(s) · ${payment.bankReference || (payment.isReconciled ? 'Reconciled' : 'No bank reference')}`}</span>
+                              {payment.notes && <span className="finance-workspace__cell-detail" title={payment.notes}>{payment.notes}</span>}
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <span className={`ds-badge ${payment.isReconciled ? 'ds-badge-success' : 'ds-badge-warning'}`}>
-                                  {payment.isReconciled ? 'Reconciled' : 'Open'}
-                                </span>
-                                <div className="text-xs text-slate-500 dark:text-gray-400 mt-1">
-                                  {payment.bankReference || 'No bank ref'}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-gray-400 text-sm max-w-xs truncate">
-                              {payment.notes || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-slate-600 dark:text-gray-300">
-                              {payment.recordedBy.fullName}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                            <td className="text-right">
+                              <div className="finance-workspace__row-actions">
                                 <button
+                                  type="button"
                                   onClick={() => generatePaymentReceipt(payment)}
-                                  className="ds-button-secondary"
-                                  title="Download Receipt"
+                                  className="ds-button-ghost"
+                                  title="Download receipt"
+                                  aria-label={`Download receipt for ${payment.student.firstName} ${payment.student.lastName}`}
                                 >
-                                  <FileText size={14} />
-                                  Receipt
+                                  <Download size={17} aria-hidden="true" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleResendReceipt(payment.id)}
                                   disabled={resendingReceiptId === payment.id}
-                                  className="ds-button-outline"
-                                  title="Resend receipt to parent"
+                                  className="ds-button-ghost"
+                                  title="Resend receipt"
+                                  aria-label={`Resend receipt for ${payment.student.firstName} ${payment.student.lastName}`}
                                 >
-                                  <Send size={14} />
-                                  {resendingReceiptId === payment.id ? 'Sending...' : 'Resend'}
+                                  <Send size={17} aria-hidden="true" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleVoidPayment(payment.id)}
-                                  className="ds-button-destructive"
-                                  title="Void this payment"
+                                  className="ds-button-ghost finance-workspace__void-action"
+                                  title="Void payment"
+                                  aria-label={`Void payment for ${payment.student.firstName} ${payment.student.lastName}`}
                                 >
-                                  <X size={14} />
-                                  Void
+                                  <X size={17} aria-hidden="true" />
                                 </button>
                               </div>
                             </td>
@@ -1486,7 +1280,15 @@ const Finance = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+            {payments.length < paymentTotal && (
+              <div className="finance-workspace__load-more">
+                <span>{payments.length} of {paymentTotal} payment records loaded. Search and export cover loaded records.</span>
+                <button type="button" className="ds-button-outline" onClick={loadMorePayments} disabled={loadingMorePayments}>
+                  {loadingMorePayments ? 'Loading…' : 'Load more payments'}
+                </button>
+              </div>
+            )}
+          </section>
         </>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

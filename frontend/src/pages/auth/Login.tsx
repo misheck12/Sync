@@ -9,18 +9,24 @@ import {
   EyeOff,
   GraduationCap,
   BookOpen,
-  Users,
-  Calendar,
-  FileBarChart
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
+import './Login.css';
 
 const DEFAULT_TENANT_SLUG = 'lyangend';
 
 const resolveTenantSlug = () => {
+  const host = window.location.hostname.toLowerCase();
+  if (host.endsWith('.syncsos.com')) {
+    const subdomain = host.split('.')[0];
+    if (subdomain && !['www', 'api', 'ops'].includes(subdomain)) return subdomain;
+  }
+
   const storedSlug = localStorage.getItem('tenantSlug');
   if (storedSlug && storedSlug.trim()) return storedSlug.trim();
 
-  const host = window.location.hostname.toLowerCase();
   const normalizedHost = host.split(':')[0];
   const candidate = normalizedHost.includes('.') ? normalizedHost.split('.')[0] : normalizedHost;
 
@@ -32,7 +38,6 @@ const resolveTenantSlug = () => {
 };
 
 const Login = () => {
-  const [tenantSlug, setTenantSlug] = useState(() => resolveTenantSlug());
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,14 +49,12 @@ const Login = () => {
 
   useEffect(() => {
     if (isPlatformHost()) {
-      navigate('/ops/login', { replace: true });
+      navigate('/login', { replace: true });
     }
   }, [navigate]);
 
   useEffect(() => {
     const slug = resolveTenantSlug();
-    setTenantSlug(slug);
-
     if (!slug) return;
     localStorage.setItem('tenantSlug', slug);
 
@@ -88,197 +91,120 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen md:h-screen flex flex-col md:flex-row bg-white dark:bg-slate-900 md:overflow-hidden">
-      {/* Left Panel - Branding */}
-      <div className="hidden md:flex md:w-1/2 text-white p-6 md:p-12 flex-col justify-between relative h-full overflow-hidden" style={{ background: '#003366' }}>
-        <div className="absolute inset-0 opacity-30" style={{ background: 'linear-gradient(135deg, #0047AB 0%, #FF9933 100%)' }}></div>
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10" style={{ background: '#FF9933' }}></div>
-        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-8" style={{ background: '#0047AB' }}></div>
+    <main className="school-login">
+      <section className="school-login__story" aria-label="Welcome to your school portal">
+        <div className="school-login__story-inner">
+          <div className="school-login__brand school-login__brand--light">
+            <div className="school-login__emblem">
+              {publicSettings.logoUrl ? <img src={publicSettings.logoUrl} alt="" /> : <GraduationCap size={26} strokeWidth={1.7} aria-hidden="true" />}
+            </div>
+            <div className="school-login__brand-copy">
+              <span className="school-login__brand-name">{publicSettings.schoolName || 'Sync School Portal'}</span>
+              <span className="school-login__brand-caption">SCHOOL PORTAL</span>
+            </div>
+          </div>
 
-        <div className="relative z-10">
-          <div className="flex items-center space-x-3 mb-10">
-            {publicSettings.logoUrl ? (
-              <img
-                src={publicSettings.logoUrl}
-                alt="School Logo"
-                className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1 backdrop-blur-sm"
-              />
-            ) : (
-              <div className="p-2.5 rounded-xl backdrop-blur-sm" style={{ background: 'rgba(255, 153, 51, 0.2)', border: '1px solid rgba(255, 153, 51, 0.3)' }}>
-                <GraduationCap size={28} className="text-white" />
+          <div className="school-login__story-body">
+            <div className="school-login__eyebrow"><span className="school-login__eyebrow-line" /> A BETTER WAY TO GROW</div>
+            <h1>Every school day,<br /><em>more in sync.</em></h1>
+            <p>A thoughtful space for the people who make learning happen. Your school, your community, all in one place.</p>
+
+            <div className="school-login__illustration" aria-hidden="true">
+              <div className="school-login__orbit school-login__orbit--outer" />
+              <div className="school-login__orbit school-login__orbit--inner" />
+              <div className="school-login__illustration-spark school-login__illustration-spark--one">✳</div>
+              <div className="school-login__illustration-spark school-login__illustration-spark--two">✳</div>
+              <div className="school-login__illustration-card school-login__illustration-card--back" />
+              <div className="school-login__illustration-card school-login__illustration-card--front">
+                <div className="school-login__illustration-icon"><BookOpen size={31} strokeWidth={1.6} /></div>
+                <span className="school-login__illustration-rule school-login__illustration-rule--long" />
+                <span className="school-login__illustration-rule" />
+                <span className="school-login__illustration-rule school-login__illustration-rule--short" />
+                <div className="school-login__illustration-seal"><Sparkles size={22} strokeWidth={1.7} /></div>
               </div>
-            )}
-            <span className="text-2xl font-bold tracking-tight">{publicSettings.schoolName || 'Sync Portal'}</span>
+              <div className="school-login__illustration-label">A place to belong <span>↗</span></div>
+            </div>
           </div>
 
-          <div className="space-y-6 max-w-lg">
-            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
-              Run your school<br />
-              <span style={{ color: '#FF9933' }}>in sync.</span>
-            </h1>
-            <p className="text-lg leading-relaxed opacity-80">
-              Manage students, track attendance, monitor grades, and streamline your school operations — all in one place.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-10 max-w-lg">
-            <div className="backdrop-blur-md p-4 rounded-xl transition-colors" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-              <BookOpen className="mb-3 opacity-80" size={24} style={{ color: '#FFB366' }} />
-              <h3 className="font-semibold text-sm">Grades</h3>
-              <p className="text-xs opacity-60 mt-1">Track academic progress</p>
-            </div>
-            <div className="backdrop-blur-md p-4 rounded-xl transition-colors" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-              <Users className="mb-3 opacity-80" size={24} style={{ color: '#FFB366' }} />
-              <h3 className="font-semibold text-sm">Students</h3>
-              <p className="text-xs opacity-60 mt-1">Manage enrollment</p>
-            </div>
-            <div className="backdrop-blur-md p-4 rounded-xl transition-colors" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-              <Calendar className="mb-3 opacity-80" size={24} style={{ color: '#FFB366' }} />
-              <h3 className="font-semibold text-sm">Schedule</h3>
-              <p className="text-xs opacity-60 mt-1">Organize timetables</p>
-            </div>
-            <div className="backdrop-blur-md p-4 rounded-xl transition-colors" style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-              <FileBarChart className="mb-3 opacity-80" size={24} style={{ color: '#FFB366' }} />
-              <h3 className="font-semibold text-sm">Reports</h3>
-              <p className="text-xs opacity-60 mt-1">Generate insights</p>
-            </div>
+          <div className="school-login__story-footer">
+            <span>MADE FOR BETTER SCHOOL DAYS</span>
+            <span>© {new Date().getFullYear()} Livingi Labz</span>
           </div>
         </div>
+      </section>
 
-        <div className="relative z-10 text-sm opacity-50">
-          © {new Date().getFullYear()} Livingi Labz. All rights reserved.
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-slate-50 dark:bg-slate-900 md:h-full md:overflow-y-auto">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-none md:p-8">
-          <div className="space-y-2 mb-6">
-            {/* Mobile Logo */}
-            <div className="flex items-center space-x-2 md:hidden mb-4">
-              {publicSettings.logoUrl ? (
-                <img
-                  src={publicSettings.logoUrl}
-                  alt="Logo"
-                  className="w-10 h-10 rounded-lg object-contain"
-                />
-              ) : (
-                <div className="p-2 rounded-lg" style={{ background: '#0047AB' }}>
-                  <GraduationCap size={24} className="text-white" />
-                </div>
-              )}
-              <span className="text-xl font-bold tracking-tight dark:text-white" style={{ color: '#003366' }}>{publicSettings.schoolName || 'Sync Portal'}</span>
+      <section className="school-login__entry" aria-labelledby="school-login-heading">
+        <div className="school-login__entry-inner">
+          <div className="school-login__brand school-login__brand--mobile">
+            <div className="school-login__emblem">
+              {publicSettings.logoUrl ? <img src={publicSettings.logoUrl} alt="" /> : <GraduationCap size={26} strokeWidth={1.7} aria-hidden="true" />}
             </div>
-
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white md:text-[2rem]">Welcome back</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to continue to your dashboard</p>
+            <div className="school-login__brand-copy">
+              <span className="school-login__brand-name">{publicSettings.schoolName || 'Sync School Portal'}</span>
+              <span className="school-login__brand-caption">SCHOOL PORTAL</span>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-lg text-sm border border-red-100 dark:border-red-800">
-                {error}
-              </div>
-            )}
+          <div className="school-login__form-wrap">
+            <span className="school-login__welcome-icon" aria-hidden="true"><BookOpen size={25} strokeWidth={1.6} /></span>
+            <p className="school-login__kicker">WELCOME BACK</p>
+            <h2 id="school-login-heading">Good to see you again.</h2>
+            <p className="school-login__intro">Sign in to your school workspace to pick up where you left off.</p>
 
-            <div className="space-y-4">
-              <div className="hidden">
-                <input
-                  type="text"
-                  value={tenantSlug}
-                  readOnly
-                  aria-hidden="true"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Email address
-                </label>
+            <form onSubmit={handleSubmit} className="school-login__form">
+              {error && <div className="school-login__error" role="alert">{error}</div>}
+              <div className="school-login__field">
+                <label htmlFor="email">Email address</label>
                 <input
                   id="email"
                   type="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-slate-50 dark:bg-slate-700/60 focus:bg-white dark:focus:bg-slate-700"
-                  style={{ '--tw-ring-color': '#0047AB' } as React.CSSProperties}
-                  placeholder="name@school.edu"
+                  placeholder="you@school.edu"
                 />
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
+              <div className="school-login__field">
+                <label htmlFor="password">Password</label>
+                <div className="school-login__password">
                   <input
                     id="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all pr-10 bg-slate-50 dark:bg-slate-700/60 focus:bg-white dark:focus:bg-slate-700"
-                    style={{ '--tw-ring-color': '#0047AB' } as React.CSSProperties}
                     placeholder="Enter your password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                    className="school-login__password-toggle"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
+
+              <button type="submit" disabled={loading} className="school-login__submit">
+                {loading ? <><Loader2 size={20} className="school-login__spinner" aria-hidden="true" /> Signing in…</> : <>Sign in to your portal <ArrowRight size={19} aria-hidden="true" /></>}
+              </button>
+            </form>
+
+            <div className="school-login__help">
+              <ShieldCheck size={19} strokeWidth={1.7} aria-hidden="true" />
+              <p>Having trouble signing in? Contact your school administrator for help with your account.</p>
             </div>
-
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 border-gray-300 dark:border-slate-600 rounded"
-                style={{ accentColor: '#0047AB' }}
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-600 dark:text-gray-400">
-                Keep me signed in
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-[0_12px_24px_rgba(0,71,171,0.22)] text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[0_16px_28px_rgba(0,71,171,0.28)] active:scale-[0.98]"
-              style={{ background: '#0047AB', '--tw-ring-color': '#0047AB' } as React.CSSProperties}
-              onMouseOver={(e) => (e.currentTarget.style.background = '#003366')}
-              onMouseOut={(e) => (e.currentTarget.style.background = '#0047AB')}
-            >
-              {loading ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Need help?{' '}
-              <a href="#" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#FF9933' }}>
-                Contact IT Support
-              </a>
-            </p>
           </div>
 
-          <div className="pt-4 border-t border-gray-100 dark:border-slate-700">
-            <p className="text-xs text-center text-gray-400 dark:text-gray-500">
-              Powered by <span className="font-semibold" style={{ color: '#0047AB' }}>Livingi Labz</span>
-            </p>
-          </div>
+          <div className="school-login__entry-footer"><span>SECURE SCHOOL ACCESS</span><span>Powered by <strong>Sync</strong></span></div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 

@@ -12,10 +12,15 @@ const api = axios.create({
 });
 
 const getTenantSlug = () => {
+  const host = window.location.hostname.toLowerCase();
+  if (host.endsWith('.syncsos.com')) {
+    const subdomain = host.split('.')[0];
+    if (subdomain && !['www', 'api', 'ops'].includes(subdomain)) return subdomain;
+  }
+
   const storedSlug = localStorage.getItem('tenantSlug');
   if (storedSlug && storedSlug.trim()) return storedSlug.trim();
 
-  const host = window.location.hostname;
   const subdomain = host.includes('.') ? host.split('.')[0] : '';
   if (subdomain && !['www', 'localhost', '127'].includes(subdomain)) {
     return subdomain;

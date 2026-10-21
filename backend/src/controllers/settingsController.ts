@@ -147,6 +147,9 @@ export const getPublicSettings = async (req: Request, res: Response) => {
   try {
     const defaultBranding = {
       schoolName: 'My School',
+      schoolAddress: '',
+      schoolPhone: '',
+      schoolEmail: '',
       primaryColor: '#2563eb',
       secondaryColor: '#475569',
       accentColor: '#f59e0b',
@@ -161,6 +164,9 @@ export const getPublicSettings = async (req: Request, res: Response) => {
       where: { tenantId },
       select: {
         schoolName: true,
+        schoolAddress: true,
+        schoolPhone: true,
+        schoolEmail: true,
         logoUrl: true,
         primaryColor: true,
         secondaryColor: true,
@@ -181,6 +187,9 @@ export const getPublicSettings = async (req: Request, res: Response) => {
     console.error('Get public settings error:', error);
     res.json({
       schoolName: 'My School',
+      schoolAddress: '',
+      schoolPhone: '',
+      schoolEmail: '',
       primaryColor: '#2563eb',
       secondaryColor: '#475569',
       accentColor: '#f59e0b',

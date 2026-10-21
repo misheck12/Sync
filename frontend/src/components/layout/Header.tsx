@@ -173,7 +173,7 @@ const Header = () => {
       window.location.href = '/ops';
     } catch {
       localStorage.removeItem('platformSession');
-      window.location.href = '/ops/login';
+      window.location.href = '/login';
     }
   };
 

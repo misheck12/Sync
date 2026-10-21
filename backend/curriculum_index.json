@@ -1,0 +1,2122 @@
+{
+  "documents": [
+    {
+      "filename": "EARLY-CHILDHOOD-EDUCATION-Syllabi-3-to-5-Year-corrected.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Early Childhood Education\\EARLY-CHILDHOOD-EDUCATION-Syllabi-3-to-5-Year-corrected.pdf",
+      "type": "syllabus",
+      "subjectCode": "ECE",
+      "subjectName": "Early Childhood Education",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "INTELLECTUAL-DISABILITY-ECE-SYLLABUS-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Early Childhood Education\\INTELLECTUAL-DISABILITY-ECE-SYLLABUS-1.pdf",
+      "type": "syllabus",
+      "subjectCode": "ECE",
+      "subjectName": "Intellectual Disability",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "AGRICULTURAL-SCIENCE-O-LEVEL-SYLLABUS-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\AGRICULTURAL-SCIENCE-O-LEVEL-SYLLABUS-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "AGRI",
+      "subjectName": "Agricultural Science",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "ART-AND-DESIGN-SYLLABUS-FINAL.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\ART-AND-DESIGN-SYLLABUS-FINAL.pdf",
+      "type": "syllabus",
+      "subjectCode": "ART",
+      "subjectName": "Art And Design",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "BIOLOGY-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\BIOLOGY-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "BIO",
+      "subjectName": "Biology",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "CHEMISTRY-SYLLABUS.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\CHEMISTRY-SYLLABUS.pdf",
+      "type": "syllabus",
+      "subjectCode": "CHEM",
+      "subjectName": "Chemistry",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "CIVIC-EDUCATION-SYLLABUS-SCIENCE-O-LEVEL-SYLLABUS-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\CIVIC-EDUCATION-SYLLABUS-SCIENCE-O-LEVEL-SYLLABUS-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "CIVIC",
+      "subjectName": "Civic Education",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "COMMERCE-AND-PRINCIPLES-OF-ACCOUNTS-SYLABUS-CAMERA-READY-O-LEVEL-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\COMMERCE-AND-PRINCIPLES-OF-ACCOUNTS-SYLABUS-CAMERA-READY-O-LEVEL-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "COM",
+      "subjectName": "Commerce And Principles Of Accounts",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "COMPUTER_-SCIENCE-ORDINARY-SYLLABI-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\COMPUTER_-SCIENCE-ORDINARY-SYLLABI-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "SCI",
+      "subjectName": "Science",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "DESIGN-AND-TECHNOLOGY-STUDIES.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\DESIGN-AND-TECHNOLOGY-STUDIES.pdf",
+      "type": "syllabus",
+      "subjectCode": "DT",
+      "subjectName": "Design And Technology Studies",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "ENGLISH-SYLABUS-FORM-1-4-O-LEVELCAMERA-READY.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\ENGLISH-SYLABUS-FORM-1-4-O-LEVELCAMERA-READY.pdf",
+      "type": "syllabus",
+      "subjectCode": "ENG",
+      "subjectName": "English",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "FASHION-AND-FABRICS-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\FASHION-AND-FABRICS-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "FF",
+      "subjectName": "Fashion And Fabrics",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "FOOD-AND-NUTRITION-SYLLABUS-FINAL-07-02-2024.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\FOOD-AND-NUTRITION-SYLLABUS-FINAL-07-02-2024.pdf",
+      "type": "syllabus",
+      "subjectCode": "FN",
+      "subjectName": "Food And Nutrition",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "FRENCH-LANGUAGE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\FRENCH-LANGUAGE.pdf",
+      "type": "syllabus",
+      "subjectCode": "FRENCH",
+      "subjectName": "French Language",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "GEOGRAPHY-SYLLABUS.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\GEOGRAPHY-SYLLABUS.pdf",
+      "type": "syllabus",
+      "subjectCode": "GEO",
+      "subjectName": "Geography",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "HISTORY-SYLLABUS-FORMS-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\HISTORY-SYLLABUS-FORMS-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "HIST",
+      "subjectName": "History",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "HOSPITALITY-MANAGEMENT.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\HOSPITALITY-MANAGEMENT.pdf",
+      "type": "syllabus",
+      "subjectCode": "HOSP",
+      "subjectName": "Hospitality Management",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "ICT_ORDINARY-LEVEL-SYLLABUS-FORMS-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\ICT_ORDINARY-LEVEL-SYLLABUS-FORMS-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "ICT",
+      "subjectName": "Ict",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "LITERATURE-IN-ENGLISH-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\LITERATURE-IN-ENGLISH-SYLABUS-O-LEVEL-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "LIT",
+      "subjectName": "Literature In English",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "MATHEMATICS-II-SYLLABUS.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\MATHEMATICS-II-SYLLABUS.pdf",
+      "type": "syllabus",
+      "subjectCode": "AMATH",
+      "subjectName": "Mathematics Ii",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "MATHEMATICS-O-LEVEL-FORMS-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\MATHEMATICS-O-LEVEL-FORMS-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "MATH",
+      "subjectName": "Mathematics",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "MUSIC-ARTS-O-LEVEL-SYLLABUS-FORM-1-4-CAMERA-READY-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\MUSIC-ARTS-O-LEVEL-SYLLABUS-FORM-1-4-CAMERA-READY-1.pdf",
+      "type": "syllabus",
+      "subjectCode": "MUSIC",
+      "subjectName": "Music Arts",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "PHYSICAL-EDUCATION-SYLLABUS-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\PHYSICAL-EDUCATION-SYLLABUS-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "PE",
+      "subjectName": "Physical Education",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "PHYSICS-SYLLABUS-O-LEVEL-FORM-1-4.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\PHYSICS-SYLLABUS-O-LEVEL-FORM-1-4.pdf",
+      "type": "syllabus",
+      "subjectCode": "PHY",
+      "subjectName": "Physics",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "RELIGIOUS-EDUCATION-SYLLABUS.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\RELIGIOUS-EDUCATION-SYLLABUS.pdf",
+      "type": "syllabus",
+      "subjectCode": "RE",
+      "subjectName": "Religious Education",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "TRAVEL-AND-TOURISM-SYLLABUS.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\TRAVEL-AND-TOURISM-SYLLABUS.pdf",
+      "type": "syllabus",
+      "subjectCode": "TOURISM",
+      "subjectName": "Travel And Tourism",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "ZAMBIAN-LANGUAGES-ORDINARY-LEVEL-SYLLABUS-FORM-1-4-FINAL.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Form 1 - 4\\ZAMBIAN-LANGUAGES-ORDINARY-LEVEL-SYLLABUS-FORM-1-4-FINAL.pdf",
+      "type": "syllabus",
+      "subjectCode": "ZAM",
+      "subjectName": "Zambian Languages",
+      "gradeLevel": "Form 1-4",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "filename": "EXPRESSIVE-ARTS-UPPER-PRIMARY-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Primary Education\\EXPRESSIVE-ARTS-UPPER-PRIMARY-2.pdf",
+      "type": "syllabus",
+      "subjectCode": "ART",
+      "subjectName": "Expressive Arts",
+      "gradeLevel": "Grade 5-7",
+      "gradeLevels": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "filename": "INTELLECTUAL-DISABILITY-ENGLISH-LANGUAGE-SYLLABUS-LEVEL-I-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Primary Education\\INTELLECTUAL-DISABILITY-ENGLISH-LANGUAGE-SYLLABUS-LEVEL-I-3.pdf",
+      "type": "syllabus",
+      "subjectCode": "ECE",
+      "subjectName": "Intellectual Disability",
+      "gradeLevel": "Grade 1-7",
+      "gradeLevels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "filename": "TECHNOLOGY-STUDIES-UPPER-PRIMARY.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Primary Education\\TECHNOLOGY-STUDIES-UPPER-PRIMARY.pdf",
+      "type": "syllabus",
+      "subjectCode": "DT",
+      "subjectName": "Technology Studies",
+      "gradeLevel": "Grade 5-7",
+      "gradeLevels": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "filename": "ZAMBIAN-SIGN-LANGUAGES-Grades-1-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Syllabi\\Primary Education\\ZAMBIAN-SIGN-LANGUAGES-Grades-1-3.pdf",
+      "type": "syllabus",
+      "subjectCode": "ZAM",
+      "subjectName": "Zambian Sign Languages",
+      "gradeLevel": "Grade 1-7",
+      "gradeLevels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "filename": "1-ECE-CHITONGA-TEACHING-MODULE-LEVEL-1-TERM1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\1-ECE-CHITONGA-TEACHING-MODULE-LEVEL-1-TERM1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-ECE-CINYANJA-TEACHING-MODULE-LEVEL-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\1-ECE-CINYANJA-TEACHING-MODULE-LEVEL-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-ECE-LUNDA-TEACHING-MODULE-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\1-ECE-LUNDA-TEACHING-MODULE-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-ECE-SILOZI-TEACHING-MODULE-LEVEL-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\1-ECE-SILOZI-TEACHING-MODULE-LEVEL-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Silozi",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "CHITONGA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CHITONGA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CHITONGA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CHITONGA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CINYANJA-ECE-TEACHING-MODULE-TERM-2-LEVEL-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CINYANJA-ECE-TEACHING-MODULE-TERM-2-LEVEL-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CINYANJA-ECE-TEACHING-MODULE-TERM-3-LEVEL-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CINYANJA-ECE-TEACHING-MODULE-TERM-3-LEVEL-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CTS-ECE-Level-3-4-Teaching-Module-Final-Draft1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CTS-ECE-Level-3-4-Teaching-Module-Final-Draft1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "CTS-ECE-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CTS-ECE-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CTS-ECE-TERM-3-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CTS-ECE-TERM-3-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CTS_ECE_MODULE_VISUAL_IMPAIRMENTS_.docx_Edited1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\CTS_ECE_MODULE_VISUAL_IMPAIRMENTS_.docx_Edited1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "ECE-ZSL-MODULE-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\ECE-ZSL-MODULE-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Zambian Sign Language",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "Edited-version-Pre-Mathematics-Science-Teaching-Module-Feb-.2025-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\Edited-version-Pre-Mathematics-Science-Teaching-Module-Feb-.2025-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "NUMERACY",
+      "subjectName": "Pre Mathematics Science",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "Edited-version-Pre-Mathematics-Science-Teaching-Module-Feb-.2025.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\Edited-version-Pre-Mathematics-Science-Teaching-Module-Feb-.2025.pdf",
+      "type": "teaching_module",
+      "subjectCode": "NUMERACY",
+      "subjectName": "Pre Mathematics Science",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "ICIBEMBA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\ICIBEMBA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Icibemba",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "ICIBEMBA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\ICIBEMBA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Icibemba",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "ICIBEMBA-TEACHING-MODULE-GELEDI-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\ICIBEMBA-TEACHING-MODULE-GELEDI-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Icibemba",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "ID_ECE_TEACHING_MODULE-2025-FINAL-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\ID_ECE_TEACHING_MODULE-2025-FINAL-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ECE",
+      "subjectName": "Id",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "KIKAONDE-ECE-TEACHING-MODULE-TERM-2-LEVEL-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\KIKAONDE-ECE-TEACHING-MODULE-TERM-2-LEVEL-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Kikaonde",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "KIKAONDE-ECE-TEACHING-MODULE-TERM-3-proofreading.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\KIKAONDE-ECE-TEACHING-MODULE-TERM-3-proofreading.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Kikaonde",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LUNDA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\LUNDA-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LUNDA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\LUNDA-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LUVALE-ECE-LEVEL-1-TEACHING-MODULE-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\LUVALE-ECE-LEVEL-1-TEACHING-MODULE-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LUVALE-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\LUVALE-ECE-TEACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LUVALE-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\LUVALE-ECE-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ],
+      "term": 3
+    },
+    {
+      "filename": "Pre-Mathematics_and_Science_MODULE_VISUAL_IMPAIRMENTS_.docx_edited2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Early Childhood Education\\Pre-Mathematics_and_Science_MODULE_VISUAL_IMPAIRMENTS_.docx_edited2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "NUMERACY",
+      "subjectName": "Pre Mathematics",
+      "gradeLevel": "ECE",
+      "gradeLevels": [
+        -3,
+        -2,
+        -1,
+        0
+      ]
+    },
+    {
+      "filename": "1-CHITONGA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\1-CHITONGA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-ENGLISH-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\1-ENGLISH-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ENG",
+      "subjectName": "English Language",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-FRENCH-FORM-1-TEACHING-M-ODULE-FINAL-COPY.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\1-FRENCH-FORM-1-TEACHING-M-ODULE-FINAL-COPY.pdf",
+      "type": "teaching_module",
+      "subjectCode": "FRENCH",
+      "subjectName": "French",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "1-LITERATURE-IN-SILOZI-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\1-LITERATURE-IN-SILOZI-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Silozi",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "ART-AN-DESIGN-MODULE-FORM-PDF.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ART-AN-DESIGN-MODULE-FORM-PDF.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ART",
+      "subjectName": "Art An Design",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "ART-AND-DESIGN-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ART-AND-DESIGN-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ART",
+      "subjectName": "Art And Design",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "Chemistry-Teaching-Module-Form-1-final-version-3-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Chemistry-Teaching-Module-Form-1-final-version-3-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CHEM",
+      "subjectName": "Chemistry",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "Chemistry-Teaching-Module-Form-1-final-version-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Chemistry-Teaching-Module-Form-1-final-version-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CHEM",
+      "subjectName": "Chemistry",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "CHITONGA-FORM-1-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CHITONGA-FORM-1-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CHITONGA-FORM-1-TERM-2-TEACHING-MODULE-2025-VERSION.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CHITONGA-FORM-1-TERM-2-TEACHING-MODULE-2025-VERSION.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CINYANJA-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CINYANJA-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CINYANJA-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CINYANJA-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CIVIC-EDUCATION-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CIVIC-EDUCATION-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CIVIC",
+      "subjectName": "Civic Education",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CIVIC_EDUCATION_TEACHING_MODULE-PDF.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\CIVIC_EDUCATION_TEACHING_MODULE-PDF.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CIVIC",
+      "subjectName": "Civic Education",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "commerce-Teaching-Module-PDF.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\commerce-Teaching-Module-PDF.pdf",
+      "type": "teaching_module",
+      "subjectCode": "COM",
+      "subjectName": "Commerce",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "COMMERCE-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\COMMERCE-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "COM",
+      "subjectName": "Commerce",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "Design-and-Technology-Module-Final-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Design-and-Technology-Module-Final-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "DT",
+      "subjectName": "Design And Technology",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "ENGLISH-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-3-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ENGLISH-LANGUAGE-TEACHING-MODULE-FORM-1-TERM-3-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ENG",
+      "subjectName": "English Language",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "ENGLISH-LANGUAGE-TEACHING-MODULE-TERM-2-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ENGLISH-LANGUAGE-TEACHING-MODULE-TERM-2-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ENG",
+      "subjectName": "English Language",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "FOOD-AND-NUTRITION-FORM-1-TERM-1-MODULE-Final-edited-Finaledition.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FOOD-AND-NUTRITION-FORM-1-TERM-1-MODULE-Final-edited-Finaledition.pdf",
+      "type": "teaching_module",
+      "subjectCode": "FN",
+      "subjectName": "Food And Nutrition",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "FORM-1-ICT-MODULE-Sample1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FORM-1-ICT-MODULE-Sample1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ICT",
+      "subjectName": "Ict",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "FORM-1-LITERATURE-IN-ENGLISH-TEACHING-MODULE-FOR-TERM-2-1-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FORM-1-LITERATURE-IN-ENGLISH-TEACHING-MODULE-FOR-TERM-2-1-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "LIT",
+      "subjectName": "Literature In English",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "FORM-1-LITERATURE-IN-ENGLISH-TEACHING-MOULE-FOR-TERM-3-1-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FORM-1-LITERATURE-IN-ENGLISH-TEACHING-MOULE-FOR-TERM-3-1-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "LIT",
+      "subjectName": "Literature In English",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "FRENCH-TEACHING-MODULE-TERM-2-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FRENCH-TEACHING-MODULE-TERM-2-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "FRENCH",
+      "subjectName": "French",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "FRENCH-TEACHING-MODULE-TERM-3-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\FRENCH-TEACHING-MODULE-TERM-3-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "FRENCH",
+      "subjectName": "French",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "Geography-Module-Form1.Term-11.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Geography-Module-Form1.Term-11.pdf",
+      "type": "teaching_module",
+      "subjectCode": "GEO",
+      "subjectName": "Geography",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "GEOGRAPHY-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\GEOGRAPHY-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "GEO",
+      "subjectName": "Geography",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "HISTORY-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\HISTORY-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "HIST",
+      "subjectName": "History",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "HOSPITALITY-MANAGEMENT-FINAL-HIGHRIDGE-.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\HOSPITALITY-MANAGEMENT-FINAL-HIGHRIDGE-.pdf",
+      "type": "teaching_module",
+      "subjectCode": "HOSP",
+      "subjectName": "Hospitality Management",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "ICIBEMBA-TEACHING-MODULE-FORM-1-TERM-2-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ICIBEMBA-TEACHING-MODULE-FORM-1-TERM-2-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Icibemba",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "ICIBEMBA-TEACHING-MODULE-FORM-1-TERM-3-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\ICIBEMBA-TEACHING-MODULE-FORM-1-TERM-3-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Icibemba",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "KIKAONDE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\KIKAONDE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "KIKAONDE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\KIKAONDE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "KIKAONDE-TEACHING-MODULE-FORM-1-TERM-3-2025.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\KIKAONDE-TEACHING-MODULE-FORM-1-TERM-3-2025.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LIT-IN-ICIBEMBA-FORM-1-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-ICIBEMBA-FORM-1-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Icibemba",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LIT-IN-ICIBEMBA-FORM-1-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-ICIBEMBA-FORM-1-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Icibemba",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LIT-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LIT-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LIT-IN-LUNDA-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-LUNDA-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LIT-IN-LUVALE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-LUVALE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LIT-IN-LUVALE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-LUVALE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LIT-IN-SILOZI-TEACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-SILOZI-TEACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Silozi",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LIT-IN-SILOZI-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LIT-IN-SILOZI-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lit In Silozi",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LITERATURE-IN-BEMBA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-BEMBA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Bemba",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LITERATURE-IN-CHITONGA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-CHITONGA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Chitonga",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LITERATURE-IN-CINYANJA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-CINYANJA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Cinyanja",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LITERATURE-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-KIKAONDE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Kikaonde",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LITERATURE-IN-LUNDA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-LUNDA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LITERATURE-IN-LUVALE-TEACHING-MODULE-FROM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LITERATURE-IN-LUVALE-TEACHING-MODULE-FROM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Literature In Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LUNDA-LANGUAGE-FORM-1-TEACHING-MODULE-TERM-3-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUNDA-LANGUAGE-FORM-1-TEACHING-MODULE-TERM-3-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LUNDA-LANGUAGE-FORM-1-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUNDA-LANGUAGE-FORM-1-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "LUNDA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUNDA-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LUNDA-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUNDA-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Lunda",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LUVALE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUVALE-TEACHING-MODULE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "LUVALE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUVALE-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "LUVALE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\LUVALE-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Luvale",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "MATHEMATICS-1-MODULE-FINAL.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\MATHEMATICS-1-MODULE-FINAL.pdf",
+      "type": "teaching_module",
+      "subjectCode": "MATH",
+      "subjectName": "Mathematics",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "Maths2_Teaching_Module.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Maths2_Teaching_Module.pdf",
+      "type": "teaching_module",
+      "subjectCode": "AMATH",
+      "subjectName": "Maths2",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "MUSICAL-ARTS-EDUCATION-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\MUSICAL-ARTS-EDUCATION-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "MUSIC",
+      "subjectName": "Musical Arts Education",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "PHYSICAL-EDUCATION-AND-SPORT-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\PHYSICAL-EDUCATION-AND-SPORT-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "PE",
+      "subjectName": "Physical Education And Sport",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "PHYSICAL-EDUCATION-AND-SPORT-TERM-3-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\PHYSICAL-EDUCATION-AND-SPORT-TERM-3-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "PE",
+      "subjectName": "Physical Education And Sport",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "Physics-Teaching-Module-Form-1Highridge-Feb-2025-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\Physics-Teaching-Module-Form-1Highridge-Feb-2025-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "PHY",
+      "subjectName": "Physics",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "PRINCIPLES-OF-ACCOUNTS-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\PRINCIPLES-OF-ACCOUNTS-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ACCT",
+      "subjectName": "Principles Of Accounts",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "RELIGIOUS-EDUCATION-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\RELIGIOUS-EDUCATION-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "RE",
+      "subjectName": "Religious Education",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "SILOZI-LANG-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\SILOZI-LANG-TEACHING-MODULE-FORM-1-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Silozi",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 2
+    },
+    {
+      "filename": "SILOZI-LANG-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\SILOZI-LANG-TEACHING-MODULE-FORM-1-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Silozi",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 3
+    },
+    {
+      "filename": "TEACHING-MODULE-FOR-LITERATURE-FORM-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\TEACHING-MODULE-FOR-LITERATURE-FORM-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "LIT",
+      "subjectName": "Literature",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "term": 1
+    },
+    {
+      "filename": "TRAVEL_AND_TOURISM_MODULE_Final-2025.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Form 1 - 6\\TRAVEL_AND_TOURISM_MODULE_Final-2025.pdf",
+      "type": "teaching_module",
+      "subjectCode": "TOURISM",
+      "subjectName": "Travel And Tourism",
+      "gradeLevel": "Form 1-6",
+      "gradeLevels": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "filename": "1-CHITONGA-TEACHING-MODULE-GRADE-1-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\1-CHITONGA-TEACHING-MODULE-GRADE-1-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 1
+    },
+    {
+      "filename": "1-CINYANJA-TEACHING-MODULES-GRADE-1-Term-1-Module-2025-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\1-CINYANJA-TEACHING-MODULES-GRADE-1-Term-1-Module-2025-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 1
+    },
+    {
+      "filename": "ADAPTED_CTS_VI_TEACHING_MODULE_TERM_1__2-11.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\ADAPTED_CTS_VI_TEACHING_MODULE_TERM_1__2-11.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Adapted Cts",
+      "gradeLevel": "Grade 1-7",
+      "gradeLevels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "term": 1
+    },
+    {
+      "filename": "CHITONGA-GRADE-1-EACHING-MODULE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CHITONGA-GRADE-1-EACHING-MODULE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CHITONGA-GRADE-1-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CHITONGA-GRADE-1-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Chitonga",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CINYANJA-GRADE-1-TEACHING-MODLE-TERM-2.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CINYANJA-GRADE-1-TEACHING-MODLE-TERM-2.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CINYANJA-GRADE-1-TEACHING-MODULE-TERM-3.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CINYANJA-GRADE-1-TEACHING-MODULE-TERM-3.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ZAM",
+      "subjectName": "Cinyanja",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 3
+    },
+    {
+      "filename": "CREATIVE-AND-TECHNOLOGY-STUDIES-GRADE1-TEACHING-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CREATIVE-AND-TECHNOLOGY-STUDIES-GRADE1-TEACHING-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Creative And Technology Studies",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ]
+    },
+    {
+      "filename": "CTS-GRADE-1-TERM-2-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CTS-GRADE-1-TERM-2-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 2
+    },
+    {
+      "filename": "CTS-GRADE-1-TERM-3-MODULE.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\CTS-GRADE-1-TERM-3-MODULE.pdf",
+      "type": "teaching_module",
+      "subjectCode": "CTS",
+      "subjectName": "Cts",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 3
+    },
+    {
+      "filename": "Teaching-Module-Literacy-in-English-Grade-1.-TERM-1.pdf",
+      "filepath": "D:\\livingilabs\\Sync\\backend\\Finalised Teaching Modules\\Primary Education\\Teaching-Module-Literacy-in-English-Grade-1.-TERM-1.pdf",
+      "type": "teaching_module",
+      "subjectCode": "ENG",
+      "subjectName": "Literacy In English",
+      "gradeLevel": "Grade 1",
+      "gradeLevels": [
+        1
+      ],
+      "term": 1
+    }
+  ],
+  "lastIndexed": "2026-10-19T10:59:48.622Z"
+}

@@ -31,10 +31,10 @@ const DashboardLayout = () => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="app-main md:pl-[17.5rem] min-h-screen"
+          className={`app-main md:pl-[17.5rem] min-h-screen${location.pathname === '/' ? ' app-main--dashboard' : ''}`}
           style={{
             paddingTop: 'calc(4rem + env(safe-area-inset-top))',
-            paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))',
+            paddingBottom: 'var(--app-main-bottom-padding, calc(4rem + env(safe-area-inset-bottom)))',
           }}
         >
           <div className="ds-shell py-4 sm:py-6 lg:py-8">

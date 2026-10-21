@@ -1,0 +1,181 @@
+/* Public pricing: uses the school's real billing policy, not checkout amounts. */
+#pricing {
+    background: linear-gradient(180deg, #f7f9fd 0%, #f3f6fb 100%);
+}
+
+#pricing .section-header {
+    max-width: 780px;
+    margin: 0 auto 34px;
+}
+
+#pricing .section-subtitle {
+    max-width: 650px;
+    margin-inline: auto;
+}
+
+#pricing .pricing-estimator[hidden],
+#pricing .pricing-estimator__hint[hidden] {
+    display: none !important;
+}
+
+#pricing .pricing-estimator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    max-width: 940px;
+    margin: 0 auto 10px;
+    padding: 23px 28px;
+    border: 1px solid #cedbf1;
+    border-left: 4px solid var(--accent);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(18, 63, 169, .055);
+}
+
+#pricing .pricing-estimator__eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+}
+
+#pricing .pricing-estimator label {
+    display: block;
+    color: var(--primary-dark);
+    font-size: clamp(17px, 2.1vw, 22px);
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+#pricing .pricing-estimator p,
+#pricing .pricing-estimator__hint,
+#pricing .pricing-policy-note {
+    color: #53657e;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+#pricing .pricing-estimator p { margin-top: 5px; }
+#pricing .pricing-estimator__control { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; color: #53657e; font-size: 12px; }
+#pricing .pricing-estimator__control input {
+    width: 110px;
+    min-height: 48px;
+    padding: 8px 12px;
+    border: 1px solid #b9cce8;
+    border-radius: 10px;
+    background: #f8faff;
+    color: var(--primary-dark);
+    font: inherit;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+}
+#pricing .pricing-estimator__control input:focus-visible { outline: 3px solid #abc4fa; outline-offset: 2px; }
+#pricing .pricing-estimator__hint { max-width: 940px; margin: 0 auto 26px; }
+#pricing .pricing-policy-note { max-width: 780px; margin: 24px auto 0; text-align: center; }
+
+#pricing .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+    margin-inline: auto;
+}
+
+#pricing .pricing-grid--legacy { grid-template-columns: minmax(0, 430px); justify-content: center; }
+
+#pricing .pricing-card--live {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 26px 22px 22px;
+    border: 1px solid #dbe4f2;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 7px 24px rgba(21, 48, 90, .04);
+    transform: none;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+#pricing .pricing-card--live::before { height: 3px; background: var(--primary); }
+#pricing .pricing-card--live.tier-enterprise::before { background: var(--accent); }
+#pricing .pricing-card--live:hover,
+#pricing .pricing-card--live.popular:hover {
+    border-color: #9ab3df;
+    box-shadow: 0 18px 38px rgba(18, 63, 169, .12);
+    transform: translateY(-3px);
+}
+#pricing .pricing-card--live.popular { border: 2px solid var(--primary); box-shadow: 0 12px 28px rgba(18, 63, 169, .11); }
+#pricing .pricing-card--live.popular::before { background: var(--accent); }
+
+#pricing .pricing-card__badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 6px 11px;
+    border-radius: 0 14px 0 12px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: .05em;
+}
+
+#pricing .pricing-card__audience {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+#pricing .pricing-card__header h3 { margin: 0 0 5px; color: var(--primary-dark); font-size: 24px; line-height: 1.2; }
+#pricing .pricing-card__description { min-height: 43px; color: #53657e; font-size: 13px; line-height: 1.5; }
+#pricing .pricing-card__rate { display: flex; flex-direction: column; gap: 3px; margin: 18px 0 14px; }
+#pricing .pricing-card__rate strong { color: var(--primary-dark); font-size: clamp(23px, 2.2vw, 31px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+#pricing .pricing-card__rate span { color: #53657e; font-size: 12px; }
+#pricing .pricing-card__estimate { display: flex; flex-direction: column; gap: 5px; min-height: 78px; padding: 12px 14px; border-radius: 11px; background: #eff4fc; }
+#pricing .pricing-card__estimate span { color: #455a78; font-size: 11px; line-height: 1.4; }
+#pricing .pricing-card__estimate strong { color: var(--primary-dark); font-size: 17px; font-variant-numeric: tabular-nums; }
+#pricing .pricing-card__facts { display: flex; flex-direction: column; flex: 1; gap: 10px; margin: 19px 0 20px; padding: 0; list-style: none; }
+#pricing .pricing-card__facts li { display: flex; align-items: start; gap: 8px; color: #40516a; font-size: 12px; line-height: 1.4; }
+#pricing .pricing-card__facts li span { flex: 0 0 auto; color: var(--primary); font-weight: 800; }
+#pricing .pricing-card--live .btn { display: flex; align-items: center; justify-content: center; min-height: 48px; text-align: center; }
+#pricing .pricing-card--live .btn:focus-visible { outline: 3px solid #abc4fa; outline-offset: 3px; }
+#pricing .pricing-card__disclaimer { display: block; margin-top: 11px; color: #64748b; font-size: 10px; line-height: 1.5; text-align: center; }
+
+#pricing .pricing-unavailable {
+    grid-column: 1 / -1;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 36px;
+    border: 1px solid #cfdaee;
+    border-radius: 16px;
+    background: #fff;
+    text-align: center;
+}
+#pricing .pricing-unavailable h3 { color: var(--primary-dark); font-size: 22px; }
+#pricing .pricing-unavailable p { margin: 9px auto 20px; color: #53657e; }
+
+@media (max-width: 1080px) {
+    #pricing .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #pricing .pricing-grid--legacy { grid-template-columns: minmax(0, 430px); }
+}
+@media (max-width: 650px) {
+    #pricing .pricing-grid { grid-template-columns: minmax(0, 1fr); max-width: 430px; margin: 0 auto; }
+    #pricing .pricing-grid--legacy { grid-template-columns: minmax(0, 1fr); }
+    #pricing .pricing-estimator { flex-direction: column; align-items: stretch; padding: 20px; }
+    #pricing .pricing-estimator__control { justify-content: space-between; }
+    #pricing .pricing-card--live { padding: 23px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #pricing .pricing-card--live { transition: none; }
+    #pricing .pricing-card--live:hover { transform: none; }
+}

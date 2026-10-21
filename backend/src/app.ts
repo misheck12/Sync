@@ -58,6 +58,7 @@ import smsRoutes from './routes/smsRoutes';
 import tenantRoutes from './routes/tenantRoutes';
 // Platform Administration
 import platformRoutes from './routes/platformRoutes';
+import websiteRoutes from './routes/websiteRoutes';
 import subscriptionBillingRoutes from './routes/subscriptionBillingRoutes';
 import tenantFileRoutes from './routes/tenantFileRoutes';
 // Middleware
@@ -167,6 +168,9 @@ app.use('/api/v1/tenant', tenantRoutes);
 
 // Platform Administration (cross-tenant)
 app.use('/api/v1/platform', platformRoutes);
+
+// Public marketing pricing (never exposes platform settings or tenant invoices).
+app.use('/api/v1/website', websiteRoutes);
 
 // Tenant self-service subscription billing (pay platform invoices via Lenco)
 app.use('/api/v1/billing/subscription', subscriptionBillingRoutes);
